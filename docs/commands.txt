@@ -1,0 +1,2 @@
+MAKE_WHEEL_PACKAGE: python3 setup.py bdist_wheel
+UPLOAD PACKAGE:     twine upload --repository testpypi dist/*

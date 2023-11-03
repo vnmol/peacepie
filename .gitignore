@@ -1,0 +1,10 @@
+build/
+dist/
+logs/
+packages/
+peacepie.egg-info/
+__pycache__/
+venv/
+.idea/
+example.stats
+

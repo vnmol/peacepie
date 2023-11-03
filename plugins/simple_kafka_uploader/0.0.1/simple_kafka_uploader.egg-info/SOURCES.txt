@@ -1,0 +1,8 @@
+setup.py
+simple_kafka_uploader/__init__.py
+simple_kafka_uploader/uploader.py
+simple_kafka_uploader.egg-info/PKG-INFO
+simple_kafka_uploader.egg-info/SOURCES.txt
+simple_kafka_uploader.egg-info/dependency_links.txt
+simple_kafka_uploader.egg-info/requires.txt
+simple_kafka_uploader.egg-info/top_level.txt
