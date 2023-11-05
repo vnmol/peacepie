@@ -4,7 +4,7 @@ import os
 from peacepie.assist import log_util, dir_operations
 from peacepie import multimanager
 
-LOG_PATH = './logs/log.log'
+LOG_PATH = './logs/logs.logs'
 
 instance = None
 

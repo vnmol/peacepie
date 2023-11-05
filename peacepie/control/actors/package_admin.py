@@ -47,20 +47,21 @@ class PackageAdmin:
 
     def put_into_queue(self, class_desc):
         queue = asyncio.Queue()
-        waiters = self.waiters.get(class_desc[PACKAGE_NAME])
+        waiters = self.waiters.get(class_desc.get(PACKAGE_NAME))
         if not waiters:
             waiters = []
-            self.waiters[class_desc[PACKAGE_NAME]] = waiters
-            asyncio.get_running_loop().create_task(self.load_package(class_desc))
-        waiters.append({'version': class_desc.get(version.VERSION), 'class': class_desc[CLASS], 'queue': queue})
+            self.waiters[class_desc.get(PACKAGE_NAME)] = waiters
+            func = self.copy_package if params.instance.get('developing_mode') else self.load_package
+            asyncio.get_running_loop().create_task(func(class_desc))
+        waiters.append({'version': class_desc.get(version.VERSION), 'class': class_desc.get(CLASS), 'queue': queue})
         return queue
 
     async def load_package(self, class_desc):
-        if not await self.download(class_desc[PACKAGE_NAME], class_desc.get(version.VERSION)):
+        if not await self.download(class_desc.get(PACKAGE_NAME), class_desc.get(version.VERSION)):
             return
         if not self.are_packages_suitable():
             return
-        await self.install(class_desc[PACKAGE_NAME])
+        await self.install(class_desc.get(PACKAGE_NAME))
 
     async def download(self, package_name, conditions):
         package_name = package_name + version.conditions_as_text(conditions)
@@ -128,3 +129,16 @@ class PackageAdmin:
                     self.logger.exception(ex)
             await waiter['queue'].put(res)
         del self.waiters[package_name]
+
+    async def copy_package(self, class_desc):
+        package_name = class_desc.get('package_name')
+        path = './plugins/' + package_name
+        lst = [version.from_string(name) for name in os.listdir(path) if version.from_string(name)]
+        ver = version.find_max_version(self, lst, class_desc.get(version.VERSION))
+        src = f'{path}/{version.to_string(ver)}/{package_name}'
+        dst = f'{self.work_path}/{package_name}'
+        dir_operations.makedir(dst)
+        dir_operations.copy_tree(src, dst)
+        pack = importlib.import_module(package_name)
+        await self.notify(package_name, ver, pack)
+        self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}

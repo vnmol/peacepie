@@ -21,10 +21,10 @@ def from_string(val):
     return res
 
 
-def find_max_version(lst, conditions):
+def find_max_version(actor, lst, conditions):
     res = None
     for ver in lst:
-        if check_version(ver, conditions):
+        if check_version(actor, ver, conditions):
             if res is None:
                 res = ver
             elif check_version(ver, {'>': res}):
@@ -41,7 +41,9 @@ def check_version(actor, ver, conditions):
 
 
 def _check_version(version, conditions):
-    if not (version and conditions):
+    if not version:
+        return False
+    if not conditions:
         return True
     for (condition, value) in conditions.items():
         if condition == '==':

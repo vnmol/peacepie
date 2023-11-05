@@ -4,7 +4,9 @@ import json
 import logging
 import logging.config
 
-LOG_PATH = './logs/log.log'
+from peacepie.assist import dir_operations
+
+LOG_PATH = './logs/logs.logs'
 
 logger = None
 logger_listener = None
