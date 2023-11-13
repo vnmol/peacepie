@@ -39,7 +39,7 @@ class Connector:
             if recipient == self.parent.adaptor.name:
                 return self.parent.adaptor.queue
             elif recipient.startswith('_'):
-                return self.asks[recipient]
+                return self.asks.get(recipient)
             else:
                 res = self.parent.actor_admin.get_actor_queue(recipient)
                 if not res:
@@ -72,13 +72,6 @@ class Connector:
                 return
         msg['timeout'] = timeout
         queue = asyncio.Queue()
-        '''
-        if isinstance(res, asyncio.Queue) and not msg['command'] in EXCLUSION_COMMANDS:
-            msg['sender'] = queue
-            await res.put(msg)
-            self.logger.debug(log_util.async_ask_log(sender, msg))
-        else:
-        '''
         entity = f'_{self.ask_index}'
         self.ask_index += 1
         msg['sender'] = {'node': self.parent.adaptor.name, 'entity': entity}

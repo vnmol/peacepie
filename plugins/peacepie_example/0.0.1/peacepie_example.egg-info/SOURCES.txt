@@ -1,7 +1,0 @@
-setup.py
-peacepie_example/__init__.py
-peacepie_example/examples.py
-peacepie_example.egg-info/PKG-INFO
-peacepie_example.egg-info/SOURCES.txt
-peacepie_example.egg-info/dependency_links.txt
-peacepie_example.egg-info/top_level.txt

@@ -1,3 +1,5 @@
+import asyncio
+
 from peacepie import adaptor
 
 
@@ -25,24 +27,41 @@ def get_alias(obj):
 
 
 def async_sent_log(sender, msg):
-    return get_alias(sender) + ' sent: ' + str(msg)
+    return get_alias(sender) + f' sent: {msg_format(msg)}'
 
 
 def async_ask_log(sender, msg):
-    return get_alias(sender) + ' asked: ' + str(msg)
+    return get_alias(sender) + f' asked: {msg_format(msg)}'
 
 
 def async_received_log(sender, msg):
-    return get_alias(sender) + ' received: ' + str(msg)
+    return get_alias(sender) + f' received: {msg_format(msg)}'
 
 
 def sync_sent_log(sender, msg):
-    return get_alias(sender) + f' SENT: {msg}'
+    return get_alias(sender) + f' SENT: {msg_format(msg)}'
 
 
 def sync_ask_log(sender, msg):
-    return get_alias(sender) + f' ASKED: {msg}'
+    return get_alias(sender) + f' ASKED: {msg_format(msg)}'
 
 
 def sync_received_log(sender, msg):
-    return get_alias(sender) + f' RECEIVED: {msg}'
+    return get_alias(sender) + f' RECEIVED: {msg_format(msg)}'
+
+
+def msg_format(msg):
+    res = "{'mid': '" + msg.get('mid') + "', 'command': '" + msg.get('command')
+    res += "', 'body': " + str(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
+    res += "', 'sender': " + addr_format(msg.get('sender')) + ", 'timeout': " + str(msg.get('timeout'))
+    res += "}"
+    return res
+
+
+def addr_format(addr):
+    if isinstance(addr, str):
+        return f"'{addr}'"
+    elif isinstance(addr, asyncio.Queue):
+        return f'{addr.__class__.__name__}({id(addr)})'
+    else:
+        return str(addr)

@@ -74,7 +74,10 @@ class ActorLoader:
         timer.start(queue, msg['mid'], msg['timeout'])
         count = 0
         while True:
+            if count == len(actors):
+                break
             ans = await queue.get()
+            self.logger.debug(log_util.async_received_log(self, ans))
             if ans['command'] != 'actor_is_created':
                 break
             count += 1

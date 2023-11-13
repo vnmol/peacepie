@@ -1,1 +1,1 @@
-from peacepie_example.examples import HelloWorld, IteratingHelloWorld, Initiator
+from peacepie_example.examples import Initiator, HelloWorld, IteratingHelloWorld, Starter, Tester

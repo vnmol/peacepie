@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='peacepie',
-    version='0.0.4',
+    version='0.0.5',
     description='A simple actor system',
     long_description=open('README.md').read(),
     license='MIT',

@@ -1,1 +1,0 @@
-from testing.test import Starter, Tester

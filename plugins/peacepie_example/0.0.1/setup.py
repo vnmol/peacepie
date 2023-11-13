@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='peacepie_example',
-    version='0.0.2',
+    version='0.0.4',
     description='Examples for the package "peacepie"',
     license='MIT',
     author='Vladimir Molodtsov',
