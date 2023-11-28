@@ -1,8 +1,7 @@
 import asyncio
 import logging
-import sys
 
-from peacepie import params
+from peacepie import params, msg_factory, loglistener
 from peacepie.assist import dir_operations
 from peacepie.control import spy, connector
 
@@ -63,6 +62,9 @@ class Admin:
         elif command in ACTOR_SEEKER_COMMANDS:
             msg['recipient'] = self.actor_seeker.queue
             await self.connector.send(self, msg)
+        elif command == 'get_log_desc':
+            ans = msg_factory.get_msg('log_desc', loglistener.instance.get_log_desc(), msg['sender'])
+            await self.connector.send(self, ans)
         else:
             return False
         return True

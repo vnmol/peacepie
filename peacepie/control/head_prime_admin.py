@@ -35,6 +35,10 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         elif command in PACKAGE_LOADER_COMMANDS:
             await self.package_loader.queue.put(msg)
             self.logger.debug(log_util.async_sent_log(self, msg))
+        elif command == 'get_processes':
+            res = [key for key in self.intralink.links.keys()]
+            res.insert(0, self.adaptor.name)
+            await self.adaptor.send(self.adaptor.get_msg('processes', {'list': res}, msg.get('sender')))
         else:
             return await super().handle(msg)
         return True

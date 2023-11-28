@@ -10,12 +10,15 @@ class Starter:
     def __init__(self, parent):
         self.logger = logging.getLogger()
         self.parent = parent
-        self.queue = asyncio.Queue()
+        self.queue = None
         self.is_wait = True
         self.class_desc = json_util.json_loads(params.instance.get('starter'))
         self.logger.info(log_util.get_alias(self) + ' is created')
 
     async def start(self):
+        if not self.class_desc:
+            return
+        self.queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.listening())
         msg = msg_factory.get_msg('create_actor', self.class_desc,
                                   recipient=self.parent.parent.adaptor.queue, sender=self.queue)
@@ -29,6 +32,8 @@ class Starter:
         self.is_wait = False
         try:
             com = json_util.json_loads(params.instance.get('start_command'))
+            if not com:
+                return
             msg = msg_factory.get_msg(com.get('command'), com.get('body'), recipient=self.class_desc['name'])
             await self.parent.parent.connector.send(self, msg)
         except Exception as e:

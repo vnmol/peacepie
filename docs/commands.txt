@@ -1,2 +1,9 @@
 MAKE_WHEEL_PACKAGE: python3 setup.py bdist_wheel
-UPLOAD PACKAGE:     twine upload --repository testpypi dist/*
+UPLOAD_PACKAGE:     twine upload --repository testpypi dist/*
+GET_KEYS_FOR_HOST:  sudo ssh-keyscan -t rsa,dsa -p 8022 localhost 2>&1 >> /home/vmol/.ssh/known_hosts
+
+
+ZIPAPP
+python3 -m pip install --index-url https://test.pypi.org/simple/ peacepie --target peacepie_service/
+python3 -m zipapp peacepie_service
+python3 peacepie_service.pyz

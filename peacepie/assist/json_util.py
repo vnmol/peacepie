@@ -5,6 +5,8 @@ logger = logging.getLogger()
 
 
 def json_loads(jsn):
+    if not jsn:
+        return None
     res = None
     try:
         res = json.loads(jsn)
@@ -14,6 +16,8 @@ def json_loads(jsn):
 
 
 def json_dumps(jsn):
+    if not jsn:
+        return None
     res = None
     try:
         res = json.dumps(jsn)

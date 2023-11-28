@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from peacepie.assist import log_util, json_util
+from peacepie.assist import log_util, json_util, serialization
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin
 
@@ -142,3 +142,5 @@ class Adaptor:
     def get_head_addr(self):
         return self.parent.connector.get_head_addr()
 
+    def get_serializer(self):
+        return serialization.Serializer()

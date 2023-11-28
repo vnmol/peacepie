@@ -81,6 +81,7 @@ class Starter:
         for i in range(length):
             await self.adaptor.send(self.adaptor.get_msg('tick', {'stage': 0}, names[i][0]))
             await asyncio.sleep(PERIOD / length)
+        print('started')
 
     async def init_group(self, names):
         await self.set_consumer(names[len(names) - 1], names[0])
