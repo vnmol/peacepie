@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from peacepie.assist import log_util, json_util, serialization
+from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin
 
@@ -26,7 +26,10 @@ class Adaptor:
         self.is_running = False
         self.ticker_admin = None
         self.observers = {}
-        self.logger.info(log_util.get_alias(self.performer) + ' is created')
+        self.logger.info(f'{self.get_alias(self)} is created')
+
+    def get_alias(self, obj):
+        return log_util.get_alias(obj)
 
     async def run(self):
         self.queue = asyncio.Queue()
@@ -144,3 +147,9 @@ class Adaptor:
 
     def get_serializer(self):
         return serialization.Serializer()
+
+    def makedir(self, dirpath, clear=False):
+        dir_operations.makedir(dirpath, clear)
+
+    def execute(self, cmd):
+        return terminal_util.execute(cmd)

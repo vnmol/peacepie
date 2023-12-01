@@ -8,3 +8,8 @@ venv/
 .idea/
 example.stats
 
+/scripts_prepare/
+/scripts/
+/keys/
+/.ssh/
+/peacepie_service/

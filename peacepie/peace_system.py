@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from peacepie import adaptor, params, multimanager, loglistener, msg_factory
+from peacepie import adaptor, params, multimanager, loglistener, msg_factory, log_conf
 from peacepie.assist import log_util
 from peacepie.control import head_prime_admin, prime_admin
 
@@ -10,6 +10,7 @@ class PeaceSystem:
 
     def __init__(self, prms):
         params.init_params(prms)
+        log_conf.logger_start(prms.get('log_config'))
         self.is_head = params.instance['intra_role'] == 'master'
         self.host_name = params.instance['host_name']
         self.process_name = params.instance['process_name']

@@ -4,7 +4,6 @@ import json
 import logging
 import logging.config
 
-from peacepie.assist import dir_operations
 
 LOG_PATH = './logs/logs.logs'
 
@@ -23,6 +22,8 @@ def logger_start(filename):
     global logger
     global logger_listener
     global log_desc
+    if logger:
+        return
     try:
         with open(filename) as f:
             config = json.load(f)
