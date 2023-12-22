@@ -15,7 +15,7 @@ class IntraServer(IntraLink):
 
     async def start_server(self, queue):
         self.host = params.instance['intra_host']
-        self.port = int(params.instance['intra_port'])
+        self.port = params.instance['intra_port']
         try:
             self.server = await asyncio.start_server(self.server_handle, self.host, self.port)
             await queue.put(msg_factory.get_msg('ready'))
@@ -46,7 +46,7 @@ class IntraServer(IntraLink):
         self.logger.debug(log_util.sync_received_log(self, msg))
         command = msg['command']
         if command == 'intra_linked':
-            self.links[msg['body']['name']] = inter_queue.InterQueue(msg['body']['addr'], writer)
+            self.links[msg['body']['name']] = inter_queue.InterQueue(msg['body']['addr'], writer=writer)
             await self.parent.adaptor.notify(msg)
         elif command == 'find_link':
             await self.find_link(msg, writer)

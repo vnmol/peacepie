@@ -16,15 +16,16 @@ PACKAGE_NAME = 'package_name'
 class PackageAdmin:
 
     def __init__(self, parent):
-        self.logger = logging.getLogger()
         self.parent = parent
         self.packages = {}
         self.waiters = {}
+        self.delivery_path = f'{params.instance["package_dir"]}/delivery'
+        self.source_path = f'{params.instance["package_dir"]}/source'
         self.tmp_path = f'{params.instance["package_dir"]}/tmp/{self.parent.parent.process_name}'
         dir_operations.makedir(self.tmp_path, True)
         self.work_path = f'{params.instance["package_dir"]}/work/{self.parent.parent.process_name}'
         dir_operations.makedir(self.work_path, True)
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     def get_class(self, class_desc):
         res = self.get_package(class_desc)
@@ -33,7 +34,7 @@ class PackageAdmin:
         try:
             res = getattr(res, class_desc[CLASS])
         except Exception as ex:
-            self.logger.exception(ex)
+            logging.exception(ex)
             return None
         return res
 
@@ -51,38 +52,47 @@ class PackageAdmin:
         if not waiters:
             waiters = []
             self.waiters[class_desc.get(PACKAGE_NAME)] = waiters
-            func = self.copy_package if params.instance.get('developing_mode') else self.load_package
-            asyncio.get_running_loop().create_task(func(class_desc))
+            if params.instance.get('developing_mode'):
+                asyncio.get_running_loop().create_task(self.copy_package(class_desc))
+            else:
+                asyncio.get_running_loop().create_task(self.load_package(class_desc))
         waiters.append({'version': class_desc.get(version.VERSION), 'class': class_desc.get(CLASS), 'queue': queue})
         return queue
 
     async def load_package(self, class_desc):
-        if not await self.download(class_desc.get(PACKAGE_NAME), class_desc.get(version.VERSION)):
+        if not await self.load(class_desc.get(PACKAGE_NAME), class_desc.get(version.VERSION)):
             return
         if not self.are_packages_suitable():
             return
         await self.install(class_desc.get(PACKAGE_NAME))
 
-    async def download(self, package_name, conditions):
+    async def load(self, package_name, conditions):
         package_name = package_name + version.conditions_as_text(conditions)
-        if self._download(package_name):
+        if self._load(package_name):
             return True
-        dir_operations.cleardir(self.tmp_path)
         recipient = self.parent.parent.connector.get_head_addr()
         msg = msg_factory.get_msg('load_package', {'package_name': package_name}, recipient=recipient)
         ans = await self.parent.parent.connector.ask(self, msg)
         if ans['command'] == 'package_is_not_loaded':
             return False
-        return self._download(package_name)
+        return self._load(package_name)
 
-    def _download(self, package_name):
+    def _load(self, package_name):
+        if self.download(package_name, self.source_path, self.tmp_path):
+            return True
+        if self.download(package_name, self.delivery_path, self.source_path):
+            return self.download(package_name, self.source_path, self.tmp_path)
+
+    def download(self, package_name, src, dst):
         res = None
         try:
             res = subprocess.check_call(
                 [sys.executable, '-m', 'pip', 'download', package_name, '--disable-pip-version-check', '--no-index',
-                 f'--find-links={params.instance["package_dir"]}/source', f'-d{self.tmp_path}'])
+                 f'--find-links={src}', f'-d{dst}'])
         except Exception as ex:
-            self.logger.exception(ex)
+            logging.exception(ex)
+        if res != 0:
+            dir_operations.cleardir(self.tmp_path)
         return res == 0
 
     def are_packages_suitable(self):
@@ -104,7 +114,7 @@ class PackageAdmin:
                  f'--find-links={self.tmp_path}', f'--target={self.work_path}'])
             await self.import_and_notify(package_name)
         except Exception as ex:
-            self.logger.exception(ex)
+            logging.exception(ex)
         dir_operations.cleardir(self.tmp_path)
         return res == 0
 
@@ -126,7 +136,7 @@ class PackageAdmin:
                 try:
                     res = getattr(pack, waiter[CLASS])
                 except Exception as ex:
-                    self.logger.exception(ex)
+                    logging.exception(ex)
             await waiter['queue'].put(res)
         del self.waiters[package_name]
 
@@ -139,6 +149,9 @@ class PackageAdmin:
         dst = f'{self.work_path}/{package_name}'
         dir_operations.makedir(dst)
         dir_operations.copy_tree(src, dst)
-        pack = importlib.import_module(package_name)
+        try:
+            pack = importlib.import_module(package_name)
+        except Exception as e:
+            logging.exception(e)
         await self.notify(package_name, ver, pack)
         self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}

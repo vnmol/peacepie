@@ -8,7 +8,16 @@ def makedir(dirpath, clear=False):
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
     elif clear:
-        cleardir(dirpath)
+        clear_files(dirpath)
+
+
+def clear_files(dirpath):
+    for filename in os.listdir(dirpath):
+        filepath = os.path.join(dirpath, filename)
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+        elif os.path.isdir(filepath):
+            clear_files(filepath)
 
 
 def cleardir(dirpath):

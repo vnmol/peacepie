@@ -1,11 +1,13 @@
 import socket
 
+from peacepie import routine_params
+
 instance = None
 
 EXTRA_INDEX_URL = 'extra-index-url'
 
 DEFAULT_PARAMS = {
-    'log_config': './config/logs.cfg', 'system_name': 'system', 'host_name': 'prime', 'process_name': 'main',
+    'log_config': 'log.cfg', 'system_name': 'system', 'host_name': 'prime', 'process_name': 'main',
     'intra_role': 'master', 'intra_host': 'localhost', 'intra_port': 5998, 'inter_port': 5999,
     'package_dir': './packages', EXTRA_INDEX_URL: 'https://test.pypi.org/simple/',
     'starter': '{"class_desc": {"package_name":"peacepie_example", "class":"HelloWorld"}, "name":"starter"}',
@@ -13,13 +15,16 @@ DEFAULT_PARAMS = {
 }
 
 
-def init_params(prms):
+def init_params():
     global instance
+    prms = routine_params.get_parameters()
     if prms and EXTRA_INDEX_URL not in prms.keys():
         prms[EXTRA_INDEX_URL] = None
     for key in DEFAULT_PARAMS.keys():
         if key not in prms.keys():
             prms[key] = DEFAULT_PARAMS[key]
+        if prms[key] == 'None':
+            prms[key] = None
     path = prms['package_dir']
     if path.endswith('/'):
         path = path[:-1]

@@ -77,7 +77,7 @@ class IntraClient(IntraLink):
             name = msg['body']['name']
             if is_to_head:
                 self.head = name
-            self.links[name] = inter_queue.InterQueue(msg['body']['addr'], writer)
+            self.links[name] = inter_queue.InterQueue(msg['body']['addr'], writer=writer)
             body = {'lord': self.parent.lord, 'name': self.parent.adaptor.name,
                     'addr': {'host': self.host, 'port': self.port}}
             ans = msg_factory.get_msg('intra_linked', body)
@@ -85,7 +85,7 @@ class IntraClient(IntraLink):
             self.logger.debug(log_util.sync_sent_log(self, ans))
             await queue.put(msg_factory.get_msg('ready'))
         elif command == 'intra_linked':
-            self.links[msg['body']['name']] = inter_queue.InterQueue(msg['body']['addr'], writer)
+            self.links[msg['body']['name']] = inter_queue.InterQueue(msg['body']['addr'], writer=writer)
             await self.parent.adaptor.notify(msg)
         else:
             recipient = self.clarify_recipient(msg['recipient'])

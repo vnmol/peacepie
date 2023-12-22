@@ -8,12 +8,12 @@ from peacepie.control import head_prime_admin, prime_admin
 
 class PeaceSystem:
 
-    def __init__(self, prms):
-        params.init_params(prms)
-        log_conf.logger_start(prms.get('log_config'))
-        self.is_head = params.instance['intra_role'] == 'master'
-        self.host_name = params.instance['host_name']
-        self.process_name = params.instance['process_name']
+    def __init__(self):
+        params.init_params()
+        log_conf.logger_start(params.instance.get('log_config'))
+        self.is_head = params.instance.get('intra_role') == 'master'
+        self.host_name = params.instance.get('host_name')
+        self.process_name = params.instance.get('process_name')
         self.prefix = self.host_name + '.' + self.process_name + '.'
         multimanager.init_multimanager(self.prefix + 'multimanager')
         loglistener.init_loglistener(self.prefix + 'loglistener')

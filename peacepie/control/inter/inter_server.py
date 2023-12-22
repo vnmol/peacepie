@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from peacepie import msg_factory, params
 from peacepie.assist import log_util, serialization
@@ -9,7 +10,6 @@ from peacepie.control.inter import inter_queue
 class InterServer:
 
     def __init__(self, parent):
-        self.logger = logging.getLogger()
         self.parent = parent
         self.system_name = params.instance['system_name']
         self.server = None
@@ -17,27 +17,27 @@ class InterServer:
         self.port = None
         self.links = {}
         self.queue = asyncio.Queue()
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     async def run(self, queue):
-        self.host = params.instance['ip']
-        self.port = int(params.instance['inter_port'])
+        self.host = params.instance.get('ip')
+        self.port = params.instance.get('inter_port')
         await self.start_server(queue)
         while True:
             msg = await self.queue.get()
-            self.logger.debug(log_util.async_received_log(self, msg))
+            logging.debug(log_util.async_received_log(self, msg))
             try:
                 if not await self.handle(msg):
-                    self.logger.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
+                    logging.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
 
     async def handle(self, msg):
-        command = msg['command']
-        if command == 'inter_register_system':
-            await self.inter_register_system(msg)
-        elif command == 'inter_connect':
+        command = msg.get('command')
+        if command == 'inter_connect':
             await self.inter_connect(msg)
+        elif command == 'inter_disconnect':
+            await self.inter_disconnect(msg)
         else:
             await self.route(msg)
         return True
@@ -46,18 +46,19 @@ class InterServer:
         try:
             self.server = await asyncio.start_server(self.server_handle, self.host, self.port)
             await queue.put(msg_factory.get_msg('ready'))
-            self.logger.info(f'{log_util.get_alias(self)} is started on port {self.port}')
+            logging.info(f'{log_util.get_alias(self)} is started at address ({self.host}:{self.port})')
         except Exception as ex:
-            self.logger.exception(ex)
+            logging.exception(ex)
 
     async def server_handle(self, reader, writer):
+        peer = writer.get_extra_info('socket').getpeername()
+        logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is opened')
         serializer = serialization.Serializer()
-        body = {'system_name': self.system_name, 'addr': {'host': self.host, 'port': self.port}}
+        body = {'system_name': self.system_name}
         msg = msg_factory.get_msg('inter_link', body)
-        msg['mid'] = self.system_name + '.' + msg['mid']
         writer.write(serializer.serialize(msg))
         await writer.drain()
-        self.logger.debug(log_util.sync_sent_log(self, msg))
+        logging.debug(log_util.sync_sent_log(self, msg))
         while reader:
             if reader.at_eof():
                 break
@@ -67,42 +68,59 @@ class InterServer:
                 if res:
                     await self._handle(res, writer)
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
                 reader = None
-
-    async def inter_register_system(self, msg):
-        system_name = msg['body']['system']['name']
-        res = self.links.get(system_name)
-        if res:
-            await res.close()
-        self.links[system_name] = inter_queue.InterQueue(msg['body']['system']['addr'])
+        writer.close()
+        await writer.wait_closed()
+        logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is closed')
 
     async def inter_connect(self, msg):
-        system_name = msg['body']['system_name']
-        sender = msg['sender']
-        res = self.links.get(system_name)
-        if not res:
-            if sender:
-                self.parent.adaptor.send(msg_factory.get_msg('system_is_not_found', recipient=sender))
-            return
-        if res.writer:
-            return
+        host = msg['body']['addr']['host']
+        port = int(msg['body']['addr']['port'])
         queue = asyncio.Queue()
-        asyncio.get_running_loop().create_task(self.start_client(res, queue))
+        asyncio.get_running_loop().create_task(self.start_client(host, port, queue))
         await queue.get()
+        ans = self.parent.adaptor.get_msg('inter_connected', recipient=msg.get('sender'))
+        await self.parent.adaptor.send(ans)
 
-    async def start_client(self, iq, queue):
-        reader = None
+    async def inter_disconnect(self, msg):
+        body = msg.get('body')
+        if not body:
+            return
+        system_name = body.get('system_name')
+        if not system_name:
+            return
+        link = self.links.get(system_name)
+        if not link:
+            return
+        await link.close()
+        del self.links[system_name]
+        ans = self.parent.adaptor.get_msg('inter_disconnected', recipient=msg.get('sender'))
+        await self.parent.adaptor.send(ans)
+        logging.info(log_util.get_alias(self) + f' Channel to system "{system_name}" is closed')
+
+    async def close_writer(self, writer):
+        if not writer:
+            return
+        peer = writer.get_extra_info('socket').getpeername()
+        writer.close()
+        await writer.wait_closed()
+        logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is closed')
+
+    async def start_client(self, host, port, queue):
+        t = time.time()
         writer = None
-        try:
-            reader, writer = await asyncio.open_connection(iq.addr['host'], iq.addr['port'])
-            iq.writer = writer
-            self.logger.info(log_util.get_alias(self) + f' Channel to ({iq.addr["host"]}, {iq.addr["port"]}) is opened')
-        except Exception as ex:
-            self.logger.exception(ex)
-        await self.client_handle(iq, reader, writer, queue)
+        while True:
+            try:
+                reader, writer = await asyncio.open_connection(host, port)
+                logging.info(log_util.get_alias(self) + f' Channel to ({host}, {port}) is opened')
+                await self.client_handle(reader, writer, queue)
+            except Exception as ex:
+                logging.exception(ex)
+            await self.close_writer(writer)
+            await asyncio.sleep(1 if time.time() - t < 2 else 60)
 
-    async def client_handle(self, iq, reader, writer, queue):
+    async def client_handle(self, reader, writer, queue):
         serializer = serialization.Serializer()
         while reader:
             if reader.at_eof():
@@ -113,15 +131,14 @@ class InterServer:
                 if res:
                     await self._handle(res, writer, queue)
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
                 reader = None
-        await iq.close()
 
     async def _handle(self, msg, writer, queue=None):
-        self.logger.debug(log_util.sync_received_log(self, msg))
+        logging.debug(log_util.sync_received_log(self, msg))
         command = msg['command']
         if command == 'inter_link':
-            await self.inter_link(msg, writer)
+            await self.inter_link(msg, writer, queue)
         elif command == 'inter_linked':
             await self.inter_linked(msg, writer, queue)
         else:
@@ -130,44 +147,32 @@ class InterServer:
                 return
             await recipient.put(msg)
             if isinstance(recipient, asyncio.Queue):
-                self.logger.debug(log_util.async_sent_log(self, msg))
+                logging.debug(log_util.async_sent_log(self, msg))
             else:
-                self.logger.debug(log_util.sync_sent_log(self, msg))
+                logging.debug(log_util.sync_sent_log(self, msg))
         return True
 
-    async def inter_link(self, msg, writer):
-        res = self.links.get(msg['body']['system_name'])
-        res.writer = writer
-        if not res or res.addr != msg['body']['addr']:
-            await res.close()
-            return
-        body = {'system_name': self.system_name, 'addr': {'host': self.host, 'port': self.port}}
-        ans = msg_factory.get_msg('inter_linked', body)
+    async def inter_link(self, msg, writer, queue):
+        res = inter_queue.InterQueue(writer)
+        self.links[msg['body']['system_name']] = res
+        ans = msg_factory.get_msg('inter_linked', {'system_name': self.system_name})
         await res.put(ans)
-        self.logger.debug(log_util.sync_sent_log(self, ans))
+        logging.debug(log_util.sync_sent_log(self, ans))
+        msg['command'] = 'inter_linked'
+        await self.parent.adaptor.notify(msg)
+        if queue:
+            await queue.put(msg_factory.get_msg('ready'))
 
     async def inter_linked(self, msg, writer, queue):
-        addr = msg['body'].get('addr')
-        res = self.links.get(msg['body']['system_name'])
-        if res:
-            res.writer = writer
-        else:
-            return
-        if addr:
-            if res.addr != addr:
-                await res.close()
-                return
-            ans = msg_factory.get_msg('inter_linked', {'system_name': self.system_name})
-            ans['mid'] = self.system_name + '.' + ans['mid']
-            await res.put(ans)
-            self.logger.debug(log_util.sync_sent_log(self, ans))
+        res = inter_queue.InterQueue(writer)
+        self.links[msg['body']['system_name']] = res
         await self.parent.adaptor.notify(msg)
         if queue:
             await queue.put(msg_factory.get_msg('ready'))
 
     async def route(self, msg):
         res = self.links.get(msg['recipient'].get('system'))
-        if msg['sender']:
+        if msg.get('sender'):
             if res:
                 msg['sender'] = self.parent.connector.add_system(msg['sender'], self.system_name)
             else:
@@ -175,7 +180,7 @@ class InterServer:
                 await self.parent.adaptor.send(ans, self)
                 return
         await res.put(msg)
-        self.logger.debug(log_util.sync_sent_log(self, msg))
+        logging.debug(log_util.sync_sent_log(self, msg))
 
     async def clarify_recipient(self, recipient):
         if type(recipient) is dict:

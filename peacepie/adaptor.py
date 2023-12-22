@@ -28,7 +28,9 @@ class Adaptor:
         self.observers = {}
         self.logger.info(f'{self.get_alias(self)} is created')
 
-    def get_alias(self, obj):
+    def get_alias(self, obj=None):
+        if not obj:
+            obj = self
         return log_util.get_alias(obj)
 
     async def run(self):
@@ -88,11 +90,6 @@ class Adaptor:
         for recipient in res:
             await self.send(msg_factory.get_msg('notification', msg, recipient=recipient))
 
-    def get_alias(self, obj=None):
-        if not obj:
-            obj = self
-        return log_util.get_alias(obj)
-
     def json_loads(self, jsn):
         return json_util.json_loads(jsn)
 
@@ -122,7 +119,10 @@ class Adaptor:
         self.parent.connector.add_to_cache(node, entity)
 
     def get_node(self):
-        return self.parent.adaptor.name
+        if self.parent:
+            return self.parent.adaptor.name
+        else:
+            return self.name
 
     def get_self_addr(self):
         if self.parent:
@@ -144,6 +144,12 @@ class Adaptor:
 
     def get_head_addr(self):
         return self.parent.connector.get_head_addr()
+
+    def get_prime_name(self):
+        return self.parent.connector.get_prime_name()
+
+    def get_prime_addr(self):
+        return self.parent.connector.get_prime_addr()
 
     def get_serializer(self):
         return serialization.Serializer()

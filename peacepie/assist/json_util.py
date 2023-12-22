@@ -12,6 +12,7 @@ def json_loads(jsn):
         res = json.loads(jsn)
     except Exception as ex:
         logger.exception(ex)
+        logger.warning(f'The original string is "{jsn}"')
     return res
 
 

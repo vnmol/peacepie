@@ -130,3 +130,11 @@ class Connector:
     def get_head_addr(self):
         return self.get_addr(None, self.get_head_name(), None)
 
+    def get_prime_name(self):
+        if self.parent.lord:
+            return self.parent.lord
+        else:
+            return self.parent.adaptor.name
+
+    def get_prime_addr(self):
+        return self.get_addr(None, self.get_prime_name(), None)
