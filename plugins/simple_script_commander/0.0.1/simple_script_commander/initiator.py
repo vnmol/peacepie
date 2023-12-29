@@ -1,3 +1,6 @@
+import asyncio
+
+
 class SimpleScriptCommanderInitiator:
 
     def __init__(self):
@@ -20,12 +23,12 @@ class SimpleScriptCommanderInitiator:
         class_desc = {'package_name': 'simple_script_commander', 'class': 'SimpleScriptCommander'}
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': self.commander})
         await self.adaptor.ask(msg)
-        ''
+        '''
         body = {"system_name": "local", "host": "192.168.100.164", "port": 6999, "ssh_port": 22,
                 "username": "vmol", "password": "NewZeland1"}
         msg = self.adaptor.get_msg('add_server', body, self.commander)
         await self.adaptor.ask(msg, 10)
-        ''
+        '''
         head = self.adaptor.get_head_addr()
         self_addr = self.adaptor.get_self_addr()
         msg = self.adaptor.get_msg('subscribe', {'command': 'inter_linked'}, head, self_addr)
@@ -39,8 +42,18 @@ class SimpleScriptCommanderInitiator:
         request = self.adaptor.get_msg('deliver_package', body, self.adaptor.get_prime_addr())
         await self.adaptor.ask(request, 30)
         class_desc = {'package_name': 'peacepie_example', 'class': 'HelloWorld'}
-        request = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'first'}, system_address)
-        await self.adaptor.ask(request, 10)
+        request = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'second'})
+        ans = await self.adaptor.ask(request)
+        here = ans.get('body')
+        request['recipient'] = self.adaptor.get_addr('local', 'host.main.admin', None)
+        ans = await self.adaptor.ask(request, 10)
+        there = ans.get('body')
+        for i in range(9):
+            request = self.adaptor.get_msg('tick', recipient=here)
+            await self.adaptor.send(request)
+            request['recipient'] = there
+            await self.adaptor.send(request)
+            await asyncio.sleep(1)
         request = self.adaptor.get_msg('disconnect', {'system_name': 'local'}, self.commander)
         print('PRE_FINISH')
         await self.adaptor.send(request)

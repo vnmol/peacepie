@@ -21,7 +21,7 @@ def logger_start(filename):
     global log_desc
     if logger:
         return
-    dir_operations.makedir(os.path.dirname(LOG_PATH), True)
+    dir_operations.do_dir(os.path.dirname(LOG_PATH), True)
     try:
         with open(filename) as f:
             config = json.load(f)

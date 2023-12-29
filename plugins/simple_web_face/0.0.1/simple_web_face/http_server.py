@@ -5,7 +5,7 @@ from logging.handlers import QueueHandler
 from aiohttp import web
 from aiohttp.web_runner import GracefulExit
 
-from simple_web_face import client_link
+from simple_web_face import client_link, html_styles
 
 
 logger = None
@@ -43,15 +43,8 @@ async def init_client(link_host, link_port, serializer):
 
 
 async def root_handler(request):
-    msg = {'command': 'get_processes'}
-    ans = await CLIENT_LINK.ask(msg)
-    res = ''
-    if ans:
-        for name in ans.get('list'):
-            res += '<option value="' + name + '">' + name + '</option>'
-    text = '<!DOCTYPE html><html><head><style>.scrollable-list {padding: 5px;}option{padding:20px;}</style>PEACEPIE</head><body><div class="scrollable-list"><select name="Processes" size="6">'
-    text += res
-    text += '</select></div></body></html>'
+    text = f'<!DOCTYPE html><html><head><style>{html_styles.button_style}</style></head>'
+    text += f'<body><button class="button">XXX</button></body></html>'
     return web.Response(
         text=text,
         content_type='text/html'

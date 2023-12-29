@@ -8,6 +8,22 @@ def makedir(dirpath, clear=False):
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
     elif clear:
+        cleardir(dirpath)
+
+
+def cleardir(dirpath):
+    for filename in os.listdir(dirpath):
+        filepath = os.path.join(dirpath, filename)
+        try:
+            shutil.rmtree(filepath)
+        except OSError:
+            os.remove(filepath)
+
+
+def do_dir(dirpath, clear=False):
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+    elif clear:
         clear_files(dirpath)
 
 
@@ -18,15 +34,6 @@ def clear_files(dirpath):
             os.remove(filepath)
         elif os.path.isdir(filepath):
             clear_files(filepath)
-
-
-def cleardir(dirpath):
-    for filename in os.listdir(dirpath):
-        filepath = os.path.join(dirpath, filename)
-        try:
-            shutil.rmtree(filepath)
-        except OSError:
-            os.remove(filepath)
 
 
 def copydir(orig, dest):

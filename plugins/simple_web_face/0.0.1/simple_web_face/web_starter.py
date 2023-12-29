@@ -16,5 +16,5 @@ class SimpleWebStarter:
         # await self.adaptor.send(self.adaptor.get_msg('create_process'))
         class_desc = {"package_name": "simple_web_face", "class": "WebFace"}
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'web_face_00'})
-        await self.adaptor.ask(msg)
+        await self.adaptor.ask(msg, 5)
         await self.adaptor.send(self.adaptor.get_msg('start', {'port': 8080}, recipient='web_face_00'))

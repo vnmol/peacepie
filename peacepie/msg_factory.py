@@ -38,8 +38,9 @@ class MsgFactory:
         return res
 
     def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None):
-        return {'mid': self.get_mid(), 'command': command, 'body': body, 'recipient': recipient, 'sender': sender,
-                'timeout': timeout}
+        res = {'mid': self.get_mid(), 'command': command, 'body': body, 'recipient': recipient, 'sender': sender,
+               'timeout': timeout}
+        return res
 
 
 class Message:

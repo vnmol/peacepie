@@ -1,7 +1,6 @@
 import asyncio
 import multiprocessing
 
-from aiohttp import web
 from simple_web_face import http_server
 
 

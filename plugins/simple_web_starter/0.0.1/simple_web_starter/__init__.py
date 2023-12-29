@@ -1,1 +1,0 @@
-from simple_web_starter.web_starter import SimpleWebStarter
