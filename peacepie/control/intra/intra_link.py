@@ -16,6 +16,13 @@ class IntraLink:
         self.head = None
         self.logger.info(log_util.get_alias(self) + ' is created')
 
+    def get_members(self):
+        res = [link[0] for link in self.links.items() if not link[1].lord]
+        if not self.parent.lord:
+            res.append(self.parent.adaptor.name)
+        res.sort()
+        return res
+
     def clarify_recipient(self, recipient):
         if type(recipient) is dict:
             system_name = recipient.get('system')

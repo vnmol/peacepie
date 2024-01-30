@@ -62,30 +62,39 @@ class ActorLoader:
         clss = await self._get_class(msg)
         queue = asyncio.Queue()
         actors = {}
-        for name in msg['body']['names']:
+        body = msg.get('body')
+        if not body:
+            return
+        names = body.get('names')
+        if not names:
+            return
+        for name in names:
             try:
                 adptr = adaptor.Adaptor(name, self.parent.parent, clss(), queue)
                 task = asyncio.get_running_loop().create_task(adptr.run())
                 actors[name] = {'adaptor': adptr, 'task': task}
             except Exception as e:
                 self.logger.exception(e)
-                await self.clear(actors, msg['sender'])
+                await self.clear(actors, msg.get('sender'))
                 return
-        timer.start(queue, msg['mid'], msg['timeout'])
+        timeout = msg.get('timeout')
+        if not timeout:
+            timeout = 1
+        timer.start(queue, msg.get('mid'), timeout)
         count = 0
         while True:
             if count == len(actors):
                 break
             ans = await queue.get()
             self.logger.debug(log_util.async_received_log(self, ans))
-            if ans['command'] != 'actor_is_created':
+            if ans.get('command') != 'actor_is_created':
                 break
             count += 1
         if count < len(actors):
-            await self.clear(actors, msg['sender'])
+            await self.clear(actors, msg.get('sender'))
             return
         self.parent.actors.update(actors)
-        ans = msg_factory.get_msg('actors_are_created', self.parent.parent.adaptor.name, recipient=msg['sender'])
+        ans = msg_factory.get_msg('actors_are_created', self.parent.parent.adaptor.name, msg.get('sender'))
         await self.parent.parent.connector.send(self, ans)
 
     async def clear(self, actors, recipient):

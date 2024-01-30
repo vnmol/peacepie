@@ -36,9 +36,34 @@ class PrimeAdmin(admin.Admin):
         elif command in DELIVERY_COMMANDS:
             msg['recipient'] = self.delivery.queue
             await self.connector.send(self, msg)
+        elif command == 'get_members':
+            await self.get_members(msg)
         else:
             return await super().handle(msg)
         return True
 
     async def create_process(self, msg):
         await self.process_admin.create_process(msg['sender'])
+
+    async def get_members(self, msg):
+        body = msg.get('body')
+        page_size = body.get('page_size')
+        level = body.get('level') if body.get('level') else 'prime'
+        xid = body.get('id') if body.get('id') else ''
+        page = int(xid.split('_')[2]) if xid.startswith('_page_') else 0
+        members = []
+        back = self.adaptor.name
+        if level == 'process':
+            members = self.process_admin.get_members()
+            members = [{'next_level': 'actors', 'recipient': member, 'id': member} for member in members]
+            back = self.connector.get_head_name()
+        elif level == 'actors':
+            members = self.actor_admin.get_members()
+            members = [{'next_level': 'actor', 'recipient': self.adaptor.name, 'id': member} for member in members]
+        elif level == 'actor':
+            members = [{'next_level': None, 'recipient': None, 'id': body.get('id')}]
+        body = admin.format_members(level, self.adaptor.name, page_size, page, members)
+        body['_back'] = {'next_level': admin.get_prev(level), 'recipient': back, 'id': '_back'}
+        body['level'] = level
+        ans = self.adaptor.get_msg('members', body, msg.get('sender'))
+        await self.adaptor.send(ans)

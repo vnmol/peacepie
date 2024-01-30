@@ -2,7 +2,7 @@ import asyncio
 
 from peacepie import params, msg_factory
 from peacepie.assist import log_util, timer, serialization
-from peacepie.control.inter import inter_queue
+from peacepie.control.intra import intra_queue
 from peacepie.control.intra.intra_link import IntraLink
 
 
@@ -74,10 +74,15 @@ class IntraClient(IntraLink):
         self.logger.debug(log_util.sync_received_log(self, msg))
         command = msg['command']
         if command == 'intra_link':
-            name = msg['body']['name']
+            body = msg.get('body')
+            name = None
+            addr = None
+            if body:
+                name = body.get('name')
+                addr = body.get('addr')
             if is_to_head:
                 self.head = name
-            self.links[name] = inter_queue.InterQueue(msg['body']['addr'], writer=writer)
+            self.links[name] = intra_queue.IntraQueue(self.parent.lord, addr, writer)
             body = {'lord': self.parent.lord, 'name': self.parent.adaptor.name,
                     'addr': {'host': self.host, 'port': self.port}}
             ans = msg_factory.get_msg('intra_linked', body)
@@ -85,7 +90,15 @@ class IntraClient(IntraLink):
             self.logger.debug(log_util.sync_sent_log(self, ans))
             await queue.put(msg_factory.get_msg('ready'))
         elif command == 'intra_linked':
-            self.links[msg['body']['name']] = inter_queue.InterQueue(msg['body']['addr'], writer=writer)
+            body = msg.get('body')
+            name = None
+            lord = None
+            addr = None
+            if body:
+                name = body.get('name')
+                lord = body.get('lord')
+                addr = body.get('addr')
+            self.links[name] = intra_queue.IntraQueue(lord, addr, writer)
             await self.parent.adaptor.notify(msg)
         else:
             recipient = self.clarify_recipient(msg['recipient'])

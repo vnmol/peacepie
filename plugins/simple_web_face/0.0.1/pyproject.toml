@@ -13,6 +13,4 @@ authors = [
 ]
 dependencies = [
         'aiohttp',
-        'jinja2',
-        'aiohttp-jinja2',
 ]

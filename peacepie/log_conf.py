@@ -5,6 +5,7 @@ import logging
 import logging.config
 from logging.handlers import RotatingFileHandler
 
+from peacepie import params
 from peacepie.assist import dir_operations
 
 LOG_PATH = 'logs/log.log'
@@ -15,16 +16,22 @@ logger_listener = None
 log_desc = None
 
 
-def logger_start(filename):
+def logger_start(config_filename):
     global logger
     global logger_listener
     global log_desc
     if logger:
         return
-    dir_operations.do_dir(os.path.dirname(LOG_PATH), True)
     try:
-        with open(filename) as f:
+        with open(config_filename) as f:
             config = json.load(f)
+        if params.instance.get('developing_mode'):
+            filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
+            for filename in filenames:
+                try:
+                    os.remove(filename)
+                except FileNotFoundError:
+                    pass
         logging.config.dictConfig(config)
         logger = logging.getLogger()
     except BaseException as ex:

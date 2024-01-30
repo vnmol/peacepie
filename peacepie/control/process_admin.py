@@ -17,6 +17,12 @@ class ProcessAdmin:
         self.process_index = 0
         self.logger.info(log_util.get_alias(self) + ' is created')
 
+    def get_members(self):
+        res = [process.get_actor_name() for process in self.processes]
+        res.append(self.parent.adaptor.name)
+        res.sort()
+        return res
+
     async def create_process(self, sender):
         name = misc.ComplexName(self.parent.host_name, f'process_{self.process_index}', 'admin')
         self.process_index += 1
@@ -44,8 +50,8 @@ def create(lord, name, prms, msg_queue, log_desc, sender):
         actr = adaptor.Adaptor(name.get_actor_name(), None, performer, sender)
         asyncio.run(actr.run())
     except KeyboardInterrupt as ki:
-        logger.warning(ki.__repr__())
+        logging.warning(ki.__repr__())
     except BaseException as ex:
-        logger.exception(ex)
+        logging.exception(ex)
     finally:
-        logger.info(f'{log_util.get_alias(actr)} is stopped')
+        logging.info(f'{log_util.get_alias(actr)} is stopped')

@@ -5,7 +5,7 @@ from peacepie.assist import log_util
 from peacepie.assist.serialization import Serializer
 from peacepie.control.intra.intra_link import IntraLink
 
-from peacepie.control.inter import inter_queue
+from peacepie.control.intra import intra_queue
 
 
 class IntraServer(IntraLink):
@@ -25,7 +25,8 @@ class IntraServer(IntraLink):
 
     async def server_handle(self, reader, writer):
         serializer = Serializer()
-        body = {'name': self.parent.adaptor.name, 'addr': {'host': self.host, 'port': self.port}}
+        body = {'lord': self.parent.lord, 'name': self.parent.adaptor.name,
+                'addr': {'host': self.host, 'port': self.port}}
         msg = msg_factory.get_msg('intra_link', body)
         writer.write(serializer.serialize(msg))
         await writer.drain()
@@ -46,8 +47,7 @@ class IntraServer(IntraLink):
         self.logger.debug(log_util.sync_received_log(self, msg))
         command = msg['command']
         if command == 'intra_linked':
-            self.links[msg['body']['name']] = inter_queue.InterQueue(msg['body']['addr'], writer=writer)
-            await self.parent.adaptor.notify(msg)
+            await self.intra_linked(msg, writer)
         elif command == 'find_link':
             await self.find_link(msg, writer)
         else:
@@ -55,6 +55,18 @@ class IntraServer(IntraLink):
             if isinstance(recipient, asyncio.Queue):
                 await recipient.put(msg)
                 self.logger.debug(log_util.async_sent_log(self, msg))
+
+    async def intra_linked(self, msg, writer):
+        body = msg.get('body')
+        name = None
+        lord = None
+        addr = None
+        if body:
+            name = body.get('name')
+            lord = body.get('lord')
+            addr = body.get('addr')
+        self.links[name] = intra_queue.IntraQueue(lord, addr, writer)
+        await self.parent.adaptor.notify(msg)
 
     async def find_link(self, msg, writer):
         link = self.links.get(msg['body']['name'])

@@ -1,7 +1,7 @@
 import asyncio
 
 from peacepie.assist import log_util
-from peacepie.control import prime_admin, starter
+from peacepie.control import prime_admin, starter, admin
 from peacepie.control.inter import inter_server
 
 INTER_COMMANDS = {'inter_connect', 'inter_disconnect'}
@@ -27,10 +27,33 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         if command in INTER_COMMANDS:
             await self.interlink.queue.put(msg)
             self.logger.debug(log_util.async_sent_log(self, msg))
-        elif command == 'get_processes':
-            res = [key for key in self.intralink.links.keys()]
-            res.insert(0, self.adaptor.name)
-            await self.adaptor.send(self.adaptor.get_msg('processes', {'list': res}, msg.get('sender')))
+        elif command == 'get_members':
+            await self.get_members(msg)
         else:
             return await super().handle(msg)
         return True
+
+    async def get_members(self, msg):
+        body = msg.get('body')
+        page_size = body.get('page_size')
+        level = body.get('level') if body.get('level') else 'prime'
+        xid = body.get('id') if body.get('id') else ''
+        page = int(xid.split('_')[2]) if xid.startswith('_page_') else 0
+        members = []
+        if level == 'prime':
+            members = self.intralink.get_members()
+            members = [{'next_level': 'process', 'recipient': member, 'id': member} for member in members]
+        elif level == 'process':
+            members = self.process_admin.get_members()
+            members = [{'next_level': 'actors', 'recipient': member, 'id': member} for member in members]
+        elif level == 'actors':
+            members = self.actor_admin.get_members()
+            members = [{'next_level': 'actor', 'recipient': self.adaptor.name, 'id': member} for member in members]
+        elif level == 'actor':
+            members = [{'next_level': None, 'recipient': None, 'id': body.get('id')}]
+        body = admin.format_members(level, self.adaptor.name, page_size, page, members)
+        if level != 'prime':
+            body['_back'] = {'next_level': admin.get_prev(level), 'recipient': self.adaptor.name, 'id': '_back'}
+        body['level'] = level
+        ans = self.adaptor.get_msg('members', body, msg.get('sender'))
+        await self.adaptor.send(ans)

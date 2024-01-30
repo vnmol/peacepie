@@ -3,6 +3,7 @@ import logging
 
 from peacepie import msg_factory, params
 from peacepie.assist import log_util, timer
+from peacepie.control.intra import intra_queue
 
 EXCLUSION_COMMANDS = {'create_process'}
 
@@ -41,6 +42,9 @@ class Connector:
             elif recipient.startswith('_'):
                 return self.asks.get(recipient)
             else:
+                res = await self.parent.intralink.get_intra_queue(recipient)
+                if res:
+                    return res
                 res = self.parent.actor_admin.get_actor_queue(recipient)
                 if not res:
                     res = self.cache.get(recipient)
@@ -79,7 +83,10 @@ class Connector:
         if type(recipient) is not str and type(recipient) is not dict:
             msg['recipient'] = None
         await res.put(msg)
-        self.logger.debug(log_util.async_ask_log(sender, msg))
+        if isinstance(res, asyncio.Queue):
+            self.logger.debug(log_util.async_ask_log(sender, msg))
+        else:
+            self.logger.debug(log_util.sync_ask_log(sender, msg))
         timer.start(queue, msg['mid'], timeout)
         ans = await queue.get()
         if ans['command'] == 'timeout':

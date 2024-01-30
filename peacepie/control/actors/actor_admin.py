@@ -36,3 +36,9 @@ class ActorAdmin:
         if actor is None:
             return None
         return actor['adaptor'].queue
+
+    def get_members(self):
+        res = [actor for actor in self.actors]
+        res.append(self.parent.adaptor.name)
+        res.sort()
+        return res
