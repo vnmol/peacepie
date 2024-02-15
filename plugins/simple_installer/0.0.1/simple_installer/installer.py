@@ -1,7 +1,7 @@
-from simple_script_commander import signalman
+from simple_installer import signalman
 
 
-class SimpleScriptCommander:
+class SimpleInstaller:
 
     def __init__(self):
         self.adaptor = None

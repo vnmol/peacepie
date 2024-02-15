@@ -1,0 +1,1 @@
+from rss_vms_installer.installer import RssVmsInstaller

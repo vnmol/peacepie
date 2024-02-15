@@ -42,7 +42,7 @@ class ClientLink:
         self.writer.write(data)
         await self.writer.drain()
 
-    async def ask(self, msg, timeout=1):
+    async def ask(self, msg, timeout=4):
         self.queue = asyncio.Queue()
         await self.send(msg)
         asyncio.get_running_loop().create_task(self.wait(timeout))

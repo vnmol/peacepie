@@ -1,0 +1,13 @@
+[build-system]
+requires = ['setuptools', 'setuptools-scm']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'simple_ssh_connector'
+version = '0.0.1'
+authors = [
+    {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
+]
+dependencies = [
+        'asyncssh',
+]

@@ -11,22 +11,21 @@ class ActorLoader:
 
     def __init__(self, parent):
         global index
-        self.logger = logging.getLogger()
         self.name = f'actor_loader_{index}'
         index += 1
         self.parent = parent
         self.queue = asyncio.Queue()
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     async def run(self):
         while True:
             msg = await self.queue.get()
-            self.logger.debug(log_util.async_received_log(self, msg))
+            logging.debug(log_util.async_received_log(self, msg))
             try:
                 if not await self.handle(msg):
-                    self.logger.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
+                    logging.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
 
     async def handle(self, msg):
         command = msg['command']
@@ -51,7 +50,7 @@ class ActorLoader:
         try:
             adptr = adaptor.Adaptor(name, self.parent.parent, clss(), msg['sender'])
         except Exception as e:
-            self.logger.exception(e)
+            logging.exception(e)
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg['sender'])
             await self.parent.parent.connector.send(self, answer)
             return
@@ -74,7 +73,7 @@ class ActorLoader:
                 task = asyncio.get_running_loop().create_task(adptr.run())
                 actors[name] = {'adaptor': adptr, 'task': task}
             except Exception as e:
-                self.logger.exception(e)
+                logging.exception(e)
                 await self.clear(actors, msg.get('sender'))
                 return
         timeout = msg.get('timeout')
@@ -86,7 +85,7 @@ class ActorLoader:
             if count == len(actors):
                 break
             ans = await queue.get()
-            self.logger.debug(log_util.async_received_log(self, ans))
+            logging.debug(log_util.async_received_log(self, ans))
             if ans.get('command') != 'actor_is_created':
                 break
             count += 1
@@ -107,7 +106,7 @@ class ActorLoader:
         class_desc = msg['body']['class_desc']
         if isinstance(class_desc, type):
             return class_desc
-        res = self.parent.package_admin.get_class(class_desc)
+        res = self.parent.package_admin.get_class(class_desc, msg.get('timeout'))
         if isinstance(res, type):
             return res
         return await res.get()

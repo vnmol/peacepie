@@ -79,8 +79,8 @@ class InterServer:
         port = int(msg['body']['addr']['port'])
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.start_client(host, port, queue))
-        await queue.get()
-        ans = self.parent.adaptor.get_msg('inter_connected', recipient=msg.get('sender'))
+        ans = await queue.get()
+        ans['recipient'] = msg.get('sender')
         await self.parent.adaptor.send(ans)
 
     async def inter_disconnect(self, msg):
@@ -154,21 +154,23 @@ class InterServer:
 
     async def inter_link(self, msg, writer, queue):
         res = inter_queue.InterQueue(writer)
-        self.links[msg['body']['system_name']] = res
+        system_name = msg['body']['system_name']
+        self.links[system_name] = res
         ans = msg_factory.get_msg('inter_linked', {'system_name': self.system_name})
         await res.put(ans)
         logging.debug(log_util.sync_sent_log(self, ans))
         msg['command'] = 'inter_linked'
         await self.parent.adaptor.notify(msg)
         if queue:
-            await queue.put(msg_factory.get_msg('ready'))
+            await queue.put(msg_factory.get_msg('inter_connected', {'system': system_name}))
 
     async def inter_linked(self, msg, writer, queue):
         res = inter_queue.InterQueue(writer)
-        self.links[msg['body']['system_name']] = res
+        system_name = msg['body']['system_name']
+        self.links[system_name] = res
         await self.parent.adaptor.notify(msg)
         if queue:
-            await queue.put(msg_factory.get_msg('ready'))
+            await queue.put(msg_factory.get_msg('inter_connected', {'system': system_name}))
 
     async def route(self, msg):
         res = self.links.get(msg['recipient'].get('system'))
@@ -188,7 +190,7 @@ class InterServer:
             if node and node != self.parent.adaptor.name:
                 res = await self.parent.intralink.get_intra_queue(node)
                 return res
-            recipient = recipient['entity']
+            recipient = recipient.get('entity')
         if not recipient:
             return self.parent.adaptor.queue
         if type(recipient) is not str:

@@ -14,10 +14,15 @@ class IntraServer(IntraLink):
         await self.start_server(queue)
 
     async def start_server(self, queue):
-        self.host = params.instance['intra_host']
-        self.port = params.instance['intra_port']
+        self.host = params.instance.get('intra_host')
+        self.port = params.instance.get('intra_port')
         try:
             self.server = await asyncio.start_server(self.server_handle, self.host, self.port)
+            port = self.server.sockets[0].getsockname()[1]
+            if port != self.port:
+                self.logger.info(f'Server intra port was changed from {self.port} to {port}!')
+                self.port = port
+                params.instance['intra_port'] = port
             await queue.put(msg_factory.get_msg('ready'))
             self.logger.info(f'{log_util.get_alias(self)} is started on port {self.port}')
         except Exception as ex:

@@ -48,7 +48,7 @@ class Signalman:
         self.connections = {}
         self.listeners = {}
         check_keys()
-        self.load_config()
+        # self.load_config()
         self.alias = self.parent.adaptor.get_alias(self)
         logging.info(f'{self.alias} is created')
 
@@ -89,6 +89,12 @@ class Signalman:
             return
         self.upload_keys(desc)
         if not await self._connect(desc):
+            return
+        if not await self.set_timezone(desc):
+            return
+        if not await self.edit_source_list(desc):
+            return
+        if not await self.install_python(desc):
             return
         if not await self.upload(desc):
             return
@@ -137,6 +143,52 @@ class Signalman:
             del self.connections[system_name]
             logging.info(f'Disconnected from system "{system_name}" by ssh')
 
+    async def set_timezone(self, desc):
+        conn = self.connections.get(desc.get(SYSTEM_NAME))
+        if not conn:
+            return False
+        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' timedatectl set-timezone Europe/Moscow")
+        if result.exit_status != 0:
+            logging.warning('Unable to set timezone: ' + result.stdout)
+            return False
+        return True
+
+    async def edit_source_list(self, desc):
+        conn = self.connections.get(desc.get(SYSTEM_NAME))
+        if not conn:
+            return False
+        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' sed -i '/^deb cdrom:/s/^/#/' /etc/apt/sources.list")
+        if result.exit_status != 0:
+            logging.warning('Unable to sed: ' + result.stdout)
+            return False
+        return True
+
+    async def install_python(self, desc):
+        conn = self.connections.get(desc.get(SYSTEM_NAME))
+        if not conn:
+            return False
+        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt-get install software-properties-common -y')
+        if result.exit_status != 0:
+            logging.warning('Unable to install software-properties-common: ' + result.stdout)
+            return False
+        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" add-apt-repository ppa:deadsnakes/ppa')
+        if result.exit_status != 0:
+            logging.warning('Unable to add-apt-repository: ' + result.stdout)
+            return False
+        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt-get update')
+        if result.exit_status != 0:
+            logging.warning('Unable to update: ' + result.stdout)
+            return False
+        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt-get install -y python3.10')
+        if result.exit_status != 0:
+            logging.warning('Unable to install python3.10: ' + result.stdout)
+            return False
+        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt install python3.10-venv python3.10-dev -y')
+        if result.exit_status != 0:
+            logging.warning('Unable to install venv: ' + result.stdout)
+            return False
+        return True
+
     async def upload(self, desc):
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
@@ -166,7 +218,7 @@ class Signalman:
         res += 'Restart=always\r\n'
         res += 'RestartSec = 10s\r\n'
         res += f'WorkingDirectory=/home/{username}/{SERVICE_DESTINATION}\r\n'
-        res += f'ExecStart=/home/{username}/{SERVICE_DESTINATION}/venv/bin/python '
+        res += f'ExecStart=/home/{username}/{SERVICE_DESTINATION}/venv/bin/python3.10 '
         res += f'/home/{username}/{SERVICE_DESTINATION}/{SERVICE_NAME} {CONFIG_NAME}\r\n'
         res += f'StandardOutput = file:/home/{username}/{SERVICE_DESTINATION}/output.log\r\n'
         res += f'StandardError = file:/home/{username}/{SERVICE_DESTINATION}/error.log\r\n'
@@ -184,7 +236,7 @@ class Signalman:
         res += f'intra_host=localhost\r\n'
         res += f'intra_port=0\r\n'
         res += f'inter_port={port}\r\n'
-        res += f'extra-index-url=https://test.pypi.org/simple/\r\n'
+        res += f'extra-index-url=http://192.168.100.164:9000\r\n'
         res += f'package_dir=packages\r\n'
         res += f'starter=None\r\n'
         res += f'start_command=None\r\n'
@@ -196,8 +248,9 @@ class Signalman:
         conn = self.connections.get(system_name)
         if not conn:
             return False
-        await conn.run(f'python3 -m venv {SERVICE_DESTINATION}/venv')
+        await conn.run(f'python3.10 -m venv {SERVICE_DESTINATION}/venv')
         await conn.run(f'source {SERVICE_DESTINATION}/venv/bin/activate')
+        await conn.run(f'python3.10 -m ensurepip')
         return True
 
     async def start_service(self, desc):
@@ -211,7 +264,7 @@ class Signalman:
         await conn.run(f'sudo -S <<< "{password}" systemctl start {SERVICE_CONFIG}')
         await self._disconnect(system_name)
         self.servers[desc.get(SYSTEM_NAME)] = desc
-        self.save_config()
+        # self.save_config()
         logging.info(f'{self.alias} The remote service "{system_name}" is started')
         return True
 

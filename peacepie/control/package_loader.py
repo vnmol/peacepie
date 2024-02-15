@@ -39,10 +39,15 @@ class PackageLoader:
     async def load_package(self, msg):
         res = None
         try:
-            args = [sys.executable, '-m', 'pip', 'download', msg['body']['package_name'],
-                    '--disable-pip-version-check', f'-d{self.path}']
+            url = params.instance[params.EXTRA_INDEX_URL]
+            host = url.split("//")[-1].split("/")[0]
+            args = ([sys.executable, '-m', 'pip', 'download', '--disable-pip-version-check'])
             if params.instance[params.EXTRA_INDEX_URL]:
-                args.append(f'--{params.EXTRA_INDEX_URL}={params.instance[params.EXTRA_INDEX_URL]}')
+                args.append(f'--trusted-host={host}')
+                args.append(f'--{params.EXTRA_INDEX_URL}={url}')
+            args.append(f'-d{self.path}')
+            args.append(msg['body']['package_name'])
+            logging.info(args)
             res = subprocess.check_call(args)
         except Exception as ex:
             self.logger.exception(ex)

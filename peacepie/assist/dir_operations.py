@@ -1,7 +1,7 @@
+import logging
 import os
 import shutil
 import sys
-from distutils.dir_util import copy_tree
 
 
 def makedir(dirpath, clear=False):
@@ -37,7 +37,10 @@ def clear_files(dirpath):
 
 
 def copydir(orig, dest):
-    copy_tree(orig, dest)
+    try:
+        shutil.copytree(orig, dest)
+    except Exception as e:
+        logging.exception(e)
 
 
 def adjust_path(path, process_name):

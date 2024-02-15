@@ -11,33 +11,26 @@ from peacepie.assist import dir_operations
 LOG_PATH = 'logs/log.log'
 
 logger = None
-logger_listener = None
-
-log_desc = None
+# logger_listener = None
+# log_desc = None
 
 
 def logger_start(config_filename):
     global logger
-    global logger_listener
-    global log_desc
+    # global logger_listener
+    # global log_desc
     if logger:
         return
     try:
         with open(config_filename) as f:
             config = json.load(f)
-        if params.instance.get('developing_mode'):
-            filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
-            for filename in filenames:
-                try:
-                    os.remove(filename)
-                except FileNotFoundError:
-                    pass
+        check_paths(config)
         logging.config.dictConfig(config)
         logger = logging.getLogger()
+        logger.info('Logging.config is set from: ' + config_filename)
     except BaseException as ex:
         logger = get_default_logger()
         logger.exception(ex)
-    logger.info('Logging.config is defined')
 
 
 def get_default_logger():
@@ -48,4 +41,19 @@ def get_default_logger():
     res = logging.getLogger()
     res.setLevel('DEBUG')
     res.addHandler(handler)
+    res.info('Default logger is created')
     return res
+
+
+def check_paths(config):
+    filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
+    filepaths = set([os.path.dirname(filename) for filename in filenames])
+    for filepath in filepaths:
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
+    if params.instance.get('developing_mode'):
+        for filename in filenames:
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                pass

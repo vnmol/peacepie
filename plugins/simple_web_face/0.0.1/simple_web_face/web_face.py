@@ -92,7 +92,6 @@ class WebFace:
         writer.write(msg)
         await writer.drain()
 
-
     async def handle(self, msg):
         command = msg['command']
         if command == 'start':

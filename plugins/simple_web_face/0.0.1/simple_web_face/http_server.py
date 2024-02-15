@@ -141,12 +141,14 @@ async def websocket_handler(request):
             if msg.data == 'close':
                 await ws.close()
             else:
-                res = await websocket_handle(ws, msg.data)
+                res = await websocket_handle(msg.data)
                 await ws.send_str(res)
     logging.info('Websocket connection closed')
     return ws
 
 
-async def websocket_handle(ws, body):
+async def websocket_handle(body):
     ans = await instance.client_link.ask({'command': 'websocket_handle', 'body': body})
+    if not ans:
+        ans = 'No response was received'
     return ans

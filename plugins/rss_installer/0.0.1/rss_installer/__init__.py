@@ -1,0 +1,1 @@
+from rss_installer.installer import RssInstaller

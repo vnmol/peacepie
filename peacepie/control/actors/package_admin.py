@@ -27,8 +27,8 @@ class PackageAdmin:
         dir_operations.makedir(self.work_path, True)
         logging.info(log_util.get_alias(self) + ' is created')
 
-    def get_class(self, class_desc):
-        res = self.get_package(class_desc)
+    def get_class(self, class_desc, timeout):
+        res = self.get_package(class_desc, timeout)
         if isinstance(res, asyncio.Queue):
             return res
         try:
@@ -38,15 +38,15 @@ class PackageAdmin:
             return None
         return res
 
-    def get_package(self, class_desc):
+    def get_package(self, class_desc, timeout):
         pack = self.packages.get(class_desc[PACKAGE_NAME])
         if not pack:
-            return self.put_into_queue(class_desc)
+            return self.put_into_queue(class_desc, timeout)
         if not version.check_version(self, pack[version.VERSION], class_desc.get(version.VERSION)):
             return None
         return pack[PACKAGE]
 
-    def put_into_queue(self, class_desc):
+    def put_into_queue(self, class_desc, timeout):
         queue = asyncio.Queue()
         waiters = self.waiters.get(class_desc.get(PACKAGE_NAME))
         if not waiters:
@@ -55,24 +55,24 @@ class PackageAdmin:
             if params.instance.get('developing_mode'):
                 asyncio.get_running_loop().create_task(self.copy_package(class_desc))
             else:
-                asyncio.get_running_loop().create_task(self.load_package(class_desc))
+                asyncio.get_running_loop().create_task(self.load_package(class_desc, timeout))
         waiters.append({'version': class_desc.get(version.VERSION), 'class': class_desc.get(CLASS), 'queue': queue})
         return queue
 
-    async def load_package(self, class_desc):
-        if not await self.load(class_desc.get(PACKAGE_NAME), class_desc.get(version.VERSION)):
+    async def load_package(self, class_desc, timeout):
+        if not await self.load(class_desc.get(PACKAGE_NAME), class_desc.get(version.VERSION), timeout):
             return
         if not self.are_packages_suitable():
             return
         await self.install(class_desc.get(PACKAGE_NAME))
 
-    async def load(self, package_name, conditions):
+    async def load(self, package_name, conditions, timeout):
         package_name = package_name + version.conditions_as_text(conditions)
         if self._load(package_name):
             return True
         recipient = self.parent.parent.connector.get_head_addr()
         msg = msg_factory.get_msg('load_package', {'package_name': package_name}, recipient=recipient)
-        ans = await self.parent.parent.connector.ask(self, msg)
+        ans = await self.parent.parent.connector.ask(self, msg, timeout)
         if ans['command'] == 'package_is_not_loaded':
             return False
         return self._load(package_name)
@@ -147,8 +147,8 @@ class PackageAdmin:
         ver = version.find_max_version(self, lst, class_desc.get(version.VERSION))
         src = f'{path}/{version.to_string(ver)}/{package_name}'
         dst = f'{self.work_path}/{package_name}'
-        dir_operations.makedir(dst)
-        dir_operations.copy_tree(src, dst)
+        dir_operations.copydir(src, dst)
+        pack = None
         try:
             pack = importlib.import_module(package_name)
         except Exception as e:
