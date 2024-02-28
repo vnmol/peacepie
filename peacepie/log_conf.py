@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import logging.config
+import sys
 from logging.handlers import RotatingFileHandler
 
 from peacepie import params
@@ -51,7 +52,7 @@ def check_paths(config):
     for filepath in filepaths:
         if not os.path.exists(filepath):
             os.makedirs(filepath)
-    if params.instance.get('developing_mode'):
+    if params.instance.get('developing_mode') or 'pycharm' in sys.executable.lower():
         for filename in filenames:
             try:
                 os.remove(filename)

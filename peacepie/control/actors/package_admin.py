@@ -1,7 +1,9 @@
 import asyncio
 import importlib
+import inspect
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
@@ -32,19 +34,19 @@ class PackageAdmin:
         if isinstance(res, asyncio.Queue):
             return res
         try:
-            res = getattr(res, class_desc[CLASS])
+            res = getattr(res, class_desc.get(CLASS))
         except Exception as ex:
             logging.exception(ex)
             return None
         return res
 
     def get_package(self, class_desc, timeout):
-        pack = self.packages.get(class_desc[PACKAGE_NAME])
+        pack = self.packages.get(class_desc.get(PACKAGE_NAME))
         if not pack:
             return self.put_into_queue(class_desc, timeout)
-        if not version.check_version(self, pack[version.VERSION], class_desc.get(version.VERSION)):
+        if not version.check_version(self, pack.get(version.VERSION), class_desc.get(version.VERSION)):
             return None
-        return pack[PACKAGE]
+        return pack.get(PACKAGE)
 
     def put_into_queue(self, class_desc, timeout):
         queue = asyncio.Queue()
@@ -52,7 +54,9 @@ class PackageAdmin:
         if not waiters:
             waiters = []
             self.waiters[class_desc.get(PACKAGE_NAME)] = waiters
-            if params.instance.get('developing_mode'):
+            if not class_desc.get(CLASS):
+                asyncio.get_running_loop().create_task(self.copy_module(class_desc))
+            elif params.instance.get('developing_mode'):
                 asyncio.get_running_loop().create_task(self.copy_package(class_desc))
             else:
                 asyncio.get_running_loop().create_task(self.load_package(class_desc, timeout))
@@ -71,7 +75,7 @@ class PackageAdmin:
         if self._load(package_name):
             return True
         recipient = self.parent.parent.connector.get_head_addr()
-        msg = msg_factory.get_msg('load_package', {'package_name': package_name}, recipient=recipient)
+        msg = msg_factory.get_msg('load_package', {PACKAGE_NAME: package_name}, recipient=recipient)
         ans = await self.parent.parent.connector.ask(self, msg, timeout)
         if ans['command'] == 'package_is_not_loaded':
             return False
@@ -132,16 +136,17 @@ class PackageAdmin:
     async def notify(self, package_name, ver, pack):
         for waiter in self.waiters.get(package_name):
             res = None
-            if version.check_version(self, ver, waiter[version.VERSION]):
+            if version.check_version(self, ver, waiter.get(version.VERSION)):
+                class_name = waiter.get(CLASS)
                 try:
-                    res = getattr(pack, waiter[CLASS])
+                    res = getattr(pack, class_name) if class_name else get_primary_class(pack)
                 except Exception as ex:
                     logging.exception(ex)
             await waiter['queue'].put(res)
         del self.waiters[package_name]
 
     async def copy_package(self, class_desc):
-        package_name = class_desc.get('package_name')
+        package_name = class_desc.get(PACKAGE_NAME)
         path = './plugins/' + package_name
         lst = [version.from_string(name) for name in os.listdir(path) if version.from_string(name)]
         ver = version.find_max_version(self, lst, class_desc.get(version.VERSION))
@@ -155,3 +160,27 @@ class PackageAdmin:
             logging.exception(e)
         await self.notify(package_name, ver, pack)
         self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
+
+    async def copy_module(self, class_desc):
+        package_name = class_desc.get(PACKAGE_NAME)
+        src = f'{self.source_path}/{package_name}.py'
+        dst = f'{self.work_path}/{package_name}.py'
+        shutil.copy(src, dst)
+        ver = None
+        pack = None
+        try:
+            pack = importlib.import_module(package_name)
+        except Exception as e:
+            logging.exception(e)
+        await self.notify(package_name, ver, pack)
+        self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
+
+
+def get_primary_class(module):
+    classes = inspect.getmembers(module, inspect.isclass)
+    if classes:
+        primary_class_name, primary_class = classes[0]
+        return primary_class
+    else:
+        return None
+

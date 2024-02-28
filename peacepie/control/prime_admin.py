@@ -1,5 +1,6 @@
 import asyncio
 
+from peacepie import loglistener
 from peacepie.assist import log_util
 from peacepie.control import admin, process_admin, package_loader, delivery
 
@@ -11,7 +12,7 @@ DELIVERY_COMMANDS = {'deliver_package', 'transfer'}
 class PrimeAdmin(admin.Admin):
 
     def __init__(self, host_name, process_name):
-        super().__init__(None, host_name, process_name)
+        super().__init__(None, host_name, process_name, loglistener.instance.get_log_desc())
         self.process_admin = None
         self.package_loader = None
         self.delivery = None

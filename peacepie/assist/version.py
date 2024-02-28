@@ -41,10 +41,10 @@ def check_version(actor, ver, conditions):
 
 
 def _check_version(version, conditions):
-    if not version:
-        return False
     if not conditions:
         return True
+    if not version:
+        return False
     for (condition, value) in conditions.items():
         if condition == '==':
             for level in VERSION_LEVELS:

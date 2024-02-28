@@ -44,7 +44,7 @@ def create(lord, name, prms, msg_queue, log_desc, sender):
     prefix = f'{name.host_name}.{name.process_name}'
     multimanager.init_multimanager(f'{prefix}.multimanager')
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
-    performer = admin.Admin(lord, name.host_name, name.process_name)
+    performer = admin.Admin(lord, name.host_name, name.process_name, log_desc)
     actr = None
     try:
         actr = adaptor.Adaptor(name.get_actor_name(), None, performer, sender)

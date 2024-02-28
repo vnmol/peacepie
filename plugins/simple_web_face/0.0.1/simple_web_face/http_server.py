@@ -31,6 +31,8 @@ class HttpServer:
         self.app.add_routes([web.get('/', root_handler)])
         self.app.add_routes([web.get('/favicon.ico', favicon)])
         self.app.add_routes([web.get('/ws', websocket_handler)])
+        self.app.add_routes([web.get('/logs', logs_handler)])
+        self.app.add_routes([web.get('/logs/{path:.*}', logs_handler)])
         self.client_link = client_link.ClientLink(link_host, link_port, serializer)
 
 
@@ -125,7 +127,7 @@ def command(body):
 
 
 def script_command():
-    res = f'webSocket = new WebSocket("ws://{instance.client_link.link_host}:{instance.http_port}/ws");'
+    res = f'webSocket = new WebSocket("ws://{instance.http_host}:{instance.http_port}/ws");'
     res += html_addons.script_websocket
     return res
 
@@ -152,3 +154,31 @@ async def websocket_handle(body):
     if not ans:
         ans = 'No response was received'
     return ans
+
+
+async def logs_handler(request):
+    path = request.match_info.get('path', '')
+    logs_path = os.path.join('/logs/', path)
+    if logs_path.endswith('/'):
+        logs_path = logs_path[:-1]
+    logs_dir = '.' + logs_path
+    if not os.path.exists(logs_dir):
+        return web.Response(text=f'Путь "{logs_dir}" не найден', status=404)
+    if os.path.isfile(logs_dir):
+        with open(logs_dir, 'rb') as f:
+            content = f.read()
+        return web.Response(body=content)
+    content = ''
+    if path:
+        parent_path = os.path.dirname(logs_path)
+        content += f"<a href='{parent_path}'>..</a><br>"
+    items = [(item, os.path.isdir(os.path.join(logs_dir, item))) for item in os.listdir(logs_dir)]
+    foldernames = [item[0] for item in items if item[1]]
+    foldernames.sort()
+    filenames = [item[0] for item in items if not item[1]]
+    filenames.sort()
+    for foldername in foldernames:
+        content += f"<a href='{logs_path}/{foldername}/'>{foldername}/</a><br>"
+    for filename in filenames:
+        content += f"<a href='{logs_path}/{filename}'>{filename}</a><br>"
+    return web.Response(text=content, content_type='text/html')

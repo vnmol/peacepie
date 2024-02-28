@@ -54,7 +54,7 @@ class InterServer:
         peer = writer.get_extra_info('socket').getpeername()
         logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is opened')
         serializer = serialization.Serializer()
-        body = {'system_name': self.system_name}
+        body = self.parent.connector.get_addr(self.system_name, self.parent.adaptor.name, None)
         msg = msg_factory.get_msg('inter_link', body)
         writer.write(serializer.serialize(msg))
         await writer.drain()
@@ -75,8 +75,10 @@ class InterServer:
         logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is closed')
 
     async def inter_connect(self, msg):
-        host = msg['body']['addr']['host']
-        port = int(msg['body']['addr']['port'])
+        body = msg.get('body')
+        addr = body.get('addr')
+        host = addr.get('host')
+        port = int(addr.get('port'))
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.start_client(host, port, queue))
         ans = await queue.get()
@@ -87,7 +89,7 @@ class InterServer:
         body = msg.get('body')
         if not body:
             return
-        system_name = body.get('system_name')
+        system_name = body.get('system')
         if not system_name:
             return
         link = self.links.get(system_name)
@@ -154,23 +156,26 @@ class InterServer:
 
     async def inter_link(self, msg, writer, queue):
         res = inter_queue.InterQueue(writer)
-        system_name = msg['body']['system_name']
+        system_addr = msg.get('body')
+        system_name = system_addr.get('system')
         self.links[system_name] = res
-        ans = msg_factory.get_msg('inter_linked', {'system_name': self.system_name})
+        body = self.parent.connector.get_addr(self.system_name, self.parent.adaptor.name, None)
+        ans = msg_factory.get_msg('inter_linked', body)
         await res.put(ans)
         logging.debug(log_util.sync_sent_log(self, ans))
         msg['command'] = 'inter_linked'
         await self.parent.adaptor.notify(msg)
         if queue:
-            await queue.put(msg_factory.get_msg('inter_connected', {'system': system_name}))
+            await queue.put(msg_factory.get_msg('inter_connected', system_addr))
 
     async def inter_linked(self, msg, writer, queue):
         res = inter_queue.InterQueue(writer)
-        system_name = msg['body']['system_name']
+        system_addr = msg.get('body')
+        system_name = system_addr.get('system')
         self.links[system_name] = res
         await self.parent.adaptor.notify(msg)
         if queue:
-            await queue.put(msg_factory.get_msg('inter_connected', {'system': system_name}))
+            await queue.put(msg_factory.get_msg('inter_connected', system_addr))
 
     async def route(self, msg):
         res = self.links.get(msg['recipient'].get('system'))

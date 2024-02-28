@@ -20,12 +20,13 @@ LIBS_PATH = 'libs_path'
 
 class Admin:
 
-    def __init__(self, lord, host_name, process_name):
+    def __init__(self, lord, host_name, process_name, log_desc):
         self.logger = logging.getLogger()
         self.is_head = False
         self.lord = lord
         self.host_name = host_name
         self.process_name = process_name
+        self.log_desc = log_desc
         self.adaptor = None
         self.actor_admin = None
         self.actors = {}
@@ -63,7 +64,7 @@ class Admin:
             msg['recipient'] = self.actor_seeker.queue
             await self.connector.send(self, msg)
         elif command == 'get_log_desc':
-            ans = msg_factory.get_msg('log_desc', loglistener.instance.get_log_desc(), msg['sender'])
+            ans = msg_factory.get_msg('log_desc', self.log_desc, msg['sender'])
             await self.connector.send(self, ans)
         elif command == 'get_members':
             await self.get_members(msg)

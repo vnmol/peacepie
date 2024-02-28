@@ -103,10 +103,16 @@ class ActorLoader:
         await self.parent.parent.connector.send(self, ans)
 
     async def _get_class(self, msg):
-        class_desc = msg['body']['class_desc']
+        body = msg.get('body')
+        if not body:
+            return None
+        class_desc = body.get('class_desc')
+        if not class_desc:
+            return None
         if isinstance(class_desc, type):
             return class_desc
         res = self.parent.package_admin.get_class(class_desc, msg.get('timeout'))
         if isinstance(res, type):
             return res
-        return await res.get()
+        res = await res.get()
+        return res

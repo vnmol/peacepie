@@ -1,7 +1,7 @@
 import asyncio
 
 from peacepie.assist import log_util
-from peacepie.control import prime_admin, starter, admin
+from peacepie.control import prime_admin, starter, admin, starter
 from peacepie.control.inter import inter_server
 
 INTER_COMMANDS = {'inter_connect', 'inter_disconnect'}

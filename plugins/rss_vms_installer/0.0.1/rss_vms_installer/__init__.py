@@ -1,1 +1,2 @@
 from rss_vms_installer.installer import RssVmsInstaller
+from rss_vms_installer.open_jdk_java_8_installer import OpenJdkJava8Installer

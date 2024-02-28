@@ -7,7 +7,7 @@ from simple_web_face import http_server
 from peacepie import params
 
 
-class WebFace:
+class SimpleWebFace:
 
     def __init__(self):
         self.adaptor = None

@@ -17,6 +17,8 @@ SSH_PORT = 'ssh_port'
 USERNAME = 'username'
 PASSWORD = 'password'
 
+PY_VERSION = '3.10.12'
+
 CONFIG_NAME = 'peacepie.cfg'
 LOG_CONFIG_NAME = 'log.cfg'
 
@@ -87,36 +89,46 @@ class Signalman:
         if self.servers.get(desc.get(SYSTEM_NAME)):
             logging.info(f'The server "{desc.get(SYSTEM_NAME)}" is already exist')
             return
-        self.upload_keys(desc)
-        if not await self._connect(desc):
-            return
-        if not await self.set_timezone(desc):
-            return
-        if not await self.edit_source_list(desc):
-            return
-        if not await self.install_python(desc):
-            return
-        if not await self.upload(desc):
-            return
-        if not await self.create_venv(desc):
-            return
-        if not await self.start_service(desc):
-            return
-        ans = self.parent.adaptor.get_msg('server_is_added', f'The server "{desc.get(SYSTEM_NAME)}" is added',
-                                          msg.get('sender'))
+        flag = True
+        if not await self.upload_keys(desc):
+            flag = False
+        if flag and not await self._connect(desc):
+            flag = False
+        if flag and not await self.set_timezone(desc):
+            flag = False
+        if flag and not await self.edit_source_list(desc):
+            flag = False
+        if flag and not await self.install_python_from_deadsnakes(desc):
+            if not await self.install_python_from_source_code(desc):
+                flag = False
+        if flag and not await self.upload(desc):
+            flag = False
+        if flag and not await self.create_venv(desc):
+            flag = False
+        if flag and not await self.start_service(desc):
+            flag = False
+        if flag:
+            body = f'The server "{desc.get(SYSTEM_NAME)}" is added'
+            ans = self.parent.adaptor.get_msg('server_is_added', body, msg.get('sender'))
+        else:
+            body = f'The server "{desc.get(SYSTEM_NAME)}" is not added'
+            ans = self.parent.adaptor.get_msg('server_is_not_added', body, msg.get('sender'))
         await self.parent.adaptor.send(ans)
 
-    def upload_keys(self, desc):
+    async def server_is_not_added(self, system_name, recipient):
+        ans = self.parent.adaptor.get_msg('server_is_not_added', f'The server "{system_name}" is not added', recipient)
+        await self.parent.adaptor.send(ans)
+
+    async def upload_keys(self, desc):
         cmd = f'sshpass -p {desc.get(PASSWORD)} ssh-copy-id -o StrictHostKeyChecking=no -i {KEY_DIR}/{KEY_NAME}'
         cmd += f' -p {desc.get(SSH_PORT)} {desc.get(USERNAME)}@{desc.get(HOST)}'
-        res = self.parent.adaptor.execute(cmd)
-        if res[0] == 0:
-            log = f'{self.alias} The keys is added to remote server "{desc.get(HOST)}" with result: "{res[1]}"'
+        try:
+            res = await self.parent.adaptor.sync_as_async(self.parent.adaptor.execute, sync_args=(cmd, 60))
+            log = f'{self.alias} The keys is added to remote server "{desc.get(HOST)}" with result: "{res}"'
             logging.info(log)
             return True
-        else:
-            log = f'{self.alias} The keys is not added to remote server "{desc.get(HOST)}" with result: "{res[2]}"'
-            logging.warning(log)
+        except Exception as e:
+            logging.exception(e)
             return False
 
     async def _connect(self, desc):
@@ -163,7 +175,7 @@ class Signalman:
             return False
         return True
 
-    async def install_python(self, desc):
+    async def install_python_from_deadsnakes(self, desc):
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
             return False
@@ -189,6 +201,63 @@ class Signalman:
             return False
         return True
 
+    async def install_python_from_source_code(self, desc):
+        conn = self.connections.get(desc.get(SYSTEM_NAME))
+        if not conn:
+            return False
+        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt-get update")
+        if result.exit_status != 0:
+            logging.warning('Unable to update: ' + result.stdout)
+            return False
+        command = f"sudo -S <<< '{desc[PASSWORD]}' apt install -y build-essential zlib1g-dev libncurses5-dev"
+        command += ' libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget'
+        result = await conn.run(command)
+        if result.exit_status != 0:
+            logging.warning(f'Unable to install essentials: "{result.stdout}" "{result.stderr}"')
+            return False
+        result = await conn.run(f'mkdir -p tmp')
+        if result.exit_status != 0:
+            logging.warning(f'Unable to create an tmp folder: "{result.stdout}" "{result.stderr}"')
+            return False
+        result = await conn.run(f'wget -P ./tmp/ https://python.org/ftp/python/{PY_VERSION}/Python-{PY_VERSION}.tgz')
+        if result.exit_status != 0:
+            logging.warning(f'Unable to load python archive: "{result.stdout}" "{result.stderr}"')
+            return False
+        result = await conn.run(f'tar -xf ./tmp/Python-{PY_VERSION}.tgz -C ./tmp')
+        if result.exit_status != 0:
+            logging.warning(f'Unable to unzip python archive: "{result.stdout}" "{result.stderr}"')
+            return False
+        nproc = 0
+        result = await conn.run('nproc --all')
+        if result.exit_status == 0:
+            nproc = int(result.stdout)
+        else:
+            logging.warning(f'Unable to get a number of cores: "{result.stdout}" "{result.stderr}"')
+        self.form_python_bash(desc, nproc)
+        async with conn.start_sftp_client() as sftp:
+            await sftp.put(f'{SERVICE_SOURCE}/compile.sh')
+        result = await conn.run('chmod +x compile.sh')
+        if result.exit_status != 0:
+            logging.warning(f'Unable to execute chmod": "{result.stdout}" "{result.stderr}"')
+            return False
+        result = await conn.run('./compile.sh')
+        if result.exit_status != 0:
+            logging.warning(f'Unable to execute "compile.sh": "{result.stdout}" "{result.stderr}"')
+            return False
+        '''
+        '''
+        return True
+
+    def form_python_bash(self, desc, nproc):
+        res = '#!/bin/bash\n'
+        res += f'cd ./tmp/Python-{PY_VERSION}\n'
+        res += './configure --enable-optimizations\n'
+        if nproc > 0:
+            res += f'make -j {nproc}\n'
+        res += f"sudo -S <<< '{desc[PASSWORD]}' make altinstall\n"
+        with open(f'{SERVICE_SOURCE}/compile.sh', 'w') as f:
+            f.write(res)
+
     async def upload(self, desc):
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
@@ -200,9 +269,9 @@ class Signalman:
         async with conn.start_sftp_client() as sftp:
             await sftp.put(f'{SERVICE_SOURCE}/{SERVICE_NAME}', f'{SERVICE_DESTINATION}/{SERVICE_NAME}')
             await sftp.put(f'{SERVICE_SOURCE}/{LOG_CONFIG_NAME}', f'{SERVICE_DESTINATION}/{LOG_CONFIG_NAME}')
-            self.form_systemd(desc.get(USERNAME))
+            # self.form_systemd(desc.get(USERNAME))
             await sftp.put(f'{SERVICE_SOURCE}/{SERVICE_CONFIG}', f'{SERVICE_DESTINATION}/{SERVICE_CONFIG}')
-            self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT))
+            # self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT))
             await sftp.put(f'{SERVICE_SOURCE}/{CONFIG_NAME}', f'{SERVICE_DESTINATION}/{CONFIG_NAME}')
         cmd = f'sudo -S <<< "{desc[PASSWORD]}" cp {SERVICE_DESTINATION}/{SERVICE_CONFIG}'
         cmd += f' {SERVICE_CONFIG_DEST}/{SERVICE_CONFIG}'
@@ -238,8 +307,8 @@ class Signalman:
         res += f'inter_port={port}\r\n'
         res += f'extra-index-url=http://192.168.100.164:9000\r\n'
         res += f'package_dir=packages\r\n'
-        res += f'starter=None\r\n'
-        res += f'start_command=None\r\n'
+        res += 'starter={"class_desc": {"package_name": "simple_web_face", "class": "WebFace"}, "name": "web_face"}\r\n'
+        res += 'start_command={"command": "start", "body": {"port": 8080}}\r\n'
         with open(f'{SERVICE_SOURCE}/{CONFIG_NAME}', 'w') as f:
             f.write(res)
 

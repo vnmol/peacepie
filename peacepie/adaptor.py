@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util
+from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin
 
@@ -159,3 +159,6 @@ class Adaptor:
 
     def execute(self, cmd):
         return terminal_util.execute(cmd)
+
+    def sync_as_async(self, sync_function, sync_args=None):
+        return thread_util.sync_as_async(sync_function, sync_args)
