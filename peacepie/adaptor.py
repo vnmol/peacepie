@@ -108,7 +108,10 @@ class Adaptor:
             await self.performer.connector.send(sender, msg)
 
     async def ask(self, msg, timeout=1):
-        return await self.parent.connector.ask(self, msg, timeout)
+        if self.parent:
+            return await self.parent.connector.ask(self, msg, timeout)
+        else:
+            await self.performer.connector.ask(self, msg, timeout)
 
     def add_ticker(self, period, count=None):
         if not self.ticker_admin:
@@ -116,7 +119,10 @@ class Adaptor:
         return self.ticker_admin.add_ticker(self.queue, period, count)
 
     def add_to_cache(self, node, entity):
-        self.parent.connector.add_to_cache(node, entity)
+        if self.parent:
+            self.parent.connector.add_to_cache(node, entity)
+        else:
+            self.performer.connector.add_to_cache(node, entity)
 
     def get_node(self):
         if self.parent:
@@ -140,16 +146,26 @@ class Adaptor:
             return self.performer.connector.get_addr(system, node, entity)
 
     def get_head_name(self):
+
         return self.parent.connector.get_head_name()
 
     def get_head_addr(self):
-        return self.parent.connector.get_head_addr()
+        if self.parent:
+            return self.parent.connector.get_head_addr()
+        else:
+            return self.performer.connector.get_head_addr()
 
     def get_prime_name(self):
-        return self.parent.connector.get_prime_name()
+        if self.parent:
+            return self.parent.connector.get_prime_name()
+        else:
+            return self.performer.connector.get_prime_name()
 
     def get_prime_addr(self):
-        return self.parent.connector.get_prime_addr()
+        if self.parent:
+            return self.parent.connector.get_prime_addr()
+        else:
+            return self.performer.connector.get_prime_addr()
 
     def get_serializer(self):
         return serialization.Serializer()

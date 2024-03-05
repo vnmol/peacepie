@@ -41,6 +41,8 @@ class PackageAdmin:
         return res
 
     def get_package(self, class_desc, timeout):
+        if class_desc.get('internal'):
+            return importlib.import_module(class_desc.get(PACKAGE_NAME))
         pack = self.packages.get(class_desc.get(PACKAGE_NAME))
         if not pack:
             return self.put_into_queue(class_desc, timeout)

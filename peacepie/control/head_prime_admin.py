@@ -1,7 +1,8 @@
 import asyncio
+import logging
 
 from peacepie.assist import log_util
-from peacepie.control import prime_admin, starter, admin, starter
+from peacepie.control import prime_admin, admin
 from peacepie.control.inter import inter_server
 
 INTER_COMMANDS = {'inter_connect', 'inter_disconnect'}
@@ -20,11 +21,22 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.interlink.run(queue))
         await queue.get()
-        await starter.Starter(self.actor_admin).start()
+        class_desc = {'package_name': 'peacepie.control.starter', 'class': 'Starter', 'internal': True}
+        body = {'class_desc': class_desc, 'name': 'internal_starter'}
+        msg = self.adaptor.get_msg('create_actor', body, sender=self.adaptor.get_self_addr())
+        await self.adaptor.send(msg)
+        # await starter.Starter(self.actor_admin).start()
 
     async def handle(self, msg):
         command = msg.get('command')
-        if command in INTER_COMMANDS:
+        if command == 'actor_is_created':
+            body = msg.get('body')
+            if not body:
+                return False
+            if body.get('entity') != 'internal_starter':
+                return False
+            await self.adaptor.send(self.adaptor.get_msg('start', recipient=body))
+        elif command in INTER_COMMANDS:
             await self.interlink.queue.put(msg)
             self.logger.debug(log_util.async_sent_log(self, msg))
         elif command == 'get_members':

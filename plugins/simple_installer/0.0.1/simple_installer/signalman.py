@@ -20,6 +20,7 @@ PASSWORD = 'password'
 PY_VERSION = '3.10.12'
 
 CONFIG_NAME = 'peacepie.cfg'
+APP_STARTER = 'app_starter.py'
 LOG_CONFIG_NAME = 'log.cfg'
 
 SERVICE_SOURCE = 'peacepie_service'
@@ -240,12 +241,10 @@ class Signalman:
         if result.exit_status != 0:
             logging.warning(f'Unable to execute chmod": "{result.stdout}" "{result.stderr}"')
             return False
-        result = await conn.run('./compile.sh')
+        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' ./compile.sh")
         if result.exit_status != 0:
             logging.warning(f'Unable to execute "compile.sh": "{result.stdout}" "{result.stderr}"')
             return False
-        '''
-        '''
         return True
 
     def form_python_bash(self, desc, nproc):
@@ -273,6 +272,7 @@ class Signalman:
             await sftp.put(f'{SERVICE_SOURCE}/{SERVICE_CONFIG}', f'{SERVICE_DESTINATION}/{SERVICE_CONFIG}')
             # self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT))
             await sftp.put(f'{SERVICE_SOURCE}/{CONFIG_NAME}', f'{SERVICE_DESTINATION}/{CONFIG_NAME}')
+            await sftp.put(f'{SERVICE_SOURCE}/{APP_STARTER}', f'{SERVICE_DESTINATION}/{APP_STARTER}')
         cmd = f'sudo -S <<< "{desc[PASSWORD]}" cp {SERVICE_DESTINATION}/{SERVICE_CONFIG}'
         cmd += f' {SERVICE_CONFIG_DEST}/{SERVICE_CONFIG}'
         await conn.run(cmd)

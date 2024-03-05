@@ -33,6 +33,8 @@ class HttpServer:
         self.app.add_routes([web.get('/ws', websocket_handler)])
         self.app.add_routes([web.get('/logs', logs_handler)])
         self.app.add_routes([web.get('/logs/{path:.*}', logs_handler)])
+        self.app.add_routes([web.get('/log_view', log_view_handler)])
+        self.app.add_routes([web.get('/log_view/{path:.*}', log_view_handler)])
         self.client_link = client_link.ClientLink(link_host, link_port, serializer)
 
 
@@ -158,6 +160,7 @@ async def websocket_handle(body):
 
 async def logs_handler(request):
     path = request.match_info.get('path', '')
+    print('logs', path)
     logs_path = os.path.join('/logs/', path)
     if logs_path.endswith('/'):
         logs_path = logs_path[:-1]
@@ -181,4 +184,35 @@ async def logs_handler(request):
         content += f"<a href='{logs_path}/{foldername}/'>{foldername}/</a><br>"
     for filename in filenames:
         content += f"<a href='{logs_path}/{filename}'>{filename}</a><br>"
+    return web.Response(text=content, content_type='text/html')
+
+
+async def log_view_handler(request):
+    path = request.match_info.get('path', '')
+    if not path.startswith('/'):
+        path = '/' + path
+    if path.endswith('/'):
+        path = path[:-1]
+    view_path = f'/log_view{path}'
+    logs_path = f'/logs{path}'
+    logs_dir = '.' + logs_path
+    if not os.path.exists(logs_dir):
+        return web.Response(text=f'Путь "{logs_dir}" не найден', status=404)
+    if os.path.isfile(logs_dir):
+        with open(logs_dir, 'rb') as f:
+            content = f.read()
+        return web.Response(body=content, content_type='text/plain', headers={'Content-Disposition': 'inline'})
+    content = ''
+    if path:
+        parent_path = os.path.dirname(logs_path).replace('/logs', '/log_view')
+        content += f"<a href='{parent_path}'>..</a><br>"
+    items = [(item, os.path.isdir(os.path.join(logs_dir, item))) for item in os.listdir(logs_dir)]
+    foldernames = [item[0] for item in items if item[1]]
+    foldernames.sort()
+    filenames = [item[0] for item in items if not item[1]]
+    filenames.sort()
+    for foldername in foldernames:
+        content += f"<a href='{view_path}/{foldername}/'>{foldername}/</a><br>"
+    for filename in filenames:
+        content += f"<a href='{view_path}/{filename}'>{filename}</a><br>"
     return web.Response(text=content, content_type='text/html')

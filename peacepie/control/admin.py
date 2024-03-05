@@ -9,7 +9,7 @@ from peacepie.control.actors import actor_admin, actor_seeker
 from peacepie.control.intra import intra_server, intra_client
 
 ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'produce_actor', 'actor_destroyed',
-                        'get_dependencies'}
+                        'get_dependencies', 'get_source_path'}
 
 SPY_COMMANDS = {'gather_info', 'get_info', 'info'}
 
