@@ -16,37 +16,26 @@ class OpenJdkJava8Installer:
             return False
         return True
 
-    async def java_install(self, sender):
+    async def java_install(self, recipient):
+        try:
+            await self._java_install()
+            await self.adaptor.send(self.adaptor.get_msg('java_is_installed', recipient=recipient))
+        except Exception as e:
+            logging.exception(e)
+            await self.adaptor.send(self.adaptor.get_msg('java_is_not_installed', recipient=recipient))
+
+    async def _java_install(self):
         try:
             res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args='java -version')
             logging.debug(f'java_version_result: {res}')
             return
         except FileNotFoundError:
             logging.debug(f'Java not found')
-        except Exception as e:
-            await self.fail(e, sender)
-            return
-        try:
-            command = 'add-apt-repository ppa:openjdk-r/ppa'
-            res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=(command, 300))
-            logging.debug(f'add-apt-repository: {res}')
-        except Exception as e:
-            await self.fail(e, sender)
-            return
-        try:
-            res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=('apt-get update', 300))
-            logging.debug(f'apt-get update: {res}')
-        except Exception as e:
-            await self.fail(e, sender)
-            return
-        try:
-            command = 'apt-get install -y openjdk-8-jdk'
-            res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=(command, 300))
-            logging.debug(f'apt-get install openjdk-8-jdk: {res}')
-        except Exception as e:
-            await self.fail(e, sender)
-        await self.adaptor.send(self.adaptor.get_msg('java_is_installed', recipient=sender))
-
-    async def fail(self, e, recipient):
-        logging.exception(e)
-        await self.adaptor.send(self.adaptor.get_msg('java_is_not_installed', recipient=recipient))
+        com = 'add-apt-repository ppa:openjdk-r/ppa'
+        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=(com, 300))
+        logging.debug(f'add-apt-repository: {res}')
+        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=('apt-get update', 300))
+        logging.debug(f'apt-get update: {res}')
+        com = 'apt-get install -y openjdk-8-jdk'
+        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=(com, 300))
+        logging.debug(f'apt-get install openjdk-8-jdk: {res}')

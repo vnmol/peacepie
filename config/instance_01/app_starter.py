@@ -1,6 +1,3 @@
-import asyncio
-import sys
-
 
 class AppStarter:
 
@@ -10,12 +7,12 @@ class AppStarter:
     async def handle(self, msg):
         command = msg.get('command')
         if command == 'start':
-            await self.start()
+            await self.start(msg)
         else:
             return False
         return True
 
-    async def start(self):
+    async def start(self, msg):
         class_desc = {'package_name': 'simple_installer', 'class': 'SimpleInstaller'}
         query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'simple_installer'})
         ans = await self.adaptor.ask(query)

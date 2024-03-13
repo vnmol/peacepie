@@ -21,11 +21,10 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.interlink.run(queue))
         await queue.get()
-        class_desc = {'package_name': 'peacepie.control.starter', 'class': 'Starter', 'internal': True}
+        class_desc = {'package_name': 'peacepie.control.internal_starter', 'class': 'InternalStarter', 'internal': True}
         body = {'class_desc': class_desc, 'name': 'internal_starter'}
         msg = self.adaptor.get_msg('create_actor', body, sender=self.adaptor.get_self_addr())
         await self.adaptor.send(msg)
-        # await starter.Starter(self.actor_admin).start()
 
     async def handle(self, msg):
         command = msg.get('command')

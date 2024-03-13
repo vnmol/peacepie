@@ -4,7 +4,7 @@ logs/
 packages/
 *.egg-info/
 __pycache__/
-venv/
+
 .idea/
 example.stats
 
@@ -12,4 +12,4 @@ example.stats
 /scripts/
 /keys/
 /.ssh/
-/signalman.cfg
+

@@ -102,6 +102,8 @@ class Signalman:
         if flag and not await self.install_python_from_deadsnakes(desc):
             if not await self.install_python_from_source_code(desc):
                 flag = False
+        if flag and not await self.install_venv(desc):
+            flag = False
         if flag and not await self.upload(desc):
             flag = False
         if flag and not await self.create_venv(desc):
@@ -124,7 +126,7 @@ class Signalman:
         cmd = f'sshpass -p {desc.get(PASSWORD)} ssh-copy-id -o StrictHostKeyChecking=no -i {KEY_DIR}/{KEY_NAME}'
         cmd += f' -p {desc.get(SSH_PORT)} {desc.get(USERNAME)}@{desc.get(HOST)}'
         try:
-            res = await self.parent.adaptor.sync_as_async(self.parent.adaptor.execute, sync_args=(cmd, 60))
+            res = await self.parent.adaptor.sync_as_async(self.parent.adaptor.execute, sync_args=([cmd], 60))
             log = f'{self.alias} The keys is added to remote server "{desc.get(HOST)}" with result: "{res}"'
             logging.info(log)
             return True
@@ -196,10 +198,6 @@ class Signalman:
         if result.exit_status != 0:
             logging.warning('Unable to install python3.10: ' + result.stdout)
             return False
-        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt install python3.10-venv python3.10-dev -y')
-        if result.exit_status != 0:
-            logging.warning('Unable to install venv: ' + result.stdout)
-            return False
         return True
 
     async def install_python_from_source_code(self, desc):
@@ -228,13 +226,13 @@ class Signalman:
         if result.exit_status != 0:
             logging.warning(f'Unable to unzip python archive: "{result.stdout}" "{result.stderr}"')
             return False
-        nproc = 0
+        nproc = 1
         result = await conn.run('nproc --all')
         if result.exit_status == 0:
             nproc = int(result.stdout)
         else:
             logging.warning(f'Unable to get a number of cores: "{result.stdout}" "{result.stderr}"')
-        self.form_python_bash(desc, nproc)
+        self.form_python_bash(nproc)
         async with conn.start_sftp_client() as sftp:
             await sftp.put(f'{SERVICE_SOURCE}/compile.sh')
         result = await conn.run('chmod +x compile.sh')
@@ -247,15 +245,29 @@ class Signalman:
             return False
         return True
 
-    def form_python_bash(self, desc, nproc):
+    def form_python_bash(self, nproc):
         res = '#!/bin/bash\n'
         res += f'cd ./tmp/Python-{PY_VERSION}\n'
         res += './configure --enable-optimizations\n'
         if nproc > 0:
             res += f'make -j {nproc}\n'
-        res += f"sudo -S <<< '{desc[PASSWORD]}' make altinstall\n"
+        res += 'make altinstall\n'
         with open(f'{SERVICE_SOURCE}/compile.sh', 'w') as f:
             f.write(res)
+
+    async def install_venv(self, desc):
+        conn = self.connections.get(desc.get(SYSTEM_NAME))
+        if not conn:
+            return False
+        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt-get update")
+        if result.exit_status != 0:
+            logging.warning('Unable to update: ' + result.stdout)
+            return False
+        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt install python3.10-venv python3.10-dev -y')
+        if result.exit_status != 0:
+            logging.warning('Unable to install venv: ' + result.stdout)
+            return False
+        return True
 
     async def upload(self, desc):
         conn = self.connections.get(desc.get(SYSTEM_NAME))
