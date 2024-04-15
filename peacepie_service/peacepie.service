@@ -5,9 +5,9 @@ After=network.target
 Type=simple
 Restart=always
 RestartSec = 10s
-WorkingDirectory=/home/admin/opt/peacepie_service
-ExecStart=/home/admin/opt/peacepie_service/venv/bin/python3.10 /home/admin/opt/peacepie_service/peacepie_service.pyz peacepie.cfg
-StandardOutput = file:/home/admin/opt/peacepie_service/output.log
-StandardError = file:/home/admin/opt/peacepie_service/error.log
+WorkingDirectory=/opt/peacepie_service
+ExecStart=/opt/peacepie_service/venv/bin/python3.10 /opt/peacepie_service/peacepie_service.pyz peacepie.cfg
+StandardOutput = file:/opt/peacepie_service/output.log
+StandardError = file:/opt/peacepie_service/error.log
 [Install]
 WantedBy=multi-user.target

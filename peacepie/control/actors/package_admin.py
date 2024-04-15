@@ -95,8 +95,8 @@ class PackageAdmin:
             res = subprocess.check_call(
                 [sys.executable, '-m', 'pip', 'download', package_name, '--disable-pip-version-check', '--no-index',
                  f'--find-links={src}', f'-d{dst}'])
-        except Exception as ex:
-            logging.exception(ex)
+        except subprocess.CalledProcessError:
+            logging.warning(f'Package "{package_name}" is not in the folder "{src}"')
         if res != 0:
             dir_operations.cleardir(self.tmp_path)
         return res == 0

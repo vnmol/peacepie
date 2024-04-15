@@ -13,6 +13,7 @@ SERVER_LIST_NAME = 'signalman.cfg'
 SYSTEM_NAME = 'system_name'
 HOST = 'host'
 PORT = 'port'
+EXTRA_INDEX_URL = 'extra-index-url'
 SSH_PORT = 'ssh_port'
 USERNAME = 'username'
 PASSWORD = 'password'
@@ -24,7 +25,8 @@ APP_STARTER = 'app_starter.py'
 LOG_CONFIG_NAME = 'log.cfg'
 
 SERVICE_SOURCE = 'peacepie_service'
-SERVICE_DESTINATION = 'opt/peacepie_service'
+COMPILE = 'compile.sh'
+SERVICE_DESTINATION = '/opt/' + SERVICE_SOURCE
 SERVICE_NAME = 'peacepie_service.pyz'
 SERVICE_CONFIG = 'peacepie.service'
 SERVICE_CONFIG_DEST = '/etc/systemd/system'
@@ -87,10 +89,10 @@ class Signalman:
 
     async def add_server(self, msg):
         desc = msg.get('body')
+        flag = True
         if self.servers.get(desc.get(SYSTEM_NAME)):
             logging.info(f'The server "{desc.get(SYSTEM_NAME)}" is already exist')
             return
-        flag = True
         if not await self.upload_keys(desc):
             flag = False
         if flag and not await self._connect(desc):
@@ -102,8 +104,10 @@ class Signalman:
         if flag and not await self.install_python_from_deadsnakes(desc):
             if not await self.install_python_from_source_code(desc):
                 flag = False
+        '''
         if flag and not await self.install_venv(desc):
             flag = False
+        '''
         if flag and not await self.upload(desc):
             flag = False
         if flag and not await self.create_venv(desc):
@@ -198,52 +202,69 @@ class Signalman:
         if result.exit_status != 0:
             logging.warning('Unable to install python3.10: ' + result.stdout)
             return False
+        result = await conn.run(f'python3.10 --version')
+        if result.exit_status != 0:
+            logging.warning(f'Python3.10 is not found: {result}')
+            return False
         return True
 
     async def install_python_from_source_code(self, desc):
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
             return False
-        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt-get update")
-        if result.exit_status != 0:
-            logging.warning('Unable to update: ' + result.stdout)
+        res = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt-get update")
+        if res.exit_status != 0:
+            logging.warning(f'Unable to update: {res}')
             return False
         command = f"sudo -S <<< '{desc[PASSWORD]}' apt install -y build-essential zlib1g-dev libncurses5-dev"
         command += ' libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget'
-        result = await conn.run(command)
-        if result.exit_status != 0:
-            logging.warning(f'Unable to install essentials: "{result.stdout}" "{result.stderr}"')
+        res = await conn.run(command)
+        if res.exit_status != 0:
+            logging.warning(f'Unable to install essentials: {res}')
             return False
-        result = await conn.run(f'mkdir -p tmp')
-        if result.exit_status != 0:
-            logging.warning(f'Unable to create an tmp folder: "{result.stdout}" "{result.stderr}"')
+        res = await conn.run(f'mkdir -p tmp')
+        if res.exit_status != 0:
+            logging.warning(f'Unable to create an tmp folder: {res}')
             return False
-        result = await conn.run(f'wget -P ./tmp/ https://python.org/ftp/python/{PY_VERSION}/Python-{PY_VERSION}.tgz')
-        if result.exit_status != 0:
-            logging.warning(f'Unable to load python archive: "{result.stdout}" "{result.stderr}"')
+        res = await conn.run(f'wget -P ./tmp/ https://python.org/ftp/python/{PY_VERSION}/Python-{PY_VERSION}.tgz')
+        if res.exit_status != 0:
+            logging.warning(f'Unable to load python archive: {res}')
+            await self.compile_cleaning(conn, desc)
             return False
-        result = await conn.run(f'tar -xf ./tmp/Python-{PY_VERSION}.tgz -C ./tmp')
-        if result.exit_status != 0:
-            logging.warning(f'Unable to unzip python archive: "{result.stdout}" "{result.stderr}"')
+        res = await conn.run(f'tar -xf ./tmp/Python-{PY_VERSION}.tgz -C ./tmp')
+        if res.exit_status != 0:
+            logging.warning(f'Unable to unzip python archive: {res}')
+            await self.compile_cleaning(conn, desc)
             return False
         nproc = 1
-        result = await conn.run('nproc --all')
-        if result.exit_status == 0:
-            nproc = int(result.stdout)
+        res = await conn.run('nproc --all')
+        if res.exit_status == 0:
+            nproc = int(res.stdout)
         else:
-            logging.warning(f'Unable to get a number of cores: "{result.stdout}" "{result.stderr}"')
+            logging.warning(f'Unable to get a number of cores: {res}')
         self.form_python_bash(nproc)
         async with conn.start_sftp_client() as sftp:
-            await sftp.put(f'{SERVICE_SOURCE}/compile.sh')
-        result = await conn.run('chmod +x compile.sh')
-        if result.exit_status != 0:
-            logging.warning(f'Unable to execute chmod": "{result.stdout}" "{result.stderr}"')
+            await sftp.put(f'{SERVICE_SOURCE}/{COMPILE}', f'{COMPILE}')
+        os.remove(f'{SERVICE_SOURCE}/{COMPILE}')
+        res = await conn.run(f'chmod +x {COMPILE}')
+        if res.exit_status != 0:
+            logging.warning(f'Unable to execute chmod: {res}')
+            await self.compile_cleaning(conn, desc)
             return False
-        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' ./compile.sh")
-        if result.exit_status != 0:
-            logging.warning(f'Unable to execute "compile.sh": "{result.stdout}" "{result.stderr}"')
+        res = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' ./{COMPILE}")
+        if res.exit_status != 0:
+            logging.warning(f'Unable to execute "compile.sh": {res}')
+            await self.compile_cleaning(conn, desc)
             return False
+        await self.compile_cleaning(conn, desc)
         return True
+
+    async def compile_cleaning(self, conn, desc):
+        try:
+            res = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' rm -r tmp")
+            res = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' rm {COMPILE}")
+        except Exception as e:
+            logging.exception('cleaning error', e)
 
     def form_python_bash(self, nproc):
         res = '#!/bin/bash\n'
@@ -252,7 +273,7 @@ class Signalman:
         if nproc > 0:
             res += f'make -j {nproc}\n'
         res += 'make altinstall\n'
-        with open(f'{SERVICE_SOURCE}/compile.sh', 'w') as f:
+        with open(f'{SERVICE_SOURCE}/{COMPILE}', 'w') as f:
             f.write(res)
 
     async def install_venv(self, desc):
@@ -273,21 +294,14 @@ class Signalman:
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
             return False
-        result = await conn.run(f'mkdir -p {SERVICE_DESTINATION}')
-        if result.exit_status != 0:
-            logging.warning('Unable to create an application folder')
-            return False
+        self.form_systemd(desc.get(USERNAME))
+        self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT), desc.get(EXTRA_INDEX_URL))
         async with conn.start_sftp_client() as sftp:
-            await sftp.put(f'{SERVICE_SOURCE}/{SERVICE_NAME}', f'{SERVICE_DESTINATION}/{SERVICE_NAME}')
-            await sftp.put(f'{SERVICE_SOURCE}/{LOG_CONFIG_NAME}', f'{SERVICE_DESTINATION}/{LOG_CONFIG_NAME}')
-            # self.form_systemd(desc.get(USERNAME))
-            await sftp.put(f'{SERVICE_SOURCE}/{SERVICE_CONFIG}', f'{SERVICE_DESTINATION}/{SERVICE_CONFIG}')
-            # self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT))
-            await sftp.put(f'{SERVICE_SOURCE}/{CONFIG_NAME}', f'{SERVICE_DESTINATION}/{CONFIG_NAME}')
-            await sftp.put(f'{SERVICE_SOURCE}/{APP_STARTER}', f'{SERVICE_DESTINATION}/{APP_STARTER}')
-        cmd = f'sudo -S <<< "{desc[PASSWORD]}" cp {SERVICE_DESTINATION}/{SERVICE_CONFIG}'
-        cmd += f' {SERVICE_CONFIG_DEST}/{SERVICE_CONFIG}'
-        await conn.run(cmd)
+            await sftp.put(SERVICE_SOURCE, SERVICE_SOURCE, recurse=True)
+        src = f'{SERVICE_SOURCE}/{SERVICE_CONFIG}'
+        dst = f'{SERVICE_CONFIG_DEST}/{SERVICE_CONFIG}'
+        await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' mv {src} {dst}")
+        await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' mv {SERVICE_SOURCE} {SERVICE_DESTINATION}")
         return True
 
     def form_systemd(self, username):
@@ -298,17 +312,17 @@ class Signalman:
         res += 'Type=simple\r\n'
         res += 'Restart=always\r\n'
         res += 'RestartSec = 10s\r\n'
-        res += f'WorkingDirectory=/home/{username}/{SERVICE_DESTINATION}\r\n'
-        res += f'ExecStart=/home/{username}/{SERVICE_DESTINATION}/venv/bin/python3.10 '
-        res += f'/home/{username}/{SERVICE_DESTINATION}/{SERVICE_NAME} {CONFIG_NAME}\r\n'
-        res += f'StandardOutput = file:/home/{username}/{SERVICE_DESTINATION}/output.log\r\n'
-        res += f'StandardError = file:/home/{username}/{SERVICE_DESTINATION}/error.log\r\n'
+        res += f'WorkingDirectory={SERVICE_DESTINATION}\r\n'
+        res += f'ExecStart={SERVICE_DESTINATION}/venv/bin/python3.10 '
+        res += f'{SERVICE_DESTINATION}/{SERVICE_NAME} {CONFIG_NAME}\r\n'
+        res += f'StandardOutput = file:{SERVICE_DESTINATION}/output.log\r\n'
+        res += f'StandardError = file:{SERVICE_DESTINATION}/error.log\r\n'
         res += '[Install]\r\n'
         res += 'WantedBy=multi-user.target\r\n'
         with open(f'{SERVICE_SOURCE}/{SERVICE_CONFIG}', 'w') as f:
             f.write(res)
 
-    def form_config(self, system_name, port):
+    def form_config(self, system_name, port, extra_index_url):
         res = f'log_config={LOG_CONFIG_NAME}\r\n'
         res += f'system_name={system_name}\r\n'
         res += f'host_name=host\r\n'
@@ -317,10 +331,9 @@ class Signalman:
         res += f'intra_host=localhost\r\n'
         res += f'intra_port=0\r\n'
         res += f'inter_port={port}\r\n'
-        res += f'extra-index-url=http://192.168.100.164:9000\r\n'
+        res += f'extra-index-url={extra_index_url}\r\n'
         res += f'package_dir=packages\r\n'
-        res += 'starter={"class_desc": {"package_name": "simple_web_face", "class": "WebFace"}, "name": "web_face"}\r\n'
-        res += 'start_command={"command": "start", "body": {"port": 8080}}\r\n'
+        res += 'starter=app_starter.py\r\n'
         with open(f'{SERVICE_SOURCE}/{CONFIG_NAME}', 'w') as f:
             f.write(res)
 

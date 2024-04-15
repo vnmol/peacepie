@@ -26,16 +26,27 @@ class OpenJdkJava8Installer:
 
     async def _java_install(self):
         try:
-            res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args='java -version')
-            logging.debug(f'java_version_result: {res}')
+            await self.com_exe('java -version')
             return
         except FileNotFoundError:
             logging.debug(f'Java not found')
-        com = 'add-apt-repository ppa:openjdk-r/ppa'
-        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=(com, 300))
-        logging.debug(f'add-apt-repository: {res}')
-        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=('apt-get update', 300))
-        logging.debug(f'apt-get update: {res}')
-        com = 'apt-get install -y openjdk-8-jdk'
-        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=(com, 300))
-        logging.debug(f'apt-get install openjdk-8-jdk: {res}')
+        await self.com_exe('add-apt-repository ppa:openjdk-r/ppa')
+        await self.com_exe('apt-get update')
+        await self.com_exe('apt-get install -y openjdk-8-jdk')
+
+    async def com_exe(self, coms, timeout=300):
+        if isinstance(coms, str):
+            coms = ([coms], timeout)
+        elif isinstance(coms, list):
+            coms = (coms, timeout)
+        res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=coms)
+        if len(res[1]) < 200 and len(res[2]) < 200:
+            logging.debug(f'{coms}: {res}')
+        else:
+            res1 = res[1]
+            res2 = res[2]
+            if len(res1) > 200:
+                res1 = res1[:200] + ' >>>>'
+            if len(res2) > 200:
+                res2 = res2[:200] + ' >>>>'
+            logging.debug(f'{coms}: ({res[0]}, {res1}, {res2})')
