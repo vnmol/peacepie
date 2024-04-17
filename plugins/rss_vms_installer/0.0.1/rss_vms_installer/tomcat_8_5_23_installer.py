@@ -94,7 +94,8 @@ class Tomcat8523Installer:
         await self.com_exe(com, 'Unable to add the "tomcatuser" to the "tomcatgroup"')
         com = 'wget https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.23/bin/apache-tomcat-8.5.23.tar.gz'
         await self.com_exe(com, 'Unable to download the Tomcat distribution')
-        await self.com_exe('tar -xvf apache-tomcat-8.5.23.tar.gz', 'Unable to unzip the Tomcat distribution')
+        com = 'tar -xf apache-tomcat-8.5.23.tar.gz'
+        await self.com_exe(com, 'Unable to unzip the Tomcat distribution')
         com = 'mv apache-tomcat-8.5.23 /opt/tomcat-8.5.23_vms'
         await self.com_exe(com, 'Unable to move the Tomcat folder')
         await self.com_exe('rm apache-tomcat-8.5.23.tar.gz', 'Unable to remove the Tomcat distribution')

@@ -4,3 +4,4 @@ from rss_vms_installer.utf_8_ru_locale_installer import Utf8RuLocaleInstaller
 from rss_vms_installer.postgres_11_installer import Postgres11Installer
 from rss_vms_installer.postgis_2_5_installer import PostGIS25Installer
 from rss_vms_installer.tomcat_8_5_23_installer import Tomcat8523Installer
+from rss_vms_installer.tomcat_tuner import TomcatTuner

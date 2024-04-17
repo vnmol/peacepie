@@ -67,7 +67,8 @@ async def root_handler(request):
     param_id = request.query.get('id')
     body = {'page_size': instance.page_size, 'level': param_level, 'recipient': param_recipient, 'id': param_id}
     ans = await instance.client_link.ask({'command': 'get_members', 'body': body})
-    text = f'<!DOCTYPE html>\n<html>\n<head>\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n<body>\n\n'
+    head = f'<head>\n<meta charset="UTF-8">\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n'
+    text = f'<!DOCTYPE html>\n<html>\n{head}<body>\n\n'
     body = ans.get('body')
     if body.get('_back'):
         text += back(body)

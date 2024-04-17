@@ -7,7 +7,9 @@ class Stages:
     POSTGRES = 2
     POSTGIS = 3
     TOMCAT = 4
-    FINISH = 5
+    TOMCAT_TUNER = 5
+    FINISH = 6
+    POST_FINISH = 7
 
 
 class RssVmsInstaller:
@@ -45,7 +47,7 @@ class RssVmsInstaller:
             com = ans.get('command')
             if com == 'need_to_reboot':
                 substage = ans.get('body').get('stage') if ans.get('stage') else None
-                await self.reboot(internal_starter, Stages.POSTGRES, substage)
+                await self.reboot(internal_starter, Stages.JAVA, substage)
                 return
             elif com != 'ru_is_installed':
                 return
@@ -92,8 +94,18 @@ class RssVmsInstaller:
             com = ans.get('command')
             if com != 'tomcat_is_installed':
                 return
-            stage = Stages.FINISH
-        if stage == Stages.FINISH:
+            stage = Stages.TOMCAT_TUNER
+        if stage == Stages.TOMCAT_TUNER:
+            class_desc = {'package_name': 'rss_vms_installer', 'class': 'TomcatTuner'}
+            msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tomcat_tuner'})
+            ans = await self.adaptor.ask(msg, 30)
+            msg = self.adaptor.get_msg('tomcat_tune', recipient=ans.get('body'))
+            ans = await self.adaptor.ask(msg, 1200)
+            com = ans.get('command')
+            if com != 'tomcat_is_tuned':
+                return
+            stage = Stages.POST_FINISH
+        if stage == Stages.FINISH or stage == Stages.POST_FINISH:
             body = {'name': self.adaptor.name, 'txt': get_txt(stage, substage)}
             await self.adaptor.ask(self.adaptor.get_msg('app_starter', body, internal_starter))
 
