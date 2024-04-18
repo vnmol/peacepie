@@ -6,7 +6,7 @@ UTF_VAL = 'URIEncoding="UTF-8"'
 MAX_THREADS = 'maxThreads="40"'
 
 
-def create_service_file():
+def create_service_file(catalina_home):
     lines = '''
     [Unit]
     Description=Apache Tomcat Web Application Container
@@ -16,13 +16,13 @@ def create_service_file():
     Type=forking
 
     Environment=JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
-    Environment=CATALINA_PID=/opt/tomcat-8.5.23_vms/temp/tomcat.pid
-    Environment=CATALINA_HOME=/opt/tomcat-8.5.23_vms
-    Environment=CATALINA_BASE=/opt/tomcat-8.5.23_vms
-    Environment='JAVA_OPTS=-Djava.awt.headless=true -server -Xms2G -Xmx8G -XX:MaxMetaspaceSize=1G -XX:+UseConcMarkSweepGC -Dcommon.props.folder=/opt/tomcat-8.5.23_vms/lib/config/'
+    Environment=CATALINA_PID=<CATALINA_HOME>/temp/tomcat.pid
+    Environment=CATALINA_HOME=<CATALINA_HOME>
+    Environment=CATALINA_BASE=<CATALINA_HOME>
+    Environment='JAVA_OPTS=-Djava.awt.headless=true -server -Xms2G -Xmx8G -XX:MaxMetaspaceSize=1G -XX:+UseConcMarkSweepGC -Dcommon.props.folder=<CATALINA_HOME>/lib/config/'
 
-    ExecStart=/opt/tomcat-8.5.23_vms/bin/startup.sh
-    ExecStop=/opt/tomcat-8.5.23_vms/bin/shutdown.sh
+    ExecStart=<CATALINA_HOME>/bin/startup.sh
+    ExecStop=<CATALINA_HOME>/bin/shutdown.sh
 
     User=tomcatuser
     Group=tomcatgroup
@@ -30,6 +30,7 @@ def create_service_file():
     [Install]
     WantedBy=multi-user.target
     '''
+    lines = lines.replace('<CATALINA_HOME>', catalina_home)
     with open('/etc/systemd/system/tomcat_vms.service', 'w') as file:
         for line in lines.split('\n'):
             file.write(line.strip() + '\n')
@@ -80,13 +81,14 @@ class Tomcat8523Installer:
     async def tomcat_install(self, msg):
         recipient = msg.get('sender')
         try:
-            await self._tomcat_install()
+            await self._tomcat_install(msg)
             await self.adaptor.send(self.adaptor.get_msg('tomcat_is_installed', recipient=recipient))
         except Exception as e:
             logging.exception(e)
             await self.adaptor.send(self.adaptor.get_msg('tomcat_is_not_installed', recipient=recipient))
 
-    async def _tomcat_install(self):
+    async def _tomcat_install(self, msg):
+        body = msg.get('body') if msg.get('body') else dict()
         await self.com_exe('groupadd tomcatgroup', 'Unable to create the "tomcatgroup"')
         com = 'adduser --home /home/tomcatuser --system --shell /bin/bash tomcatuser'
         await self.com_exe(com, 'Unable to create the "tomcatuser"')
@@ -101,7 +103,7 @@ class Tomcat8523Installer:
         await self.com_exe('rm apache-tomcat-8.5.23.tar.gz', 'Unable to remove the Tomcat distribution')
         com = 'chown -R tomcatuser:tomcatgroup /opt/tomcat-8.5.23_vms'
         await self.com_exe(com, 'Unable to change a folder owner')
-        create_service_file()
+        create_service_file(body.get('CATALINA_HOME'))
         await self.com_exe('systemctl daemon-reload', 'Error occurred while refresh services')
         await self.com_exe('systemctl start tomcat_vms.service', 'Unable to start Tomcat')
         await self.com_exe('systemctl enable tomcat_vms.service', 'Failed to enable Tomcat')

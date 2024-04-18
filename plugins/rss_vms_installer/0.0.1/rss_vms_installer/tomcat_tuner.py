@@ -26,23 +26,29 @@ class TomcatTuner:
     async def tomcat_tune(self, msg):
         recipient = msg.get('sender')
         try:
-            await self._tomcat_tune()
+            await self._tomcat_tune(msg)
             await self.adaptor.send(self.adaptor.get_msg('tomcat_is_tuned', recipient=recipient))
         except Exception as e:
             logging.exception(e)
             await self.adaptor.send(self.adaptor.get_msg('tomcat_is_not_tuned', recipient=recipient))
 
-    async def _tomcat_tune(self):
-        com = 'curl -u mol:NewZeland1 -O https://redmine.on-dev.ru/attachments/download/10018/add_lib.zip'
+    async def _tomcat_tune(self, msg):
+        query = self.adaptor.get_msg('get_credentials', {'credentials_name': 'ssh'}, self.adaptor.get_head_addr())
+        ans = await self.adaptor.ask(query)
+        body = ans.get('body') if isinstance(ans.get('body'), dict) else dict()
+        credentials = f'{body.get("username")}:{body.get("password")}'
+        body = msg.get('body') if msg.get('body') else dict()
+        catalina_home = body.get('CATALINA_HOME')
+        com = f'curl -u {credentials} -O https://redmine.on-dev.ru/attachments/download/10018/add_lib.zip'
         await self.com_exe(com, 'Unable to download the Tomcat addins')
         await self.com_exe('unzip add_lib.zip', 'Unable to unzip the Tomcat addins')
         await self.com_exe('rm add_lib.zip', 'Unable to remove "add_lib" archive')
         await self.com_exe('rm ./add_lib/postgresql-42.2.5.jar', 'Unable to delete postgres driver')
         com = 'wget -P ./add_lib https://jdbc.postgresql.org/download/postgresql-42.7.3.jar'
         await self.com_exe(com, 'Unable to download postgres driver')
-        move('./add_lib', '/opt/tomcat-8.5.23_vms/lib')
+        move('./add_lib', f'{catalina_home}/lib')
         await self.com_exe('rmdir add_lib', 'Unable to remove "add_lib" folder')
-        com = 'curl -u mol:NewZeland1 -O https://redmine.on-dev.ru/attachments/download/3380/arial.ttf.zip'
+        com = f'curl -u {credentials} -O https://redmine.on-dev.ru/attachments/download/3380/arial.ttf.zip'
         await self.com_exe(com, 'Unable to download arial font archive')
         with zipfile.ZipFile('arial.ttf.zip', 'r') as zip_ref:
             zip_ref.extractall('/usr/share/fonts/truetype')

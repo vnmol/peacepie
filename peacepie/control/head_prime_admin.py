@@ -1,8 +1,7 @@
 import asyncio
-import logging
 
 from peacepie.assist import log_util
-from peacepie.control import prime_admin, admin
+from peacepie.control import prime_admin, admin, safe_admin
 from peacepie.control.inter import inter_server
 
 INTER_COMMANDS = {'inter_connect', 'inter_disconnect'}
@@ -14,9 +13,11 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         super().__init__(host_name, process_name)
         self.is_head = True
         self.interlink = None
+        self.safe_admin = None
 
     async def pre_run(self):
         await super().pre_run()
+        self.safe_admin = safe_admin.SafeAdmin(self)
         self.interlink = inter_server.InterServer(self)
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.interlink.run(queue))
@@ -38,6 +39,8 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         elif command in INTER_COMMANDS:
             await self.interlink.queue.put(msg)
             self.logger.debug(log_util.async_sent_log(self, msg))
+        elif command == 'get_credentials':
+            await self.safe_admin.handle(msg)
         elif command == 'get_members':
             await self.get_members(msg)
         else:

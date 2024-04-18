@@ -8,8 +8,9 @@ class Stages:
     POSTGIS = 3
     TOMCAT = 4
     TOMCAT_TUNER = 5
-    FINISH = 6
-    POST_FINISH = 7
+    SERVER_PART = 6
+    FINISH = 7
+    POST_FINISH = 8
 
 
 class RssVmsInstaller:
@@ -29,11 +30,13 @@ class RssVmsInstaller:
 
     async def start(self, msg):
         internal_starter = None
+        catalina_home = None
         stage = None
         substage = None
         body = msg.get('body')
         if body:
             internal_starter = body.get('internal_starter')
+            catalina_home = body.get('CATALINA_HOME')
             stage = body.get('stage')
             substage = body.get('substage')
         internal_starter = internal_starter if internal_starter else 'internal_starter'
@@ -47,7 +50,7 @@ class RssVmsInstaller:
             com = ans.get('command')
             if com == 'need_to_reboot':
                 substage = ans.get('body').get('stage') if ans.get('stage') else None
-                await self.reboot(internal_starter, Stages.JAVA, substage)
+                await self.reboot(internal_starter, catalina_home, Stages.JAVA, substage)
                 return
             elif com != 'ru_is_installed':
                 return
@@ -70,7 +73,7 @@ class RssVmsInstaller:
             com = ans.get('command')
             if com == 'need_to_reboot':
                 substage = ans.get('body').get('stage') if ans.get('body') else None
-                await self.reboot(internal_starter, Stages.POSTGRES, substage)
+                await self.reboot(internal_starter, catalina_home, Stages.POSTGRES, substage)
                 return
             elif com != 'postgres_is_installed':
                 return
@@ -89,7 +92,7 @@ class RssVmsInstaller:
             class_desc = {'package_name': 'rss_vms_installer', 'class': 'Tomcat8523Installer'}
             msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tomcat_installer'})
             ans = await self.adaptor.ask(msg, 30)
-            msg = self.adaptor.get_msg('tomcat_install', recipient=ans.get('body'))
+            msg = self.adaptor.get_msg('tomcat_install', {'CATALINA_HOME': catalina_home}, recipient=ans.get('body'))
             ans = await self.adaptor.ask(msg, 1200)
             com = ans.get('command')
             if com != 'tomcat_is_installed':
@@ -99,25 +102,36 @@ class RssVmsInstaller:
             class_desc = {'package_name': 'rss_vms_installer', 'class': 'TomcatTuner'}
             msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tomcat_tuner'})
             ans = await self.adaptor.ask(msg, 30)
-            msg = self.adaptor.get_msg('tomcat_tune', recipient=ans.get('body'))
+            msg = self.adaptor.get_msg('tomcat_tune', {'CATALINA_HOME': catalina_home}, recipient=ans.get('body'))
             ans = await self.adaptor.ask(msg, 1200)
             com = ans.get('command')
             if com != 'tomcat_is_tuned':
                 return
+            stage = Stages.SERVER_PART
+        if stage == Stages.SERVER_PART:
+            class_desc = {'package_name': 'rss_vms_installer', 'class': 'ServerPartInstaller'}
+            msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'server_part_installer'})
+            ans = await self.adaptor.ask(msg, 30)
+            body = {'CATALINA_HOME': catalina_home}
+            msg = self.adaptor.get_msg('server_part_install', body, recipient=ans.get('body'))
+            ans = await self.adaptor.ask(msg, 1200)
+            com = ans.get('command')
+            if com != 'server_part_is_installed':
+                return
             stage = Stages.POST_FINISH
         if stage == Stages.FINISH or stage == Stages.POST_FINISH:
-            body = {'name': self.adaptor.name, 'txt': get_txt(stage, substage)}
+            body = {'name': self.adaptor.name, 'txt': get_txt(catalina_home, stage, substage)}
             await self.adaptor.ask(self.adaptor.get_msg('app_starter', body, internal_starter))
 
-    async def reboot(self, internal_starter, stage, substage):
-        body = {'name': self.adaptor.name, 'txt': get_txt(stage, substage)}
+    async def reboot(self, internal_starter, catalina_home, stage, substage):
+        body = {'name': self.adaptor.name, 'txt': get_txt(catalina_home, stage, substage)}
         await self.adaptor.ask(self.adaptor.get_msg('app_starter', body, internal_starter))
         com = 'reboot now'
         res = await self.adaptor.sync_as_async(self.adaptor.execute, sync_args=([com], 300))
         logging.debug(f'{com}: {res}')
 
 
-def get_txt(stage, substage):
+def get_txt(catalina_home, stage, substage):
     if stage == Stages.FINISH:
         return 'pass\n'
     res = '''
@@ -132,7 +146,7 @@ def get_txt(stage, substage):
     query = self.adaptor.get_msg('create_actor', body)
     ans = await self.adaptor.ask(query, 30)
     body = {'internal_starter': internal_starter, '''
-    res += f"'stage': {stage}, 'substage': {substage}" + "}"
+    res += f"'CATALINA_HOME': '{catalina_home}', 'stage': {stage}, 'substage': {substage}" + "}"
     res += '''
     await self.adaptor.send(self.adaptor.get_msg('start', body, recipient=ans.get('body')))
     '''

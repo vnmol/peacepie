@@ -39,5 +39,5 @@ class AppStarter:
         body = {'class_desc': class_desc, 'name': 'vms_installer'}
         query = self.adaptor.get_msg('create_actor', body)
         ans = await self.adaptor.ask(query, 60)
-        body = {'internal_starter': internal_starter,'stage': 0, 'substage': 0}
+        body = {'internal_starter': internal_starter, 'CATALINA_HOME': '/opt/tomcat-8.5.23_vms', 'stage': 0, 'substage': 0}
         await self.adaptor.send(self.adaptor.get_msg('start', body, recipient=ans.get('body')))

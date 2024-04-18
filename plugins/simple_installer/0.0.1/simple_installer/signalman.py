@@ -23,6 +23,7 @@ PY_VERSION = '3.10.12'
 CONFIG_NAME = 'peacepie.cfg'
 APP_STARTER = 'app_starter.py'
 LOG_CONFIG_NAME = 'log.cfg'
+SAFE_CONFIG_NAME = 'safe.cfg'
 
 SERVICE_SOURCE = 'peacepie_service'
 COMPILE = 'compile.sh'
@@ -324,6 +325,7 @@ class Signalman:
 
     def form_config(self, system_name, port, extra_index_url):
         res = f'log_config={LOG_CONFIG_NAME}\r\n'
+        res += f'safe_config={SAFE_CONFIG_NAME}\r\n'
         res += f'system_name={system_name}\r\n'
         res += f'host_name=host\r\n'
         res += f'process_name=main\r\n'

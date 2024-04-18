@@ -9,12 +9,11 @@ from peacepie.control import prime_admin
 class Spy:
 
     def __init__(self, parent):
-        self.logger = logging.getLogger()
         self.parent = parent
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     def handle(self, msg):
-        self.logger.debug(log_util.async_received_log(self, msg))
+        logging.debug(log_util.async_received_log(self, msg))
         if msg.command == 'gather_info':
             self.gather_info(msg)
         elif msg.command == 'get_info':
@@ -22,7 +21,7 @@ class Spy:
         elif msg.command == 'info':
             self.info(msg)
         else:
-            self.logger.warning(log_util.get_alias(self) + ' The message is not handled: ' + str(msg))
+            logging.warning(log_util.get_alias(self) + ' The message is not handled: ' + str(msg))
 
     def gather_info(self, msg):
         asyncio.get_running_loop().create_task(self.gathering(msg))
@@ -65,7 +64,7 @@ class Spy:
                 elif field == 'is_prime':
                     body[field] = isinstance(self.parent, prime_admin.PrimeAdmin)
         except Exception as e:
-            self.logger.exception(e)
+            logging.exception(e)
         message = msg_factory.get_msg('info', body, recipient=msg.sender, sender=self.parent.adaptor.name)
         await self.parent.connector.send(self, message)
 
