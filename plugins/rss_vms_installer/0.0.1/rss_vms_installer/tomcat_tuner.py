@@ -33,7 +33,7 @@ class TomcatTuner:
             await self.adaptor.send(self.adaptor.get_msg('tomcat_is_not_tuned', recipient=recipient))
 
     async def _tomcat_tune(self, msg):
-        query = self.adaptor.get_msg('get_credentials', {'credentials_name': 'ssh'}, self.adaptor.get_head_addr())
+        query = self.adaptor.get_msg('get_credentials', {'credentials_name': 'redmine'}, self.adaptor.get_head_addr())
         ans = await self.adaptor.ask(query)
         body = ans.get('body') if isinstance(ans.get('body'), dict) else dict()
         credentials = f'{body.get("username")}:{body.get("password")}'

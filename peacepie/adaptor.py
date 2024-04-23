@@ -146,7 +146,6 @@ class Adaptor:
             return self.performer.connector.get_addr(system, node, entity)
 
     def get_head_name(self):
-
         return self.parent.connector.get_head_name()
 
     def get_head_addr(self):
@@ -178,3 +177,20 @@ class Adaptor:
 
     def sync_as_async(self, sync_function, sync_args=None):
         return thread_util.sync_as_async(sync_function, sync_args)
+
+    async def com_exe(self, coms, timeout=300):
+        if isinstance(coms, str):
+            coms = ([coms], timeout)
+        elif isinstance(coms, list):
+            coms = (coms, timeout)
+        res = await self.sync_as_async(self.execute, sync_args=coms)
+        res1 = res[1]
+        if len(res1) > 200:
+            res1 = res1[:200] + ' >>>>'
+        res2 = res[2]
+        if len(res2) > 200:
+            res2 = res2[:200] + ' >>>>'
+        if res[0] == 0:
+            logging.debug(f'{coms}: ({res[0]}, {res1}, {res2})')
+        else:
+            raise Exception(f'{coms}: ({res[0]}, {res1}, {res2})')

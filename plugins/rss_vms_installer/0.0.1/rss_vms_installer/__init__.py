@@ -6,3 +6,4 @@ from rss_vms_installer.postgis_2_5_installer import PostGIS25Installer
 from rss_vms_installer.tomcat_8_5_23_installer import Tomcat8523Installer
 from rss_vms_installer.tomcat_tuner import TomcatTuner
 from rss_vms_installer.server_part_installer import ServerPartInstaller
+from rss_vms_installer.logger_installer import LoggerInstaller

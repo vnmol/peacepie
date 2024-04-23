@@ -1,4 +1,3 @@
-import logging
 import shlex
 import subprocess
 
@@ -12,7 +11,6 @@ def execute(cmd):
     processes = []
     for com in cmd[0]:
         args = shlex.split(com)
-        logging.info(f'args="{str(args)}"')
         stdin = None if len(processes) == 0 else processes[-1].stdout
         processes.append(subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
     stdout, stderr = processes[-1].communicate(timeout=timeout)
