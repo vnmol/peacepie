@@ -86,8 +86,6 @@ class Postgres11Installer:
                 return
             if not await self.adjust():
                 return
-            if not await self.set_password():
-                return
             return self.adaptor.get_msg('postgres_is_installed')
 
     async def adjust(self):
@@ -109,21 +107,6 @@ class Postgres11Installer:
         with open(pg_hba_conf_path, 'w') as file:
             file.writelines(lines)
         res = await self.com_exe('systemctl restart postgresql')
-        return res[0] == 0
-
-    async def set_password(self):
-        # com = 'su - postgres -c "psql -c \\"ALTER USER postgres WITH PASSWORD \'adminadmin\';\\" "'
-        lines = '''#!/bin/bash
-        su - postgres << EOF
-        psql -c "ALTER USER postgres WITH PASSWORD 'adminadmin';"
-        EOF
-        '''
-        with open('set_password.sh', 'w') as file:
-            for line in lines.split('\n'):
-                file.write(line.strip() + '\n')
-        await self.com_exe('chmod +x set_password.sh')
-        res = await self.com_exe('./set_password.sh')
-        await self.com_exe('rm set_password.sh')
         return res[0] == 0
 
     async def com_exe(self, coms):

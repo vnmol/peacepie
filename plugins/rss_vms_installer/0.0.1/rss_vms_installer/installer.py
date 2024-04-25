@@ -10,8 +10,9 @@ class Stages:
     TOMCAT_TUNER = 5
     SERVER_PART = 6
     LOGGER = 7
-    FINISH = 8
-    POST_FINISH = 9
+    DATABASE = 8
+    FINISH = 9
+    POST_FINISH = 10
 
 
 class RssVmsInstaller:
@@ -129,6 +130,16 @@ class RssVmsInstaller:
             ans = await self.adaptor.ask(query, 1200)
             com = ans.get('command')
             if com != 'logger_is_installed':
+                return
+            stage = Stages.DATABASE
+        if stage == Stages.DATABASE:
+            class_desc = {'package_name': 'rss_vms_installer', 'class': 'DatabaseCreator'}
+            query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'database_creator'})
+            ans = await self.adaptor.ask(query, 30)
+            query = self.adaptor.get_msg('create_database', extended_props, recipient=ans.get('body'))
+            ans = await self.adaptor.ask(query, 1200)
+            com = ans.get('command')
+            if com != 'database_is_created':
                 return
             stage = Stages.POST_FINISH
         if stage == Stages.FINISH or stage == Stages.POST_FINISH:
