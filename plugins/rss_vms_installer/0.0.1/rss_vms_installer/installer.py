@@ -12,8 +12,9 @@ class Stages:
     LOGGER = 7
     DATABASE = 8
     POSTGIS_ON_DB = 9
-    FINISH = 10
-    POST_FINISH = 11
+    POST_SCRIPTS = 10
+    FINISH = 11
+    POST_FINISH = 12
 
 
 class RssVmsInstaller:
@@ -152,13 +153,22 @@ class RssVmsInstaller:
             com = ans.get('command')
             if com != 'postgis_on_db_is_installed':
                 return
+            stage = Stages.POST_SCRIPTS
+        if stage == Stages.POST_SCRIPTS:
+            class_desc = {'package_name': 'rss_vms_installer', 'class': 'PostScriptsInstaller'}
+            query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'post_scripts_installer'})
+            ans = await self.adaptor.ask(query, 30)
+            query = self.adaptor.get_msg('post_scripts_install', extended_props, recipient=ans.get('body'))
+            ans = await self.adaptor.ask(query, 1200)
+            com = ans.get('command')
+            if com != 'post_scripts_are_installed':
+                return
             stage = Stages.POST_FINISH
         if stage == Stages.FINISH or stage == Stages.POST_FINISH:
             body = {'name': self.adaptor.name, 'txt': get_txt(stage, substage, props)}
             await self.adaptor.ask(self.adaptor.get_msg('app_starter', body, internal_starter))
 
     async def reboot(self, internal_starter, stage, substage, props):
-        state = {'stage': stage, 'substage': substage}
         body = {'name': self.adaptor.name, 'txt': get_txt(stage, substage, props)}
         await self.adaptor.ask(self.adaptor.get_msg('app_starter', body, internal_starter))
         com = 'reboot now'
