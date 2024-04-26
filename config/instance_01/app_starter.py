@@ -25,5 +25,5 @@ class AppStarter:
                 'key_dir': '.ssh', 'key_name': 'id_rsa', 'username': username, 'password': password,
                 'passphrase': 'qwerty', 'extra-index-url': f'http://{self.adaptor.get_param("ip")}:9000'}
         query = self.adaptor.get_msg('add_server', body, ans.get('body'))
-        await self.adaptor.ask(query, 1800)
+        await self.adaptor.ask(query, 3000)
         raise KeyboardInterrupt()

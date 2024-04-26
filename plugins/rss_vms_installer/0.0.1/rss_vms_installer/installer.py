@@ -11,8 +11,9 @@ class Stages:
     SERVER_PART = 6
     LOGGER = 7
     DATABASE = 8
-    FINISH = 9
-    POST_FINISH = 10
+    POSTGIS_ON_DB = 9
+    FINISH = 10
+    POST_FINISH = 11
 
 
 class RssVmsInstaller:
@@ -136,10 +137,20 @@ class RssVmsInstaller:
             class_desc = {'package_name': 'rss_vms_installer', 'class': 'DatabaseCreator'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'database_creator'})
             ans = await self.adaptor.ask(query, 30)
-            query = self.adaptor.get_msg('create_database', extended_props, recipient=ans.get('body'))
+            query = self.adaptor.get_msg('create_database', None, recipient=ans.get('body'))
             ans = await self.adaptor.ask(query, 1200)
             com = ans.get('command')
             if com != 'database_is_created':
+                return
+            stage = Stages.POSTGIS_ON_DB
+        if stage == Stages.POSTGIS_ON_DB:
+            class_desc = {'package_name': 'rss_vms_installer', 'class': 'PostgisOnDbInstaller'}
+            query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'postgis_on_db_installer'})
+            ans = await self.adaptor.ask(query, 30)
+            query = self.adaptor.get_msg('postgis_on_db_install', None, recipient=ans.get('body'))
+            ans = await self.adaptor.ask(query, 1200)
+            com = ans.get('command')
+            if com != 'postgis_on_db_is_installed':
                 return
             stage = Stages.POST_FINISH
         if stage == Stages.FINISH or stage == Stages.POST_FINISH:

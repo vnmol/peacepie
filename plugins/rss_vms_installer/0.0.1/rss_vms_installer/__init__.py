@@ -8,3 +8,4 @@ from rss_vms_installer.tomcat_tuner import TomcatTuner
 from rss_vms_installer.server_part_installer import ServerPartInstaller
 from rss_vms_installer.logger_installer import LoggerInstaller
 from rss_vms_installer.database_creator import DatabaseCreator
+from rss_vms_installer.postgis_on_db_installer import PostgisOnDbInstaller

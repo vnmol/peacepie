@@ -9,4 +9,5 @@ authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
 dependencies = [
+        'psycopg2-binary',
 ]

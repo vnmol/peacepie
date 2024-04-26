@@ -43,7 +43,7 @@ class DatabaseCreator:
             for line in lines.split('\n'):
                 file.write(line.strip() + '\n')
         await self.adaptor.com_exe('chmod +x create_database.sh')
-        res = await self.adaptor.com_exe('./create_database.sh')
+        await self.adaptor.com_exe('./create_database.sh')
         await self.adaptor.com_exe('rm create_database.sh')
 
     async def get_credentials(self, credentials_name):
