@@ -107,7 +107,8 @@ class Tomcat8523Installer:
         await self.com_exe('systemctl daemon-reload', 'Error occurred while refresh services')
         await self.com_exe('systemctl start tomcat_vms.service', 'Unable to start Tomcat')
         await self.com_exe('systemctl enable tomcat_vms.service', 'Failed to enable Tomcat')
-        attune('/opt/tomcat-8.5.23_vms/conf/server.xml', 8080)
+        port = int(body.get('tomcat_address').split(':')[-1])
+        attune('/opt/tomcat-8.5.23_vms/conf/server.xml', port)
         await self.com_exe('systemctl stop tomcat_vms.service', 'Unable to stop Tomcat')
 
     async def com_exe(self, coms, error, timeout=300):

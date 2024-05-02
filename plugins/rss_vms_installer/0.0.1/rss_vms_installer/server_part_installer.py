@@ -59,7 +59,7 @@ class ServerPartInstaller:
     async def config_edit(self, body):
         config_path = f'{body.get("CATALINA_HOME")}/lib/config/vms-ws.prop'
         tomcat_address = (f'vms-ws.soap.services.url={body.get("tomcat_address")}/vms-ws/services/\n'
-                          .replace(':', '\\:'))
+                          .replace(':', '\\\\:'))
         upload_path = body.get('upload_path')
         with open(config_path, 'r') as file:
             lines = file.readlines()

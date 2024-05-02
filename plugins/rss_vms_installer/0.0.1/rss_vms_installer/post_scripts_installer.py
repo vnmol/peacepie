@@ -59,3 +59,4 @@ class PostScriptsInstaller:
         path = f'{dest}/post_scripts_birt_to_vms'
         if os.path.exists(path):
             shutil.rmtree(path)
+        await self.adaptor.com_exe('systemctl start tomcat_vms.service')

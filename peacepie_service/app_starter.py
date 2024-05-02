@@ -22,7 +22,7 @@ class AppStarter:
 
     async def constant_start(self):
         body = {'class_desc': {'package_name': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
-        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 60)
+        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 120)
         await self.adaptor.send(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
 
     async def variable_start(self, msg):
@@ -40,7 +40,7 @@ class AppStarter:
         query = self.adaptor.get_msg('create_actor', body)
         ans = await self.adaptor.ask(query, 60)
         state = {'stage': 0, 'substage': 0}
-        props = {'CATALINA_HOME': '/opt/tomcat-8.5.23_vms', 'tomcat_address': 'http://localhost:9191',
+        props = {'CATALINA_HOME': '/opt/tomcat-8.5.23_vms', 'tomcat_address': 'http://192.168.100.83:9191',
                  'upload_path': '/opt/upload'}
         body = {'internal_starter': internal_starter, 'state': state, 'props': props}
         await self.adaptor.send(self.adaptor.get_msg('start', body, recipient=ans.get('body')))

@@ -53,7 +53,33 @@ class TomcatTuner:
         with zipfile.ZipFile('arial.ttf.zip', 'r') as zip_ref:
             zip_ref.extractall('/usr/share/fonts/truetype')
         await self.com_exe('rm arial.ttf.zip', 'Unable to remove arial font archive')
+        self.tomcat_to_bd_tune(catalina_home)
 
+    def tomcat_to_bd_tune(self, catalina_home):
+        path = f'{catalina_home}/conf/context.xml'
+        content = ''.join([
+            '<Resource\n'
+            'name="jdbc/vmsDS"\n',
+            'auth="Container"\n',
+            'type="javax.sql.DataSource"\n',
+            'driverClassName="org.postgresql.Driver"\n',
+            'factory="org.apache.tomcat.jdbc.pool.DataSourceFactory"\n',
+            'url="jdbc:postgresql://localhost:5432/vms_ws"\n',
+            'username="vms"\n',
+            'password="vms"\n',
+            'maxWaitMillis="-1"\n',
+            '/>\n',
+        ])
+        with open(path, 'r') as f:
+            data = f.read()
+        if "</Context>" in data:
+            index = data.rindex("</Context>")
+            data = data[:index] + content + data[index:]
+        else:
+            data += content
+        with open(path, 'w') as file:
+            file.write(data)
+            
     async def com_exe(self, coms, error, timeout=300):
         if isinstance(coms, str):
             coms = ([coms], timeout)
