@@ -102,13 +102,12 @@ class Signalman:
             flag = False
         if flag and not await self.edit_source_list(desc):
             flag = False
-        if flag and not await self.install_python_from_deadsnakes(desc):
-            if not await self.install_python_from_source_code(desc):
-                flag = False
-        '''
+        if flag and not await self.install_software_properties_common(desc):
+            flag = False
+        if not await self.install_python_from_source_code(desc):
+            flag = False
         if flag and not await self.install_venv(desc):
             flag = False
-        '''
         if flag and not await self.upload(desc):
             flag = False
         if flag and not await self.create_venv(desc):
@@ -183,13 +182,19 @@ class Signalman:
             return False
         return True
 
-    async def install_python_from_deadsnakes(self, desc):
+    async def install_software_properties_common(self, desc):
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
             return False
-        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt-get install software-properties-common -y')
-        if result.exit_status != 0:
-            logging.warning('Unable to install software-properties-common: ' + result.stdout)
+        res = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt-get install software-properties-common -y')
+        if res.exit_status != 0:
+            logging.warning('Unable to install software-properties-common: ' + res.stdout)
+            return False
+        return True
+
+    async def install_python_from_deadsnakes(self, desc):
+        conn = self.connections.get(desc.get(SYSTEM_NAME))
+        if not conn:
             return False
         result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" add-apt-repository ppa:deadsnakes/ppa')
         if result.exit_status != 0:
@@ -281,13 +286,16 @@ class Signalman:
         conn = self.connections.get(desc.get(SYSTEM_NAME))
         if not conn:
             return False
-        result = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt-get update")
-        if result.exit_status != 0:
-            logging.warning('Unable to update: ' + result.stdout)
+        res = await conn.run('python3 -m venv --help')
+        if res.exit_status == 0:
+            return True
+        res = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt-get update")
+        if res.exit_status != 0:
+            logging.warning('Unable to update: ' + res.stdout)
             return False
-        result = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt install python3.10-venv python3.10-dev -y')
-        if result.exit_status != 0:
-            logging.warning('Unable to install venv: ' + result.stdout)
+        res = await conn.run(f'sudo -S <<< "{desc[PASSWORD]}" apt install python3.10-venv python3.10-dev -y')
+        if res.exit_status != 0:
+            logging.warning('Unable to install venv: ' + res.stdout)
             return False
         return True
 
@@ -339,6 +347,24 @@ class Signalman:
         with open(f'{SERVICE_SOURCE}/{CONFIG_NAME}', 'w') as f:
             f.write(res)
 
+    async def install_pip(self, desc):
+        system_name = desc.get(SYSTEM_NAME)
+        conn = self.connections.get(system_name)
+        if not conn:
+            return False
+        res = await conn.run('python3.10 -m ensurepip')
+        if res.exit_status == 0:
+            return True
+        res = await conn.run('python3.10 -m pip --version')
+        logging.debug(res)
+        if res.exit_status == 0:
+            return True
+        res = await conn.run(f"sudo -S <<< '{desc[PASSWORD]}' apt install python3-pip -y")
+        logging.debug(res)
+        if res.exit_status != 0:
+            return False
+        return True
+
     async def create_venv(self, desc):
         system_name = desc.get(SYSTEM_NAME)
         conn = self.connections.get(system_name)
@@ -346,7 +372,6 @@ class Signalman:
             return False
         await conn.run(f'python3.10 -m venv {SERVICE_DESTINATION}/venv')
         await conn.run(f'source {SERVICE_DESTINATION}/venv/bin/activate')
-        await conn.run(f'python3.10 -m ensurepip')
         return True
 
     async def start_service(self, desc):

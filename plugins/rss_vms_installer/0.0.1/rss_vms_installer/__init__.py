@@ -10,4 +10,5 @@ from rss_vms_installer.logger_installer import LoggerInstaller
 from rss_vms_installer.database_creator import DatabaseCreator
 from rss_vms_installer.postgis_on_db_installer import PostgisOnDbInstaller
 from rss_vms_installer.post_scripts_installer import PostScriptsInstaller
+from rss_vms_installer.curl_installer import CurlInstaller
 

@@ -2,19 +2,20 @@ import logging
 
 
 class Stages:
-    LOCALE = 0
-    JAVA = 1
-    POSTGRES = 2
-    POSTGIS = 3
-    TOMCAT = 4
-    TOMCAT_TUNER = 5
-    SERVER_PART = 6
-    LOGGER = 7
-    DATABASE = 8
-    POSTGIS_ON_DB = 9
-    POST_SCRIPTS = 10
-    FINISH = 11
-    POST_FINISH = 12
+    CURL = 0
+    LOCALE = 1
+    JAVA = 2
+    POSTGRES = 3
+    POSTGIS = 4
+    TOMCAT = 5
+    TOMCAT_TUNER = 6
+    SERVER_PART = 7
+    LOGGER = 8
+    DATABASE = 9
+    POSTGIS_ON_DB = 10
+    POST_SCRIPTS = 11
+    FINISH = 12
+    POST_FINISH = 13
 
 
 class RssVmsInstaller:
@@ -42,11 +43,21 @@ class RssVmsInstaller:
         internal_starter = internal_starter if internal_starter else 'internal_starter'
         state = body.get('state')
         stage = state.get('stage')
-        stage = stage if stage else Stages.LOCALE
+        stage = stage if stage else Stages.CURL
         substage = state.get('substage')
         props = body.get('props')
         extended_props = props.copy()
         extended_props['auxiliary'] = auxiliary
+        if stage == Stages.CURL:
+            class_desc = {'package_name': 'rss_vms_installer', 'class': 'CurlInstaller'}
+            query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'curl_installer'})
+            ans = await self.adaptor.ask(query, 30)
+            query = self.adaptor.get_msg('curl_install', recipient=ans.get('body'))
+            ans = await self.adaptor.ask(query, 300)
+            com = ans.get('command')
+            if com != 'curl_is_installed':
+                return
+            stage = Stages.LOCALE
         if stage == Stages.LOCALE:
             class_desc = {'package_name': 'rss_vms_installer', 'class': 'Utf8RuLocaleInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'ru_installer'})

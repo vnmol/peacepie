@@ -194,3 +194,4 @@ class Adaptor:
             logging.debug(f'{coms}: ({res[0]}, {res1}, {res2})')
         else:
             raise Exception(f'{coms}: ({res[0]}, {res1}, {res2})')
+        return res
