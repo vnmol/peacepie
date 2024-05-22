@@ -5,6 +5,9 @@ from peacepie.assist import log_util, json_util, serialization, dir_operations, 
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin
 
+ADAPTOR_COMMANDS = {'subscribe', 'unsubscribe',
+                    'cumulative_command_set', 'cumulative_command_remove', 'cumulative_tick'}
+
 
 def get_msg(command, body=None, recipient=None, sender=None, is_inter=False):
     return msg_factory.instance.get_msg(command, body, recipient, sender, is_inter)
@@ -13,7 +16,6 @@ def get_msg(command, body=None, recipient=None, sender=None, is_inter=False):
 class Adaptor:
 
     def __init__(self, name, parent, performer, sender=None):
-        self.logger = logging.getLogger()
         self.name = name
         self.parent = parent
         self.performer = performer
@@ -26,7 +28,9 @@ class Adaptor:
         self.is_running = False
         self.ticker_admin = None
         self.observers = {}
-        self.logger.info(f'{self.get_alias(self)} is created')
+        self.cumulative_commands = {}
+        self.cumulative_period = 10
+        logging.info(f'{self.get_alias(self)} is created')
 
     def get_alias(self, obj=None):
         if not obj:
@@ -39,23 +43,30 @@ class Adaptor:
             try:
                 await self.performer.pre_run()
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
+        self.add_ticker(self.cumulative_period, command='cumulative_tick')
         self.is_running = True
         await self.is_running_notification()
         while True:
             try:
                 msg = await self.queue.get()
-                self.logger.debug(log_util.async_received_log(self.performer, msg))
-                if await self.handle(msg):
+                command = msg.get('command')
+                if command in self.cumulative_commands.keys():
+                    self.cumulative_commands[command]['received'] += 1
+                else:
+                    logging.debug(log_util.async_received_log(self.performer, msg))
+                if command in ADAPTOR_COMMANDS:
+                    if not await self.handle(msg):
+                        logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
                     continue
                 if await self.performer.handle(msg):
                     await self.notify(msg)
                 else:
-                    self.logger.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
-            except asyncio.exceptions.CancelledError as e:
+                    logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
+            except asyncio.exceptions.CancelledError:
                 break
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
 
     async def is_running_notification(self):
         if not self.sender:
@@ -68,23 +79,67 @@ class Adaptor:
         await self.send(msg)
 
     async def handle(self, msg):
-        command = msg['command']
-        if command == 'subscribe':
-            res = self.observers.get(msg['body']['command'])
-            if not res:
-                res = []
-                self.observers[msg['body']['command']] = res
-            res.append(msg['sender'])
+        command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
+        sender = msg.get('sender')
+        if command == 'cumulative_tick':
+            self.cumulative_tick()
+        elif command == 'cumulative_command_set':
+            await self.cumulative_command_set(body, sender)
+        elif command == 'cumulative_command_remove':
+            self.cumulative_command_remove(body)
+        elif command == 'subscribe':
+            self.subscribe(body.get('command'), msg.get('sender'))
         elif command == 'unsubscribe':
-            res = self.observers.get(msg['body']['command'])
-            if res:
-                res.remove(msg['sender'])
+            self.unsubscribe(body.get('command'), msg.get('sender'))
         else:
             return False
         return True
 
+    def cumulative_tick(self):
+        for command in self.cumulative_commands.keys():
+            count = self.cumulative_commands[command]['received']
+            logging.info(f'{self.get_alias(self)} received {count} "{command}" messages')
+            count = self.cumulative_commands[command]['local_sent']
+            if count > 0:
+                logging.info(f'{self.get_alias(self)} sent {count} "{command}" messages')
+            count = self.cumulative_commands[command]['remote_sent']
+            if count > 0:
+                logging.info(f'{self.get_alias(self)} SENT {count} "{command}" MESSAGES')
+            count = self.cumulative_commands[command]['local_asked']
+            if count > 0:
+                logging.info(f'{self.get_alias(self)} asked {count} "{command}" messages')
+            count = self.cumulative_commands[command]['remote_asked']
+            if count > 0:
+                logging.info(f'{self.get_alias(self)} ASKED {count} "{command}" MESSAGES')
+            self.cumulative_commands[command]['received'] = 0
+            self.cumulative_commands[command]['local_sent'] = 0
+            self.cumulative_commands[command]['remote_sent'] = 0
+            self.cumulative_commands[command]['local_asked'] = 0
+            self.cumulative_commands[command]['remote_asked'] = 0
+
+    async def cumulative_command_set(self, body, recipient):
+        val = {'received': 0, 'local_sent': 0, 'remote_sent': 0, 'local_asked': 0, 'remote_asked': 0}
+        self.cumulative_commands[body.get('command')] = val
+        await self.send(self.get_msg('is_set', recipient=recipient))
+
+    def cumulative_command_remove(self, body):
+        del self.cumulative_commands[body.get('command')]
+
+    def subscribe(self, command, sender):
+        res = self.observers.get(command)
+        if not res:
+            res = []
+            self.observers[command] = res
+        res.append(sender)
+
+    def unsubscribe(self, command, sender):
+        res = self.observers.get(command)
+        if res:
+            res.remove(sender)
+
     async def notify(self, msg):
-        res = self.observers.get(msg['command'])
+        res = self.observers.get(msg.get('command'))
         if not res:
             return
         for recipient in res:
@@ -113,16 +168,16 @@ class Adaptor:
         else:
             await self.performer.connector.ask(self, msg, timeout)
 
-    def add_ticker(self, period, count=None):
+    async def group_ask(self, timeout, count, get_values):
+        await self.parent.connector.group_ask(self, timeout, count, get_values)
+
+    def add_ticker(self, period, count=None, name=None, command=None):
         if not self.ticker_admin:
             self.ticker_admin = ticker_admin.TickerAdmin()
-        return self.ticker_admin.add_ticker(self.queue, period, count)
+        return self.ticker_admin.add_ticker(self.queue, period, count, name, command)
 
-    def add_to_cache(self, node, entity):
-        if self.parent:
-            self.parent.connector.add_to_cache(node, entity)
-        else:
-            self.performer.connector.add_to_cache(node, entity)
+    async def get_queue(self, addr):
+        return await self.parent.connector.get_queue(self, addr)
 
     def get_node(self):
         if self.parent:

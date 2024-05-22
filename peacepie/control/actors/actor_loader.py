@@ -15,6 +15,7 @@ class ActorLoader:
         index += 1
         self.parent = parent
         self.queue = asyncio.Queue()
+        self.cumulative_commands = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
     async def run(self):

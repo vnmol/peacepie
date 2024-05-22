@@ -31,24 +31,25 @@ class Channel:
     async def create_mediator(self):
         name = f'{self.parent.adaptor.name}.mediator_{self.id}'
         msg = self.parent.adaptor.get_msg('create_actor', {'class_desc': mediator.Mediator, 'name': name})
-        answer = await self.parent.adaptor.ask(msg)
-        if answer.command != 'actor_is_created':
+        ans = await self.parent.adaptor.ask(msg)
+        if ans.get('command') != 'actor_is_created':
             return None
-        msg = self.parent.adaptor.get_msg('set_params', {'params': [{'name': 'writer', 'value': self.writer}]}, name)
+        mediator_addr = ans.get('body')
+        body = {'params': [{'name': 'writer', 'value': self.writer}]}
+        msg = self.parent.adaptor.get_msg('set_params', body, mediator_addr)
         await self.parent.adaptor.send(msg)
-        return name
+        return mediator_addr
 
     async def create_convertor(self):
         name = f'{self.parent.adaptor.name}.convertor_{self.id}'
         msg = self.parent.adaptor.get_msg('create_actor', {'class_desc': self.parent.convertor_desc, 'name': name})
-        msg.recipient = self.parent.balancer
-        answer = await self.parent.adaptor.ask(msg)
-        if answer.command != 'actor_is_created':
+        ans = await self.parent.adaptor.ask(msg)
+        if ans.get('command') != 'actor_is_created':
             return None
-        self.parent.adaptor.add_to_cache(answer.body['node'], answer.body['entity'])
+        convertor_addr = ans.get('body')
         body = {'params': [
-            {'name': 'mediator', 'value': {'node': self.parent.adaptor.get_node(), 'entity': self.mediator}},
+            {'name': 'mediator', 'value': self.mediator},
             {'name': 'consumer', 'value': self.parent.router}]}
-        msg = self.parent.adaptor.get_msg('set_params', body, name)
+        msg = self.parent.adaptor.get_msg('set_params', body, convertor_addr)
         await self.parent.adaptor.ask(msg)
-        return name
+        return convertor_addr

@@ -17,6 +17,7 @@ class ClientLink:
         try:
             self.reader, self.writer = await asyncio.open_connection(self.link_host, self.link_port)
             self.logger.info(f' Channel ({self.link_host}, {self.link_port}) is opened')
+            await self.send({'command': 'started', 'body': None})
         except Exception as ex:
             self.logger.exception(ex)
         await self.client_handle()

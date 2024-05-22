@@ -1,5 +1,4 @@
 import asyncio
-import traceback
 
 from peacepie import msg_factory
 

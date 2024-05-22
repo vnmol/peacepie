@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+import uvloop
+
 from peacepie import adaptor, params, multimanager, loglistener, msg_factory, log_conf
 from peacepie.assist import log_util
 from peacepie.control import head_prime_admin, prime_admin
@@ -25,6 +27,7 @@ class PeaceSystem:
         self.logger.info(log_util.get_alias(self) + ' is created')
 
     def start(self):
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         if self.is_head:
             performer = head_prime_admin.HeadPrimeAdmin(self.host_name, self.process_name)
         else:

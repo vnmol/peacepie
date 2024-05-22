@@ -13,8 +13,15 @@ def init_msg_factory(host_name, process_name, name, queue):
     instance = MsgFactory(host_name, process_name, name, queue)
 
 
-def get_msg(command, body=None, recipient=None, sender=None):
-    return instance.get_msg(command, body, recipient, sender)
+def get_msg(command, body=None, recipient=None, sender=None, timeout=None, group_mid=None):
+    return instance.get_msg(command, body, recipient, sender, timeout, group_mid)
+
+
+def get_group_mid():
+    global mid_gen
+    res = mid_gen
+    mid_gen += 1
+    return res
 
 
 class MsgFactory:
@@ -31,15 +38,17 @@ class MsgFactory:
     def get_queue(self):
         return self.queue
 
-    def get_mid(self):
+    def get_mid(self, group_mid):
         global mid_gen
         res = f'{self.system_name}.{self.host_name}.{self.process_name}.{mid_gen}'
+        if group_mid:
+            res += f'({group_mid})'
         mid_gen += 1
         return res
 
-    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None):
-        res = {'mid': self.get_mid(), 'command': command, 'body': body, 'recipient': recipient, 'sender': sender,
-               'timeout': timeout}
+    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None, group_mid=None):
+        res = {'mid': self.get_mid(group_mid), 'command': command, 'body': body, 'recipient': recipient,
+               'sender': sender, 'timeout': timeout}
         return res
 
 

@@ -15,7 +15,6 @@ class SimpleTcpServer:
         self.convertor_desc = None
         self.convertor_class = None
         self.embedded_channel = False
-        self.balancer = None
         self.router = None
         self.server = None
 
@@ -39,8 +38,6 @@ class SimpleTcpServer:
             elif param['name'] == 'embedded_channel':
                 self.embedded_channel = param['value']
                 await self.embedded()
-            elif param['name'] == 'balancer':
-                self.balancer = param['value']
             elif param['name'] == 'router':
                 self.router = param['value']
 
@@ -69,6 +66,5 @@ class SimpleTcpServer:
                 channel = Channel(self, reader, writer)
         except Exception as ex:
             self.adaptor.logger.exception(ex)
-        print(channel.name)
         if channel:
             await channel.handle()

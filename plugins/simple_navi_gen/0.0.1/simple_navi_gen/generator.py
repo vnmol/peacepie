@@ -21,13 +21,15 @@ class SimpleNaviGen:
         self.router = None
 
     async def handle(self, msg):
-        if msg.command == 'tick':
+        command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
+        if command == 'tick':
             await self.send()
-        elif msg.command == 'navi_data':
-            self.navi_data(msg.body)
-        elif msg.command == 'set_params':
-            self.set_params(msg.body['params'])
-        elif msg.command == 'start':
+        elif command == 'navi_data':
+            self.navi_data(body)
+        elif command == 'set_params':
+            self.set_params(body.get('params'))
+        elif command == 'start':
             await self.start()
         else:
             return False
@@ -52,26 +54,21 @@ class SimpleNaviGen:
 
     def set_params(self, params):
         for param in params:
-            if param['name'] == 'router':
-                self.router = param['value']
-            elif param['name'] == 'type':
-                self.type = param['value']
-            elif param['name'] == 'code':
-                self.code = param['value']
-            elif param['name'] == 'lat':
-                self.lat = param['value']
-            elif param['name'] == 'lon':
-                self.lon = param['value']
-            elif param['name'] == 'consumer':
-                self.adaptor.add_to_cache(param['value']['node'], param['value']['entity'])
-                self.consumer = param['value']['entity']
+            name = param.get('name')
+            value = param.get('value')
+            if name == 'router':
+                self.router = value
+            elif name == 'type':
+                self.type = value
+            elif name == 'code':
+                self.code = value
+            elif name == 'lat':
+                self.lat = value
+            elif name == 'lon':
+                self.lon = value
+            elif name == 'consumer':
+                self.consumer = value
 
     async def start(self):
-        '''
-        key = {'type': self.type, 'code': self.code}
-        subscriber = {'node': self.adaptor.get_node(), 'entity': self.adaptor.name}
-        body = {'key': key, 'subscriber': subscriber}
-        await self.adaptor.ask(self.adaptor.get_msg('subscribe', body, recipient=self.router))
-        '''
         await asyncio.sleep(random.randrange(10))
         self.adaptor.add_ticker(self.period)

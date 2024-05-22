@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 
 class SimpleTcpClient:
@@ -8,18 +9,19 @@ class SimpleTcpClient:
         self.inet_addr = None
         self.convertor_desc = None
         self.convertor = None
-        self.balancer = None
         self.producer = None
         self.is_on_demand = True
         self.is_active = False
         self.writer = None
 
     async def handle(self, msg):
-        if msg.command == 'raw_data':
+        command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
+        if command == 'raw_data':
             await self.raw_data(msg)
-        elif msg.command == 'set_params':
-            await self.set_params(msg.body['params'])
-        elif msg.command == 'start':
+        elif command == 'set_params':
+            await self.set_params(body.get('params'))
+        elif command == 'start':
             await self.start()
         else:
             return False
@@ -35,20 +37,20 @@ class SimpleTcpClient:
             return
         self.writer.write(msg.body)
         await self.writer.drain()
-        self.adaptor.logger.debug(self.adaptor.get_alias() + f' THE DATA FROM MESSAGE({msg.mid}) IS SENT')
+        logging.debug(self.adaptor.get_alias() + f' THE DATA FROM MESSAGE({msg.mid}) IS SENT')
 
     async def set_params(self, params):
         for param in params:
-            if param['name'] == 'inet_addr':
-                self.inet_addr = param['value']
-            elif param['name'] == 'convertor_desc':
-                self.convertor_desc = param['value']
-            elif param['name'] == 'balancer':
-                self.balancer = param['value']
-            elif param['name'] == 'producer':
-                self.producer = param['value']
-            elif param['name'] == 'is_on_demand':
-                self.is_on_demand = param['value']
+            name = param.get('name')
+            value = param.get('value')
+            if name == 'inet_addr':
+                self.inet_addr = value
+            elif name == 'convertor_desc':
+                self.convertor_desc = value
+            elif name == 'producer':
+                self.producer = value
+            elif name == 'is_on_demand':
+                self.is_on_demand = value
 
     async def start(self):
         await self.create_convertor()
@@ -58,11 +60,9 @@ class SimpleTcpClient:
     async def create_convertor(self):
         name = f'{self.adaptor.name}.convertor'
         msg = self.adaptor.get_msg('create_actor', {'class_desc': self.convertor_desc, 'name': name})
-        msg.recipient = self.balancer
         answer = await self.adaptor.ask(msg)
         if answer.command != 'actor_is_created':
             return None
-        self.adaptor.add_to_cache(answer.body['node'], answer.body['entity'])
         body = {'params':
                     [{'name': 'mediator', 'value': {'node': self.adaptor.get_node(), 'entity': self.adaptor.name}}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
@@ -78,25 +78,25 @@ class SimpleTcpClient:
         while True:
             try:
                 reader, self.writer = await asyncio.open_connection(self.inet_addr['host'], self.inet_addr['port'])
-                self.adaptor.logger.info(self.adaptor.get_alias() + ' Channel is opened')
+                logging.info(self.adaptor.get_alias() + ' Channel is opened')
             except Exception as ex:
-                self.adaptor.logger.exception(ex)
+                logging.exception(ex)
             while reader:
                 if not self.adaptor.is_running or reader.at_eof():
                     break
                 try:
                     data = await reader.read(255)
                 except Exception as ex:
-                    self.adaptor.logger.exception(ex)
+                    logging.exception(ex)
                     reader = None
             if self.writer:
-                self.adaptor.logger.info(self.adaptor.get_alias() + ' Channel is closed')
+                logging.info(self.adaptor.get_alias() + ' Channel is closed')
                 self.writer.close()
                 await self.writer.wait_closed()
             self.writer = None
             if self.is_on_demand:
                 self.is_active = False
-                self.adaptor.logger.info(self.adaptor.get_alias() + ' Channel is inactive')
+                logging.info(self.adaptor.get_alias() + ' Channel is inactive')
                 return
             else:
                 await asyncio.sleep(10)

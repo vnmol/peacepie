@@ -29,11 +29,11 @@ class Admin:
         self.log_desc = log_desc
         self.adaptor = None
         self.actor_admin = None
-        self.actors = {}
         self.connector = None
         self.intralink = None
         self.actor_seeker = None
         self.spy = None
+        self.cumulative_commands = {}
         dir_operations.adjust_path(params.instance['package_dir'], self.process_name)
 
     def get_prefix(self):
@@ -55,7 +55,7 @@ class Admin:
         await queue.get()
 
     async def handle(self, msg):
-        command = msg['command']
+        command = msg.get('command')
         if command in ACTOR_ADMIN_COMMANDS:
             await self.actor_admin.handle(msg)
         elif command in SPY_COMMANDS:

@@ -1,7 +1,4 @@
 import enum
-import sys
-
-admin = sys.modules['peacepie.control.admin']
 
 
 class SimpleConvertor:
@@ -13,23 +10,22 @@ class SimpleConvertor:
         self.packet = Packet(self)
 
     async def handle(self, msg):
-        command = msg['command']
+        command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
         if command == 'raw_data':
-            await self.raw_data(msg['body'])
+            await self.raw_data(body)
         elif command == 'navi_data':
-            await self.navi_data(msg['body'])
+            await self.navi_data(body)
         elif command == 'set_params':
-            await self.set_params(msg)
+            await self.set_params(body.get('params'), msg.get('sender'))
         else:
             return False
         return True
 
     async def raw_data(self, data):
-        global admin
         body = self.packet.process(data)
         if not body:
             return
-        admin.received += 1
         if self.consumer:
             await self.adaptor.send(self.adaptor.get_msg('navi_data', body, recipient=self.consumer))
 
@@ -38,22 +34,13 @@ class SimpleConvertor:
         body = b'\xff\xfe' + (len(buf)).to_bytes(2, byteorder='big') + b'\x7f\xff' + buf
         await self.adaptor.send(self.adaptor.get_msg('raw_data', body, self.mediator))
 
-    async def set_params(self, msg):
-        for param in msg['body']['params']:
-            if param['name'] == 'mediator':
-                if type(param['value']) is dict:
-                    self.adaptor.add_to_cache(param['value']['node'], param['value']['entity'])
-                    name = param['value']['entity']
-                else:
-                    name = param['value']
-                self.mediator = name
-            elif param['name'] == 'consumer':
-                if type(param['value']) is dict:
-                    self.adaptor.add_to_cache(param['value']['node'], param['value']['entity'])
-                    self.consumer = param['value']['entity']
-                else:
-                    self.consumer = param['value']
-        await self.adaptor.send(self.adaptor.get_msg('params_is_set', recipient=msg['sender']))
+    async def set_params(self, params, recipient):
+        for param in params:
+            if param.get('name') == 'mediator':
+                self.mediator = param.get('value')
+            elif param.get('name') == 'consumer':
+                self.consumer = param.get('value')
+        await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
 
 class Packet:

@@ -15,6 +15,7 @@ class SimpleWebFace:
         self.link = None
         self.link_host = 'localhost'
         self.link_port = None
+        self.recipient = None
 
     async def pre_run(self):
         queue = asyncio.Queue()
@@ -25,7 +26,7 @@ class SimpleWebFace:
         try:
             self.link = await asyncio.start_server(self._link_handle, self.link_host, self.link_port)
             self.link_port = self.link.sockets[0].getsockname()[1]
-            self.adaptor.logger.info(f'{self.adaptor.get_alias(self)} is started on port {self.link_port}')
+            logging.info(f'{self.adaptor.get_alias(self)} is started on port {self.link_port}')
         except Exception as ex:
             logging.exception(ex)
         await queue.put(0)
@@ -51,6 +52,9 @@ class SimpleWebFace:
             await self.get_members(msg, serializer, writer)
         elif command == 'websocket_handle':
             await self.websocket_handle(msg, serializer, writer)
+        elif command == 'started':
+            if self.recipient:
+                await self.adaptor.send(self.adaptor.get_msg(command, None, self.recipient))
 
     async def get_members(self, msg, serializer, writer):
         body = msg.get('body')
@@ -101,6 +105,7 @@ class SimpleWebFace:
         return True
 
     async def start(self, msg):
+        self.recipient = msg.get('sender')
         http_host = params.instance.get('ip')
         http_port = msg.get('body').get('port') if msg.get('body') else None
         ans = await self.adaptor.ask(self.adaptor.get_msg('get_log_desc'))

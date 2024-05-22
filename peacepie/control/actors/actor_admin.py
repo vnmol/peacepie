@@ -16,7 +16,7 @@ class ActorAdmin:
 
     async def handle(self, msg):
         command = msg.get('command')
-        if command == 'create_actor':
+        if command == 'create_actor' or command == 'create_actors':
             for loader in self.actor_loaders:
                 if loader['loader'].queue.qsize() < 10:
                     await loader['loader'].queue.put(msg)

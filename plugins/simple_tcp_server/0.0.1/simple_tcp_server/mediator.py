@@ -6,16 +6,18 @@ class Mediator:
         self.writer = None
 
     async def handle(self, msg):
-        if msg.command == 'set_params':
-            self.set_params(msg.body['params'])
+        command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
+        if command == 'set_params':
+            self.set_params(body.get('params'))
         else:
             return False
         return True
 
     def set_params(self, params):
         for param in params:
-            if param['name'] == 'writer':
-                self.writer = param['value']
+            if param.get('name') == 'writer':
+                self.writer = param.get('value')
 
     async def writing(self, data):
         self.writer.write(data)
