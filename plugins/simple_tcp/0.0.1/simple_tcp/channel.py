@@ -1,4 +1,6 @@
-from simple_tcp_server import mediator, tcp_server
+import logging
+
+from simple_tcp import mediator, tcp_server
 
 
 class Channel:
@@ -11,20 +13,21 @@ class Channel:
         self.writer = writer
         self.mediator = None
         self.convertor = None
+        self.cumulative_commands = {}
 
     async def handle(self):
         self.mediator = await self.create_mediator()
         self.convertor = await self.create_convertor()
-        self.parent.adaptor.logger.info(f'{self.parent.adaptor.get_alias(self)} Channel is opened')
+        logging.info(f'{self.parent.adaptor.get_alias(self)} Channel is opened')
         while True:
             if not self.parent.adaptor.is_running or self.reader.at_eof():
                 break
             try:
                 data = await self.reader.read(255)
-                self.parent.adaptor.logger.debug(f'{self.parent.adaptor.get_alias(self)} THE DATA IS RECEIVED')
+                logging.debug(f'{self.parent.adaptor.get_alias(self)} THE DATA ARE RECEIVED')
                 await self.parent.adaptor.send(self.parent.adaptor.get_msg('raw_data', data, self.convertor), self)
             except Exception as ex:
-                self.parent.adaptor.logger.exception(ex)
+                logging.exception(ex)
         self.writer.close()
         await self.writer.wait_closed()
 
@@ -49,7 +52,7 @@ class Channel:
         convertor_addr = ans.get('body')
         body = {'params': [
             {'name': 'mediator', 'value': self.mediator},
-            {'name': 'consumer', 'value': self.parent.router}]}
+            {'name': 'consumer', 'value': self.parent.consumer}]}
         msg = self.parent.adaptor.get_msg('set_params', body, convertor_addr)
         await self.parent.adaptor.ask(msg)
         return convertor_addr

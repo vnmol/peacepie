@@ -32,7 +32,6 @@ class SimpleTester:
             print(COUNT / period)
         msg = self.adaptor.get_msg('test', None, self.consumer)
         await self.adaptor.send(msg)
-        # await self.consumer.put(msg)
 
     async def set_params(self, msg):
         recipient = msg.get('sender')
@@ -43,6 +42,5 @@ class SimpleTester:
             value = param.get('value')
             if name == 'consumer':
                 self.consumer = value
-                # self.consumer = await self.adaptor.get_queue(value)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))

@@ -1,4 +1,4 @@
-from simple_tcp_server import tcp_server
+from simple_tcp import tcp_server
 
 
 class EmbeddedChannel:

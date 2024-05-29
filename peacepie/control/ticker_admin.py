@@ -7,7 +7,6 @@ from peacepie import msg_factory
 class TickerAdmin:
 
     def __init__(self):
-        self.logger = logging.getLogger()
         self.tickers = {}
         self.ticker_index = 0
 
@@ -26,6 +25,9 @@ class TickerAdmin:
             return
         task.cancel()
         del self.tickers[name]
+
+    def is_ticker_exists(self, name):
+        return name in self.tickers.keys()
 
     async def tick(self, queue, period, count, command):
         while True:

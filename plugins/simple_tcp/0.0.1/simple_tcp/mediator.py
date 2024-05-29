@@ -1,3 +1,5 @@
+import logging
+
 
 class Mediator:
 
@@ -8,7 +10,9 @@ class Mediator:
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
-        if command == 'set_params':
+        if command == 'raw_data':
+            await self.writing(body)
+        elif command == 'set_params':
             self.set_params(body.get('params'))
         else:
             return False
@@ -22,4 +26,4 @@ class Mediator:
     async def writing(self, data):
         self.writer.write(data)
         await self.writer.drain()
-
+        logging.debug(f'{self.adaptor.get_alias(self)} THE DATA ARE SENT')

@@ -7,6 +7,7 @@ class SimpleConvertor:
         self.adaptor = None
         self.mediator = None
         self.consumer = None
+        self.questioner = None
         self.packet = Packet(self)
 
     async def handle(self, msg):
@@ -14,8 +15,8 @@ class SimpleConvertor:
         body = msg.get('body') if msg.get('body') else {}
         if command == 'raw_data':
             await self.raw_data(body)
-        elif command == 'navi_data':
-            await self.navi_data(body)
+        elif command == 'navi_send':
+            await self.navi_send(body, msg.get('sender'))
         elif command == 'set_params':
             await self.set_params(body.get('params'), msg.get('sender'))
         else:
@@ -26,21 +27,36 @@ class SimpleConvertor:
         body = self.packet.process(data)
         if not body:
             return
-        if self.consumer:
+        if isinstance(body, str) and body == 'OK':
+            await self.adaptor.send(self.adaptor.get_msg('sent', recipient=self.questioner))
+            self.questioner = None
+        else:
             await self.adaptor.send(self.adaptor.get_msg('navi_data', body, recipient=self.consumer))
+            await self.send('OK')
 
-    async def navi_data(self, data):
+    async def navi_send(self, data, questioner):
+        if self.questioner:
+            if questioner:
+                await self.adaptor.send(self.adaptor.get_msg('connection_is_busy', recipient=questioner))
+            return
+        self.questioner = questioner if questioner else self
+        await self.send(data)
+
+    async def send(self, data):
         buf = self.adaptor.json_dumps(data).encode('utf-8')
         body = b'\xff\xfe' + (len(buf)).to_bytes(2, byteorder='big') + b'\x7f\xff' + buf
         await self.adaptor.send(self.adaptor.get_msg('raw_data', body, self.mediator))
 
     async def set_params(self, params, recipient):
         for param in params:
-            if param.get('name') == 'mediator':
-                self.mediator = param.get('value')
-            elif param.get('name') == 'consumer':
-                self.consumer = param.get('value')
-        await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
+            name = param.get('name')
+            value = param.get('value')
+            if name == 'mediator':
+                self.mediator = value
+            elif name == 'consumer':
+                self.consumer = value
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
 
 class Packet:

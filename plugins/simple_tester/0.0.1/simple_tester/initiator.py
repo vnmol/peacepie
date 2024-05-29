@@ -22,7 +22,7 @@ class Initiator:
         groups = [[f'tester_{m:02d}_{n:02d}' for n in range(group_size)] for m in range(group_count)]
         names = [item for sublist in groups for item in sublist]
         body = {'class_desc': {'package_name': 'simple_tester', 'class': 'SimpleTester'}, 'names': names}
-        await self.adaptor.ask(self.adaptor.get_msg('create_actors', body), 3)
+        await self.adaptor.ask(self.adaptor.get_msg('create_actors', body), 4)
         await self.adaptor.group_ask(10, len(names), cumulative_factory(names))
         for group in groups:
             await self.adaptor.group_ask(10, len(group), consumer_factory(group))

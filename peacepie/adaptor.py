@@ -3,7 +3,7 @@ import logging
 
 from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util
 from peacepie import msg_factory, params
-from peacepie.control import ticker_admin
+from peacepie.control import ticker_admin, series_admin
 
 ADAPTOR_COMMANDS = {'subscribe', 'unsubscribe',
                     'cumulative_command_set', 'cumulative_command_remove', 'cumulative_tick'}
@@ -44,7 +44,6 @@ class Adaptor:
                 await self.performer.pre_run()
             except Exception as ex:
                 logging.exception(ex)
-        self.add_ticker(self.cumulative_period, command='cumulative_tick')
         self.is_running = True
         await self.is_running_notification()
         while True:
@@ -121,10 +120,13 @@ class Adaptor:
     async def cumulative_command_set(self, body, recipient):
         val = {'received': 0, 'local_sent': 0, 'remote_sent': 0, 'local_asked': 0, 'remote_asked': 0}
         self.cumulative_commands[body.get('command')] = val
+        self.add_ticker(self.cumulative_period, command='cumulative_tick', name='cumulative')
         await self.send(self.get_msg('is_set', recipient=recipient))
 
     def cumulative_command_remove(self, body):
         del self.cumulative_commands[body.get('command')]
+        if not self.cumulative_commands:
+            self.ticker_admin.remove('cumulative')
 
     def subscribe(self, command, sender):
         res = self.observers.get(command)
@@ -174,10 +176,12 @@ class Adaptor:
     def add_ticker(self, period, count=None, name=None, command=None):
         if not self.ticker_admin:
             self.ticker_admin = ticker_admin.TickerAdmin()
+        if self.ticker_admin.is_ticker_exists(name):
+            return name
         return self.ticker_admin.add_ticker(self.queue, period, count, name, command)
 
     async def get_queue(self, addr):
-        return await self.parent.connector.get_queue(self, addr)
+        return await self.parent.connector.get_queue(addr)
 
     def get_node(self):
         if self.parent:
@@ -250,3 +254,6 @@ class Adaptor:
         else:
             raise Exception(f'{coms}: ({res[0]}, {res1}, {res2})')
         return res
+
+    def series_next(self, name):
+        return series_admin.instance.next(name)
