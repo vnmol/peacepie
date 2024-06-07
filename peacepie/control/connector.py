@@ -64,6 +64,8 @@ class Connector:
 
     def send_log(self, sender, is_local, msg):
         command = msg.get('command')
+        if command in sender.not_log_commands:
+            return
         if command in sender.cumulative_commands.keys():
             sender.cumulative_commands[command]['local_sent' if is_local else 'remote_sent'] += 1
         elif is_local:
@@ -72,7 +74,7 @@ class Connector:
             logging.debug(log_util.sync_sent_log(sender, msg))
 
     async def ask(self, questioner, msg, timeout=1):
-        recipient = msg['recipient']
+        recipient = msg.get('recipient')
         res = await self.clarify_recipient(recipient)
         if not res:
             res = await self.find(questioner, recipient)
@@ -134,6 +136,8 @@ class Connector:
 
     def ask_log(self, questioner, is_local, msg):
         command = msg.get('command')
+        if command in questioner.not_log_commands:
+            return
         if command in questioner.cumulative_commands.keys():
             questioner.cumulative_commands[command]['local_asked' if is_local else 'remote_asked'] += 1
         elif is_local:
@@ -143,6 +147,8 @@ class Connector:
 
     def answer_on_ask_log(self, questioner, msg):
         command = msg.get('command')
+        if command in questioner.not_log_commands:
+            return
         if command in questioner.cumulative_commands.keys():
             questioner.cumulative_commands[command]['received'] += 1
         else:

@@ -1,3 +1,5 @@
+import logging
+
 from simple_tcp import tcp_server
 
 
@@ -11,19 +13,20 @@ class EmbeddedChannel:
         self.writer = writer
         self.convertor = None
         self.convertor_name = f'{self.parent.adaptor.name}.convertor_{self.id}'
+        self.cumulative_commands = {}
 
     async def handle(self):
         await self.create_convertor()
-        self.parent.adaptor.logger.info(f'{self.parent.adaptor.get_alias(self)} Channel is opened')
+        logging.info(f'{self.parent.adaptor.get_alias(self)} Channel is opened')
         while True:
             if not self.parent.adaptor.is_running or self.reader.at_eof():
                 break
             try:
                 data = await self.reader.read(255)
-                self.parent.adaptor.logger.debug(f'{self.parent.adaptor.get_alias(self)} THE DATA IS RECEIVED')
+                # logging.debug(f'{self.parent.adaptor.get_alias(self)} THE DATA IS RECEIVED')
                 await self.convertor.handle(self.parent.adaptor.get_msg('raw_data', data, self.convertor_name))
             except Exception as ex:
-                self.parent.adaptor.logger.exception(ex)
+                logging.exception(ex)
         self.writer.close()
         await self.writer.wait_closed()
 
@@ -34,17 +37,22 @@ class EmbeddedChannel:
             raise AttributeError(txt)
         self.convertor.adaptor = self
         body = {'params': [{'name': 'mediator', 'value': '_embedded'},
-                           {'name': 'consumer', 'value': self.parent.router}]}
+                           {'name': 'consumer', 'value': self.parent.consumer}]}
         msg = self.parent.adaptor.get_msg('set_params', body, sender='_parent')
         try:
             await self.convertor.handle(msg)
         except Exception as e:
-            self.parent.adaptor.logger.exception(e)
+            logging.exception(e)
 
     async def send(self, msg):
-        if msg['recipient'] == '_embedded' or msg['recipient'] == '_parent':
+        if msg.get('recipient') == '_parent':
             return
-        await self.parent.adaptor.send(msg, self)
+        if msg.get('recipient') == '_embedded':
+            self.writer.write(msg.get('body'))
+            await self.writer.drain()
+            # logging.debug(f'{self.parent.adaptor.get_alias(self)} THE DATA ARE SENT')
+        else:
+            await self.parent.adaptor.send(msg, self)
 
     def get_msg(self, command, body=None, recipient=None, sender=None):
         return self.parent.adaptor.get_msg(command, body, recipient, sender)

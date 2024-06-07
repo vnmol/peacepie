@@ -7,12 +7,15 @@ class SimpleNaviGen:
 
     def __init__(self):
         self.adaptor = None
-        self.period = 4
+        self.period = 1
         self.t = 0
         self.code = None
         self.lat = None
         self.lon = None
         self.consumer = None
+
+    async def pre_run(self):
+        self.adaptor.not_log_commands.update(['tick', 'navi_send', 'sent'])
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -28,11 +31,14 @@ class SimpleNaviGen:
         return True
 
     async def tick(self):
+        '''
         lat = self.lat * (1 + 0.0001 * self.t * math.sin(self.t))
         lon = self.lon * (1 + 0.0001 * self.t * math.cos(self.t))
         self.t += 0.1
         data = {'id': self.adaptor.series_next('navi_id'), 'type': None, 'code': self.code, 'is_proprietary': False,
                 'navi': {'time': time.time(), 'lat': lat, 'lon': lon}}
+        '''
+        data = {}
         await self.adaptor.ask(self.adaptor.get_msg('navi_send', data, recipient=self.consumer))
 
     async def set_params(self, params, recipient):

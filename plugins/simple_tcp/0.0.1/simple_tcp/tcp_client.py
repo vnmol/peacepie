@@ -42,7 +42,7 @@ class SimpleTcpClient:
             return
         self.writer.write(msg.get('body'))
         await self.writer.drain()
-        logging.debug(f'{self.adaptor.get_alias(self)} THE DATA ARE SENT')
+        # logging.debug(f'{self.adaptor.get_alias(self)} THE DATA ARE SENT')
 
     async def set_params(self, params, recipient):
         for param in params:
@@ -70,9 +70,9 @@ class SimpleTcpClient:
         ans = await self.adaptor.ask(msg)
         if ans.get('command') != 'actor_is_created':
             return None
-        body = {'params': [{'name': 'mediator', 'value': self.adaptor.get_self_addr()}]}
-        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, ans.get('body')))
-        self.convertor = ans.get('body')
+        body = {'params': [{'name': 'mediator', 'value': self.adaptor.name}]}
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
+        self.convertor = name
 
     async def handle_connection(self):
         self.is_active = True
@@ -89,7 +89,7 @@ class SimpleTcpClient:
                     break
                 try:
                     data = await reader.read(255)
-                    logging.debug(f'{self.adaptor.get_alias(self)} THE DATA ARE RECEIVED')
+                    # logging.debug(f'{self.adaptor.get_alias(self)} THE DATA ARE RECEIVED')
                     await self.adaptor.send(self.adaptor.get_msg('raw_data', data, self.convertor))
                 except Exception as ex:
                     logging.exception(ex)

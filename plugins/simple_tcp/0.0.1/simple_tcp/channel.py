@@ -37,11 +37,10 @@ class Channel:
         ans = await self.parent.adaptor.ask(msg)
         if ans.get('command') != 'actor_is_created':
             return None
-        mediator_addr = ans.get('body')
         body = {'params': [{'name': 'writer', 'value': self.writer}]}
-        msg = self.parent.adaptor.get_msg('set_params', body, mediator_addr)
+        msg = self.parent.adaptor.get_msg('set_params', body, name)
         await self.parent.adaptor.send(msg)
-        return mediator_addr
+        return name
 
     async def create_convertor(self):
         name = f'{self.parent.adaptor.name}.convertor_{self.id}'
@@ -49,10 +48,9 @@ class Channel:
         ans = await self.parent.adaptor.ask(msg)
         if ans.get('command') != 'actor_is_created':
             return None
-        convertor_addr = ans.get('body')
         body = {'params': [
             {'name': 'mediator', 'value': self.mediator},
             {'name': 'consumer', 'value': self.parent.consumer}]}
-        msg = self.parent.adaptor.get_msg('set_params', body, convertor_addr)
+        msg = self.parent.adaptor.get_msg('set_params', body, name)
         await self.parent.adaptor.ask(msg)
-        return convertor_addr
+        return name

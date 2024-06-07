@@ -15,6 +15,7 @@ class ActorLoader:
         index += 1
         self.parent = parent
         self.queue = asyncio.Queue()
+        self.not_log_commands = set()
         self.cumulative_commands = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
@@ -29,7 +30,7 @@ class ActorLoader:
                 logging.exception(ex)
 
     async def handle(self, msg):
-        command = msg['command']
+        command = msg.get('command')
         if command == 'get_class':
             await self.get_class(msg)
         elif command == 'create_actor':
@@ -41,9 +42,9 @@ class ActorLoader:
         return True
 
     async def get_class(self, msg):
-        clss = self._get_class(msg)
-        answer = msg_factory.get_msg('class', clss, recipient=msg['sender'])
-        await self.parent.parent.connector.send(self, answer)
+        clss = await self._get_class(msg)
+        ans = msg_factory.get_msg('class', clss, recipient=msg.get('sender'))
+        await self.parent.parent.connector.send(self, ans)
 
     async def create_actor(self, msg):
         clss = await self._get_class(msg)

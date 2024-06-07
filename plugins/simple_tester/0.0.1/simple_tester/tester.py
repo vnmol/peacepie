@@ -2,13 +2,14 @@ import time
 
 COUNT = 0
 TIME = time.time()
-TIME_COUNT = 0
+PERIOD = 10
 
 
 class SimpleTester:
 
     def __init__(self):
         self.adaptor = None
+        self.next = None
         self.consumer = None
 
     async def handle(self, msg):
@@ -22,16 +23,20 @@ class SimpleTester:
         return True
 
     async def test(self):
+        global TIME
         global COUNT
-        global TIME_COUNT
         COUNT += 1
-        period = time.time() - TIME
-        period_count = period // 10
-        if period_count > TIME_COUNT:
-            TIME_COUNT = period_count
-            print(COUNT / period)
-        msg = self.adaptor.get_msg('test', None, self.consumer)
-        await self.adaptor.send(msg)
+        if time.time() - TIME >= PERIOD:
+            print(COUNT / PERIOD, self.adaptor.name, self.adaptor.queue.qsize())
+            TIME = time.time()
+            COUNT = 0
+        msg = self.adaptor.get_msg('test', None)
+        if self.next:
+            msg['recipient'] = self.next
+            await self.adaptor.send(msg)
+        if self.consumer:
+            msg['recipient'] = self.consumer
+            await self.adaptor.send(msg)
 
     async def set_params(self, msg):
         recipient = msg.get('sender')
@@ -40,7 +45,12 @@ class SimpleTester:
         for param in params:
             name = param.get('name')
             value = param.get('value')
-            if name == 'consumer':
+            if name == 'next':
+                self.next = value
+            elif name == 'consumer':
                 self.consumer = value
+            elif name == 'detail_log':
+                if not value:
+                    self.adaptor.not_log_commands.add('test')
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))

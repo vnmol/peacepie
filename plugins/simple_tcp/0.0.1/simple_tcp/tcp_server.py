@@ -54,8 +54,8 @@ class SimpleTcpServer:
         if not self.convertor_desc:
             return
         ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}))
-        if ans['command'] == 'class':
-            self.convertor_class = ans['body']
+        if ans.get('command') == 'class':
+            self.convertor_class = ans.get('body')
 
     async def start(self, recipient):
         try:

@@ -5,8 +5,8 @@ from peacepie.assist import log_util, json_util, serialization, dir_operations, 
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
 
-ADAPTOR_COMMANDS = {'subscribe', 'unsubscribe',
-                    'cumulative_command_set', 'cumulative_command_remove', 'cumulative_tick'}
+ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe',
+                    'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick'}
 
 
 def get_msg(command, body=None, recipient=None, sender=None, is_inter=False):
@@ -28,6 +28,7 @@ class Adaptor:
         self.is_running = False
         self.ticker_admin = None
         self.observers = {}
+        self.not_log_commands = set()
         self.cumulative_commands = {}
         self.cumulative_period = 10
         logging.info(f'{self.get_alias(self)} is created')
@@ -50,10 +51,11 @@ class Adaptor:
             try:
                 msg = await self.queue.get()
                 command = msg.get('command')
-                if command in self.cumulative_commands.keys():
-                    self.cumulative_commands[command]['received'] += 1
-                else:
-                    logging.debug(log_util.async_received_log(self.performer, msg))
+                if command not in self.not_log_commands:
+                    if command in self.cumulative_commands.keys():
+                        self.cumulative_commands[command]['received'] += 1
+                    else:
+                        logging.debug(log_util.async_received_log(self.performer, msg))
                 if command in ADAPTOR_COMMANDS:
                     if not await self.handle(msg):
                         logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
@@ -63,6 +65,11 @@ class Adaptor:
                 else:
                     logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
             except asyncio.exceptions.CancelledError:
+                if hasattr(self.performer, 'stop'):
+                    try:
+                        self.performer.stop()
+                    except Exception as ex:
+                        logging.exception(ex)
                 break
             except Exception as ex:
                 logging.exception(ex)
@@ -81,12 +88,14 @@ class Adaptor:
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
-        if command == 'cumulative_tick':
+        if command == 'exit':
+            raise asyncio.exceptions.CancelledError()
+        elif command == 'cumulative_tick':
             self.cumulative_tick()
-        elif command == 'cumulative_command_set':
-            await self.cumulative_command_set(body, sender)
-        elif command == 'cumulative_command_remove':
-            self.cumulative_command_remove(body)
+        elif command == 'cumulative_commands_set':
+            await self.cumulative_commands_set(body.get('commands'), sender)
+        elif command == 'cumulative_commands_remove':
+            self.cumulative_commands_remove(body.get('commands'))
         elif command == 'subscribe':
             self.subscribe(body.get('command'), msg.get('sender'))
         elif command == 'unsubscribe':
@@ -117,14 +126,19 @@ class Adaptor:
             self.cumulative_commands[command]['local_asked'] = 0
             self.cumulative_commands[command]['remote_asked'] = 0
 
-    async def cumulative_command_set(self, body, recipient):
-        val = {'received': 0, 'local_sent': 0, 'remote_sent': 0, 'local_asked': 0, 'remote_asked': 0}
-        self.cumulative_commands[body.get('command')] = val
-        self.add_ticker(self.cumulative_period, command='cumulative_tick', name='cumulative')
-        await self.send(self.get_msg('is_set', recipient=recipient))
+    async def cumulative_commands_set(self, commands, recipient=None):
+        for command in commands:
+            val = {'received': 0, 'local_sent': 0, 'remote_sent': 0, 'local_asked': 0, 'remote_asked': 0}
+            self.cumulative_commands[command] = val
+        name = 'cumulative'
+        if not self.ticker_admin or not self.ticker_admin.is_ticker_exists(name):
+            self.add_ticker(self.cumulative_period, command='cumulative_tick', name=name)
+        if recipient:
+            await self.send(self.get_msg('is_set', recipient=recipient))
 
-    def cumulative_command_remove(self, body):
-        del self.cumulative_commands[body.get('command')]
+    def cumulative_commands_remove(self, commands):
+        for command in commands:
+            del self.cumulative_commands[command]
         if not self.cumulative_commands:
             self.ticker_admin.remove('cumulative')
 

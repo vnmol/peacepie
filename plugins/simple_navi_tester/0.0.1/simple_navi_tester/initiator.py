@@ -25,14 +25,14 @@ class Initiator:
         port = body.get('port')
         period = body.get('period')
         consumer = await self.create_consumer()
-        await self.create_server(convertor_desc, count, port, consumer)
-        await self.create_client(convertor_desc, count, size, port)
+        # await self.create_server(convertor_desc, count, port, consumer)
+        # await self.create_client(convertor_desc, count, size, port)
         await self.create_gen(count, size, period)
 
     async def create_consumer(self):
         name = 'consumer'
         body = {'class_desc': {'package_name': 'simple_navi_tester', 'class': 'DummyConsumer'}, 'name': name}
-        await self.adaptor.send(self.adaptor.get_msg('create_actor', body))
+        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
         return name
 
     async def create_server(self, convertor_desc, count, port, consumer):
@@ -62,7 +62,7 @@ class Initiator:
             await self.adaptor.group_ask(10, len(group), gen_factory(group, count, size, index, period))
         for name in names:
             await self.adaptor.send(self.adaptor.get_msg('start', recipient=name))
-            await asyncio.sleep(random.random())
+            await asyncio.sleep(random.random() * 0.04)
 
 
 def server_factory(names, convertor_desc, port, consumer):
@@ -70,6 +70,7 @@ def server_factory(names, convertor_desc, port, consumer):
     def get_values(index):
         body = {'params': [{'name': 'convertor_desc', 'value': convertor_desc},
                            {'name': 'port', 'value': port + index},
+                           {'name': 'embedded_channel', 'value': True},
                            {'name': 'consumer', 'value': consumer}]}
         return {'command': 'set_params', 'body': body, 'recipient': names[index]}
 
@@ -102,7 +103,8 @@ def gen_factory(names, count, size, group, period):
         lat = 58.0 + group * (10.0 / count)
         lon = 39.0 + index * (30.0 / size)
         body = {'params': [{'name': 'code', 'value': code}, {'name': 'lat', 'value': lat},
-                           {'name': 'lon', 'value': lon}, {'period': period}, {'name': 'consumer', 'value': consumer}]}
+                           {'name': 'lon', 'value': lon}, {'name': 'period', 'value': period},
+                           {'name': 'consumer', 'value': 'consumer'}]}
         return {'command': 'set_params', 'body': body, 'recipient': names[index]}
 
     return get_values

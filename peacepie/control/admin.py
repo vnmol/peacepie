@@ -1,7 +1,6 @@
 import asyncio
-import logging
 
-from peacepie import params, msg_factory, loglistener
+from peacepie import params, msg_factory
 from peacepie.assist import dir_operations
 from peacepie.control import spy, connector
 
@@ -21,7 +20,6 @@ LIBS_PATH = 'libs_path'
 class Admin:
 
     def __init__(self, lord, host_name, process_name, log_desc):
-        self.logger = logging.getLogger()
         self.is_head = False
         self.lord = lord
         self.host_name = host_name
@@ -33,6 +31,7 @@ class Admin:
         self.intralink = None
         self.actor_seeker = None
         self.spy = None
+        self.not_log_commands = set()
         self.cumulative_commands = {}
         dir_operations.adjust_path(params.instance['package_dir'], self.process_name)
 

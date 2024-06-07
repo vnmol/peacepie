@@ -4,8 +4,6 @@ import multiprocessing
 
 from simple_web_face import http_server
 
-from peacepie import params
-
 
 class SimpleWebFace:
 
@@ -106,10 +104,14 @@ class SimpleWebFace:
 
     async def start(self, msg):
         self.recipient = msg.get('sender')
-        http_host = params.instance.get('ip')
+        http_host = self.adaptor.get_param('ip')
         http_port = msg.get('body').get('port') if msg.get('body') else None
         ans = await self.adaptor.ask(self.adaptor.get_msg('get_log_desc'))
         self.process = multiprocessing.Process(
             target=http_server.create,
             args=(ans.get('body'), self.link_host, self.link_port, self.adaptor.get_serializer(), http_host, http_port))
         self.process.start()
+
+    def stop(self):
+        self.process.terminate()
+        self.process.join()

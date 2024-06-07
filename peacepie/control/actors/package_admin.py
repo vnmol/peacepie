@@ -156,7 +156,6 @@ class PackageAdmin:
         src = f'{path}/{version.to_string(ver)}/{package_name}'
         dst = f'{self.work_path}/{package_name}'
         dir_operations.copydir(src, dst)
-        await wait_for_readable(dst)
         pack = None
         try:
             pack = importlib.import_module(package_name)
@@ -187,14 +186,3 @@ def get_primary_class(module):
         return primary_class
     else:
         return None
-
-
-async def wait_for_readable(dst, period=1, timeout=10):
-    logging.debug(f'Waiting for the folder "{dst}" to become readable')
-    t = time.time()
-    while not os.access(dst, os.R_OK):
-        logging.info(f'The folder "{dst}" is not readable, waiting')
-        await asyncio.sleep(period)
-        if time.time() - t > timeout:
-            logging.warning(f'')
-            return
