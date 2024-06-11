@@ -1,6 +1,4 @@
-import cProfile
 import multiprocessing
-import pstats
 
 from peacepie import PeaceSystem
 

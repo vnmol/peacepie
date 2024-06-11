@@ -15,3 +15,4 @@ example.stats
 
 /config/instance_01/safe.cfg
 /peacepie_service/safe.cfg
+/tests/config/safe.cfg
