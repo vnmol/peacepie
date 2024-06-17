@@ -4,7 +4,7 @@ from peacepie import adaptor
 
 
 def get_alias(obj):
-    performer = obj.performer if type(obj) is adaptor.Adaptor else obj
+    performer = obj.performer if isinstance(obj, adaptor.Adaptor) else obj
     perf = performer
     res = None
     while True:

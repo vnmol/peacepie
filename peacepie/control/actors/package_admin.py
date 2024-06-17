@@ -53,14 +53,13 @@ class PackageAdmin:
     def put_into_queue(self, class_desc, timeout):
         queue = asyncio.Queue()
         waiters = self.waiters.get(class_desc.get(PACKAGE_NAME))
-        operating_mode = params.instance.get('operating_mode')
         if not waiters:
             waiters = []
             self.waiters[class_desc.get(PACKAGE_NAME)] = waiters
             if not class_desc.get(CLASS):
                 asyncio.get_running_loop().create_task(self.copy_module(class_desc))
-            elif operating_mode == 'developing' or operating_mode == 'testing':
-                asyncio.get_running_loop().create_task(self.copy_package(operating_mode, class_desc))
+            elif params.instance.get('developing_mode'):
+                asyncio.get_running_loop().create_task(self.copy_package(class_desc))
             else:
                 asyncio.get_running_loop().create_task(self.load_package(class_desc, timeout))
         waiters.append({'version': class_desc.get(version.VERSION), 'class': class_desc.get(CLASS), 'queue': queue})
@@ -148,9 +147,9 @@ class PackageAdmin:
             await waiter['queue'].put(res)
         del self.waiters[package_name]
 
-    async def copy_package(self, operating_mode, class_desc):
+    async def copy_package(self, class_desc):
         package_name = class_desc.get(PACKAGE_NAME)
-        path = ('.' if operating_mode == 'developing' else '..') + '/plugins/' + package_name
+        path = './plugins/' + package_name
         lst = [version.from_string(name) for name in os.listdir(path) if version.from_string(name)]
         ver = version.find_max_version(self, lst, class_desc.get(version.VERSION))
         src = f'{path}/{version.to_string(ver)}/{package_name}'

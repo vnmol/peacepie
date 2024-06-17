@@ -1,10 +1,10 @@
 import asyncio
 import logging
 import os
+import signal
 from logging.handlers import QueueHandler
 
 from aiohttp import web, WSMsgType
-from aiohttp.web_runner import GracefulExit
 
 from simple_web_face import client_link, html_addons
 
@@ -41,12 +41,40 @@ class HttpServer:
 instance = HttpServer()
 
 
+async def start_server():
+    runner = web.AppRunner(instance.app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', instance.http_port)
+    await site.start()
+    logging.info(f'HttpServer on port {instance.http_port} is started')
+    return runner
+
+
+async def run_new():
+    runner = await start_server()
+    try:
+        await asyncio.gather(asyncio.create_task(instance.client_link.start_client()))
+    finally:
+        await runner.cleanup()
+
+
+def create_new(log_desc, host, link_port, serializer, http_host, http_port):
+    instance.init(log_desc, host, link_port, serializer, http_host, http_port)
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(run_new())
+    except KeyboardInterrupt:
+        pass
+    finally:
+        logging.warning(f'HttpServer on port {instance.http_port} is stopped')
+
+
 def create(log_desc, host, link_port, serializer, http_host, http_port):
     instance.init(log_desc, host, link_port, serializer, http_host, http_port)
     logging.info(f'HttpServer on port {http_port} is started')
     try:
         asyncio.run(run())
-    except GracefulExit as ex:
+    except Exception as e:
         pass
 
 

@@ -1,9 +1,12 @@
 import asyncio
 import logging
+import os
+import signal
 
 from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
+from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick'}
@@ -18,8 +21,8 @@ class Adaptor:
     def __init__(self, name, parent, performer, sender=None):
         self.name = name
         self.parent = parent
-        self.performer = performer
         self.sender = sender
+        self.performer = performer
         if not hasattr(self.performer, 'adaptor'):
             txt = f'The performer "{name}" does not have the attribute "adaptor"'
             raise AttributeError(txt)
@@ -59,18 +62,20 @@ class Adaptor:
                 if command in ADAPTOR_COMMANDS:
                     if not await self.handle(msg):
                         logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
+                    if params.instance.get('exit'):
+                        break
                     continue
                 if await self.performer.handle(msg):
                     await self.notify(msg)
                 else:
                     logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
             except asyncio.exceptions.CancelledError:
-                if hasattr(self.performer, 'stop'):
-                    try:
-                        self.performer.stop()
-                    except Exception as ex:
-                        logging.exception(ex)
                 break
+            except BaseException as ex:
+                logging.exception(ex)
+        if hasattr(self.performer, 'exit'):
+            try:
+                self.performer.exit()
             except Exception as ex:
                 logging.exception(ex)
 
@@ -89,7 +94,7 @@ class Adaptor:
         body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
         if command == 'exit':
-            raise asyncio.exceptions.CancelledError()
+            return await self.exit(msg)
         elif command == 'cumulative_tick':
             self.cumulative_tick()
         elif command == 'cumulative_commands_set':
@@ -102,6 +107,14 @@ class Adaptor:
             self.unsubscribe(body.get('command'), msg.get('sender'))
         else:
             return False
+        return True
+
+    async def exit(self, msg):
+        if isinstance(self.performer, HeadPrimeAdmin):
+            params.instance['exit'] = True
+        else:
+            msg['recipient'] = self.get_head_addr()
+            await self.send(msg)
         return True
 
     def cumulative_tick(self):

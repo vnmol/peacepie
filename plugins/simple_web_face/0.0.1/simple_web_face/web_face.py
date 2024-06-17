@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import multiprocessing
+import os
+import signal
 
 from simple_web_face import http_server
 
@@ -108,10 +110,11 @@ class SimpleWebFace:
         http_port = msg.get('body').get('port') if msg.get('body') else None
         ans = await self.adaptor.ask(self.adaptor.get_msg('get_log_desc'))
         self.process = multiprocessing.Process(
-            target=http_server.create,
+            target=http_server.create_new,
             args=(ans.get('body'), self.link_host, self.link_port, self.adaptor.get_serializer(), http_host, http_port))
         self.process.start()
 
-    def stop(self):
-        self.process.terminate()
-        self.process.join()
+    def exit(self):
+        if self.adaptor.get_param('exit'):
+            os.kill(self.process.pid, signal.SIGINT)
+            self.process.join()
