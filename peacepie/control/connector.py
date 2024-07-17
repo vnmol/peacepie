@@ -40,9 +40,6 @@ class Connector:
             elif recipient.startswith('_'):
                 return self.asks.get(recipient)
             else:
-                res = await self.parent.intralink.get_intra_queue(recipient)
-                if res:
-                    return res
                 res = self.parent.actor_admin.get_actor_queue(recipient)
                 if not res:
                     res = self.cache.get(recipient)
@@ -128,11 +125,12 @@ class Connector:
             ans = await queue.get()
             waiting_count -= 1
             if ans.get('command') == 'timeout':
-                logging.warning(log_util.async_received_log(questioner, ans))
-                break
+                del self.asks[entity]
+                return ans
             else:
                 self.answer_on_ask_log(questioner, ans)
         del self.asks[entity]
+        return msg_factory.get_msg('group_ask_completed')
 
     def ask_log(self, questioner, is_local, msg):
         command = msg.get('command')
@@ -208,3 +206,10 @@ class Connector:
         if isinstance(addr, str):
             res = self.parent.actor_admin.get_actor_queue(addr)
         return res
+
+    async def add_to_cache(self, node, names):
+        queue = await self.parent.intralink.get_intra_queue(node)
+        if not queue:
+            return
+        for name in names:
+            self.cache[name] = queue

@@ -1,5 +1,7 @@
 import asyncio
+import logging
 
+from peacepie import loglistener
 from peacepie.assist import log_util
 from peacepie.control import prime_admin, admin, safe_admin
 from peacepie.control.inter import inter_server
@@ -9,8 +11,9 @@ INTER_COMMANDS = {'inter_connect', 'inter_disconnect'}
 
 class HeadPrimeAdmin(prime_admin.PrimeAdmin):
 
-    def __init__(self, host_name, process_name):
+    def __init__(self, parent, host_name, process_name):
         super().__init__(host_name, process_name)
+        self.parent = parent
         self.is_head = True
         self.interlink = None
         self.safe_admin = None
@@ -27,6 +30,12 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         msg = self.adaptor.get_msg('create_actor', body, sender=self.adaptor.get_self_addr())
         await self.adaptor.send(msg)
 
+    async def exit(self):
+        await super().exit()
+        await self.interlink.exit()
+        loglistener.instance.stop()
+        logging.info(log_util.get_alias(self.parent) + ' is stopped')
+
     async def handle(self, msg):
         command = msg.get('command')
         if command == 'actor_is_created':
@@ -38,11 +47,13 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             await self.adaptor.send(self.adaptor.get_msg('start', recipient=body))
         elif command in INTER_COMMANDS:
             await self.interlink.queue.put(msg)
-            self.logger.debug(log_util.async_sent_log(self, msg))
+            logging.debug(log_util.async_sent_log(self, msg))
         elif command == 'get_credentials':
             await self.safe_admin.handle(msg)
         elif command == 'get_members':
             await self.get_members(msg)
+        elif command == 'test_error':
+            self.parent.set_test_error(msg.get('body'))
         else:
             return await super().handle(msg)
         return True

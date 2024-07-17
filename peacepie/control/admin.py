@@ -1,4 +1,6 @@
 import asyncio
+import os
+import signal
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_operations
@@ -21,6 +23,7 @@ class Admin:
 
     def __init__(self, lord, host_name, process_name, log_desc):
         self.is_head = False
+        self.is_finalizing = False
         self.lord = lord
         self.host_name = host_name
         self.process_name = process_name
@@ -52,6 +55,23 @@ class Admin:
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.intralink.run(queue))
         await queue.get()
+        loop = asyncio.get_running_loop()
+        for signal_name in {'SIGINT', 'SIGTERM'}:
+            loop.add_signal_handler(
+                getattr(signal, signal_name),
+                lambda: asyncio.create_task(self.finalize())
+            )
+
+    async def finalize(self):
+        if self.is_finalizing:
+            return
+        self.is_finalizing = True
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        [task.cancel() for task in tasks]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def exit(self):
+        await self.intralink.exit()
 
     async def handle(self, msg):
         command = msg.get('command')

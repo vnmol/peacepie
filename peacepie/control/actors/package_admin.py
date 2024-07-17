@@ -149,17 +149,15 @@ class PackageAdmin:
 
     async def copy_package(self, class_desc):
         package_name = class_desc.get(PACKAGE_NAME)
-        path = './plugins/' + package_name
+        path = f'{params.instance.get("plugin_dir")}/{package_name}'
         lst = [version.from_string(name) for name in os.listdir(path) if version.from_string(name)]
         ver = version.find_max_version(self, lst, class_desc.get(version.VERSION))
         src = f'{path}/{version.to_string(ver)}/{package_name}'
         dst = f'{self.work_path}/{package_name}'
-        dir_operations.copydir(src, dst)
-        pack = None
-        try:
-            pack = importlib.import_module(package_name)
-        except Exception as e:
-            logging.exception(e)
+        dir_operations.copy_dir(src, dst)
+        pack = await self.import_package(package_name)
+        if not pack:
+            return
         await self.notify(package_name, ver, pack)
         self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
 
@@ -167,16 +165,26 @@ class PackageAdmin:
         package_name = class_desc.get(PACKAGE_NAME)
         src = f'{self.source_path}/{package_name}.py'
         dst = f'{self.work_path}/{package_name}.py'
-        shutil.copy(src, dst)
+        dir_operations.copy_file(src, dst)
+        pack = await self.import_package(package_name)
+        if not pack:
+            return
         ver = None
-        pack = None
-        try:
-            pack = importlib.import_module(package_name)
-        except Exception as e:
-            logging.exception(e)
         await self.notify(package_name, ver, pack)
         self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
 
+    async def import_package(self, package_name):
+        count = 3
+        for i in range(count):
+            try:
+                res = importlib.import_module(package_name)
+                return res
+            except ModuleNotFoundError as e:
+                logging.warning(f'Failed to import module "{package_name}"')
+                if i == count - 1:
+                    logging.exception(e)
+                    return
+                await asyncio.sleep(0.1)
 
 def get_primary_class(module):
     classes = inspect.getmembers(module, inspect.isclass)

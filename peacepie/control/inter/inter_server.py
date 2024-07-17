@@ -50,6 +50,11 @@ class InterServer:
         except Exception as ex:
             logging.exception(ex)
 
+    async def exit(self):
+        self.server.close()
+        await self.server.wait_closed()
+        logging.info(f'InterServer on port {self.port} is closed')
+
     async def server_handle(self, reader, writer):
         peer = writer.get_extra_info('socket').getpeername()
         logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is opened')

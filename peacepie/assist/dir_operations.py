@@ -37,15 +37,33 @@ def clear_files(dirpath):
             clear_files(filepath)
 
 
-def copydir(orig, dest):
+def copy_dir(orig, dest):
     try:
         shutil.copytree(orig, dest)
-        for _ in range(3):
-            if compare_directories(orig, dest):
-                break
-            time.sleep(1)
     except Exception as e:
         logging.exception(e)
+    sync_directory(dest)
+    logging.info(f'The directory "{orig}" is copied to "{dest}"')
+
+
+def copy_file(orig, dest):
+    try:
+        shutil.copy(orig, dest)
+    except Exception as e:
+        logging.exception(e)
+    with open(dest, 'rb') as f:
+        f.flush()
+        os.fsync(f.fileno())
+    logging.info(f'The file "{orig}" is copied to "{dest}"')
+
+
+def sync_directory(directory):
+    for root, _, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            with open(file_path, 'rb') as f:
+                f.flush()
+                os.fsync(f.fileno())
 
 
 def compare_directories(dir1, dir2):
@@ -71,3 +89,4 @@ def adjust_path(path, process_name):
     pth = f'{path}/work/{process_name}'
     makedir(pth, True)
     sys.path.append(pth)
+    logging.info(f'SysPath "{pth}" is added')

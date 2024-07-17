@@ -15,9 +15,9 @@ DEFAULT_PARAMS = {
 }
 
 
-def init_params():
+def init_params(path):
     global instance
-    prms = routine_params.get_parameters()
+    prms = routine_params.get_parameters(path)
     if prms and EXTRA_INDEX_URL not in prms.keys():
         prms[EXTRA_INDEX_URL] = None
     for key in DEFAULT_PARAMS.keys():

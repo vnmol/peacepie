@@ -21,14 +21,15 @@ class Serializer:
 
     def deserialize(self, data):
         self.data += data
+        messages = []
         while True:
             if self.state is self.State.MARKER:
                 if len(self.data) < 6:
-                    return
+                    break
                 pos = self.data.find(b'\xff\xfe')
                 if pos == -1:
-                    return
-                self.data = self.data[pos+2:]
+                    break
+                self.data = self.data[pos + 2:]
                 if self.data[2:4] != b'\x7f\xff':
                     break
                 self.length = int.from_bytes(self.data[:2], byteorder='big')
@@ -36,10 +37,11 @@ class Serializer:
                 self.state = self.State.BODY
             if self.state is self.State.BODY:
                 if len(self.data) < self.length:
-                    return
+                    break
                 buf = self.data[:self.length]
                 self.data = self.data[self.length:]
                 self.state = self.State.MARKER
                 self.length = 0
                 res = json_util.json_loads(buf)
-                return res
+                messages.append(res)
+        return messages if messages else None

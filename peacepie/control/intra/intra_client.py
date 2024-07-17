@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 
 from peacepie import params, msg_factory
 from peacepie.assist import log_util, timer, serialization
@@ -7,6 +9,10 @@ from peacepie.control.intra.intra_link import IntraLink
 
 
 class IntraClient(IntraLink):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.writer = None
 
     async def run(self, queue):
         await self.start_server()
@@ -41,16 +47,22 @@ class IntraClient(IntraLink):
                 reader = None
 
     async def start_client(self, host, port, queue, is_to_head):
-        reader = None
-        writer = None
         while True:
             try:
-                reader, writer = await asyncio.open_connection(host, port)
+                reader, self.writer = await asyncio.open_connection(host, port)
                 self.logger.info(log_util.get_alias(self) + f' Channel to ({host}, {port}) is opened')
+                await self.client_handle(reader, self.writer, queue, is_to_head)
             except Exception as ex:
                 self.logger.exception(ex)
-            await self.client_handle(reader, writer, queue, is_to_head)
             await asyncio.sleep(10)
+
+    async def exit(self):
+        if self.writer:
+            self.writer.close()
+            await self.writer.wait_closed()
+        self.server.close()
+        await self.server.wait_closed()
+        logging.info(f'IntraClient on port {self.port} is closed')
 
     async def client_handle(self, reader, writer, queue, is_to_head):
         serializer = serialization.Serializer()
@@ -70,41 +82,42 @@ class IntraClient(IntraLink):
             await self.links[self.head].close()
             self.head = None
 
-    async def handle(self, msg, writer, queue, is_to_head=False):
-        self.logger.debug(log_util.sync_received_log(self, msg))
-        command = msg['command']
-        if command == 'intra_link':
-            body = msg.get('body')
-            name = None
-            addr = None
-            if body:
-                name = body.get('name')
-                addr = body.get('addr')
-            if is_to_head:
-                self.head = name
-            self.links[name] = intra_queue.IntraQueue(self.parent.lord, addr, writer)
-            body = {'lord': self.parent.lord, 'name': self.parent.adaptor.name,
-                    'addr': {'host': self.host, 'port': self.port}}
-            ans = msg_factory.get_msg('intra_linked', body)
-            await self.links[name].put(ans)
-            self.logger.debug(log_util.sync_sent_log(self, ans))
-            await queue.put(msg_factory.get_msg('ready'))
-        elif command == 'intra_linked':
-            body = msg.get('body')
-            name = None
-            lord = None
-            addr = None
-            if body:
-                name = body.get('name')
-                lord = body.get('lord')
-                addr = body.get('addr')
-            self.links[name] = intra_queue.IntraQueue(lord, addr, writer)
-            await self.parent.adaptor.notify(msg)
-        else:
-            recipient = self.clarify_recipient(msg['recipient'])
-            if isinstance(recipient, asyncio.Queue):
-                await recipient.put(msg)
-                self.logger.debug(log_util.async_sent_log(self, msg))
+    async def handle(self, msgs, writer, queue, is_to_head=False):
+        for msg in msgs:
+            self.logger.debug(log_util.sync_received_log(self, msg))
+            command = msg['command']
+            if command == 'intra_link':
+                body = msg.get('body')
+                name = None
+                addr = None
+                if body:
+                    name = body.get('name')
+                    addr = body.get('addr')
+                if is_to_head:
+                    self.head = name
+                self.links[name] = intra_queue.IntraQueue(self.parent.lord, addr, writer)
+                body = {'lord': self.parent.lord, 'name': self.parent.adaptor.name,
+                        'addr': {'host': self.host, 'port': self.port}}
+                ans = msg_factory.get_msg('intra_linked', body)
+                await self.links[name].put(ans)
+                self.logger.debug(log_util.sync_sent_log(self, ans))
+                await queue.put(msg_factory.get_msg('ready'))
+            elif command == 'intra_linked':
+                body = msg.get('body')
+                name = None
+                lord = None
+                addr = None
+                if body:
+                    name = body.get('name')
+                    lord = body.get('lord')
+                    addr = body.get('addr')
+                self.links[name] = intra_queue.IntraQueue(lord, addr, writer)
+                await self.parent.adaptor.notify(msg)
+            else:
+                recipient = self.clarify_recipient(msg['recipient'])
+                if isinstance(recipient, asyncio.Queue):
+                    await recipient.put(msg)
+                    self.logger.debug(log_util.async_sent_log(self, msg))
 
     async def get_intra_queue(self, name):
         res = self.links.get(name)

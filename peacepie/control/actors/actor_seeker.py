@@ -11,6 +11,8 @@ class ActorSeeker:
         self.logger = logging.getLogger()
         self.parent = parent
         self.queue = asyncio.Queue()
+        self.not_log_commands = set()
+        self.cumulative_commands = {}
         self.logger.info(log_util.get_alias(self) + ' is created')
 
     async def run(self):
@@ -57,6 +59,8 @@ class HeadActorSeeker:
         self.logger = logging.getLogger()
         self.parent = parent
         self.queue = asyncio.Queue()
+        self.not_log_commands = set()
+        self.cumulative_commands = {}
         self.logger.info(log_util.get_alias(self) + ' is created')
 
     async def run(self):

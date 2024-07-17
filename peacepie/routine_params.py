@@ -1,11 +1,10 @@
 import sys
 
 
-def get_parameters():
+def get_parameters(path):
     res = {}
     params = []
     try:
-        path = sys.argv[1]
         with open(path) as f:
             params = [line.strip().split('#')[0] for line in f.readlines()]
     except BaseException as bex:

@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import signal
 
 from peacepie import loglistener
 from peacepie.assist import log_util
@@ -26,6 +28,16 @@ class PrimeAdmin(admin.Admin):
         await queue.get()
         self.delivery = delivery.Delivery(self)
         asyncio.get_running_loop().create_task(self.delivery.run())
+        loop = asyncio.get_running_loop()
+        for signal_name in {'SIGINT', 'SIGTERM'}:
+            loop.add_signal_handler(
+                getattr(signal, signal_name),
+                lambda: asyncio.create_task(self.finalize())
+            )
+
+    async def exit(self):
+        await super().exit()
+        await self.process_admin.exit()
 
     async def handle(self, msg):
         command = msg.get('command')

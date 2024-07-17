@@ -3,6 +3,7 @@ import re
 import shutil
 
 from peacepie import msg_factory, params
+from peacepie.assist import dir_operations
 
 
 class InternalStarter:
@@ -28,7 +29,8 @@ class InternalStarter:
         if not body:
             return
         dst = f'{body.get("path")}/{package_name}'
-        shutil.copy(package_path, dst)
+        # shutil.copy(package_path, dst)
+        dir_operations.copy_file(package_path, dst)
         package_name = package_name.split('.')[0]
         class_desc = {'package_name': package_name, 'class': None}
         msg = msg_factory.get_msg('create_actor', {'class_desc': class_desc, 'name': 'starter'})

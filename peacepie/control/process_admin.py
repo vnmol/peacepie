@@ -17,6 +17,11 @@ class ProcessAdmin:
         self.process_index = 0
         self.logger.info(log_util.get_alias(self) + ' is created')
 
+    async def exit(self):
+        for p in self.processes.values():
+            p.terminate()
+            p.join()
+
     def get_members(self):
         res = [process.get_actor_name() for process in self.processes]
         res.append(self.parent.adaptor.name)
@@ -45,13 +50,8 @@ def create(lord, name, prms, msg_queue, log_desc, sender):
     multimanager.init_multimanager(f'{prefix}.multimanager')
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
     performer = admin.Admin(lord, name.host_name, name.process_name, log_desc)
-    actr = None
     try:
         actr = adaptor.Adaptor(name.get_actor_name(), None, performer, sender)
         asyncio.run(actr.run())
-    except KeyboardInterrupt as ki:
-        logging.warning(ki.__repr__())
     except BaseException as ex:
         logging.exception(ex)
-    finally:
-        logging.info(f'{log_util.get_alias(actr)} is stopped')

@@ -1,7 +1,6 @@
 import asyncio
+import inspect
 import logging
-import os
-import signal
 
 from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util
 from peacepie import msg_factory, params
@@ -75,7 +74,7 @@ class Adaptor:
                 logging.exception(ex)
         if hasattr(self.performer, 'exit'):
             try:
-                self.performer.exit()
+                await self.performer.exit()
             except Exception as ex:
                 logging.exception(ex)
 
@@ -198,14 +197,14 @@ class Adaptor:
             await self.performer.connector.ask(self, msg, timeout)
 
     async def group_ask(self, timeout, count, get_values):
-        await self.parent.connector.group_ask(self, timeout, count, get_values)
+        return await self.parent.connector.group_ask(self, timeout, count, get_values)
 
-    def add_ticker(self, period, count=None, name=None, command=None):
+    def add_ticker(self, period, delay=None, count=None, name=None, command=None):
         if not self.ticker_admin:
             self.ticker_admin = ticker_admin.TickerAdmin()
         if self.ticker_admin.is_ticker_exists(name):
             return name
-        return self.ticker_admin.add_ticker(self.queue, period, count, name, command)
+        return self.ticker_admin.add_ticker(self.queue, period, delay, count, name, command)
 
     async def get_queue(self, addr):
         return await self.parent.connector.get_queue(addr)
@@ -284,3 +283,19 @@ class Adaptor:
 
     def series_next(self, name):
         return series_admin.instance.next(name)
+
+    async def add_to_cache(self, node, names):
+        await self.parent.connector.add_to_cache(node, names)
+
+    def get_caller_info(self):
+        caller_frame = inspect.currentframe().f_back
+        caller_info = inspect.getframeinfo(caller_frame)
+        file_name = caller_info.filename
+        module_name = inspect.getmodulename(file_name)
+        line_number = caller_info.lineno
+        package_name = None
+        module = inspect.getmodule(caller_frame)
+        if module and hasattr(module, '__package__'):
+            package_name = module.__package__
+        return f'Package: {package_name}, Module: {module_name}, Line: {line_number}'
+

@@ -1,103 +1,31 @@
 import asyncio
 import logging
-import multiprocessing
 import os
 import signal
+from aiohttp import web, WSMsgType
 
-from simple_web_face import http_server
+from simple_web_face import html_addons
 
 
 class SimpleWebFace:
 
     def __init__(self):
         self.adaptor = None
-        self.process = None
-        self.link = None
-        self.link_host = 'localhost'
-        self.link_port = None
-        self.recipient = None
+        self.page_size = 5
+        self.http_host = None
+        self.http_port = None
+        self.runner = None
+        self.sockets = []
 
-    async def pre_run(self):
-        queue = asyncio.Queue()
-        asyncio.get_running_loop().create_task(self.run(queue))
-        await queue.get()
-
-    async def run(self, queue):
-        try:
-            self.link = await asyncio.start_server(self._link_handle, self.link_host, self.link_port)
-            self.link_port = self.link.sockets[0].getsockname()[1]
-            logging.info(f'{self.adaptor.get_alias(self)} is started on port {self.link_port}')
-        except Exception as ex:
-            logging.exception(ex)
-        await queue.put(0)
-
-    async def _link_handle(self, reader, writer):
-        logging.info(f' Channel ({self.link_host}, {self.link_port}) is opened')
-        serializer = self.adaptor.get_serializer()
-        while reader:
-            if reader.at_eof():
-                break
-            try:
-                data = await reader.read(255)
-                res = serializer.deserialize(data)
-                if res:
-                    await self.link_handle(res, serializer, writer)
-            except Exception as ex:
-                logging.exception(ex)
-                reader = None
-
-    async def link_handle(self, msg, serializer, writer):
-        command = msg.get('command')
-        if command == 'get_members':
-            await self.get_members(msg, serializer, writer)
-        elif command == 'websocket_handle':
-            await self.websocket_handle(msg, serializer, writer)
-        elif command == 'started':
-            if self.recipient:
-                await self.adaptor.send(self.adaptor.get_msg(command, None, self.recipient))
-
-    async def get_members(self, msg, serializer, writer):
-        body = msg.get('body')
-        recipient = body.get('recipient')
-        if not recipient:
-            recipient = self.adaptor.get_head_addr()
-        query = self.adaptor.get_msg('get_members', body, recipient)
-        ans = await self.adaptor.ask(query)
-        await self.send_to_link(ans, serializer, writer)
-
-    async def websocket_handle(self, msg, serializer, writer):
-        tp = None
-        command = None
-        body = None
-        recipient = None
-        res = None
-        try:
-            bd = self.adaptor.json_loads(msg.get('body'))
-            tp = bd.get('type')
-            command = bd.get('command')
-            body = bd.get('body')
-            recipient = bd.get('recipient')
-        except Exception as e:
-            logging.exception(e)
-            res = {'res': str(e)}
-        if res:
-            await self.send_to_link(res, serializer, writer)
-            return
-        query = self.adaptor.get_msg(command, body, recipient)
-        if tp == 'ask':
-            res = self.adaptor.json_dumps(await self.adaptor.ask(query))
-        else:
-            await self.adaptor.send(query)
-            res = 'The message is sent'
-        await self.send_to_link(res, serializer, writer)
-
-    async def send_to_link(self, msg, serializer, writer):
-        msg = serializer.__class__.serialize(msg)
-        writer.write(msg)
-        await writer.drain()
+    async def exit(self):
+        for ws in self.sockets:
+            await ws.close()
+            logging.info(f'Websocket({id(ws)}) closed')
+        await self.runner.cleanup()
+        logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
 
     async def handle(self, msg):
-        command = msg['command']
+        command = msg.get('command')
         if command == 'start':
             await self.start(msg)
         else:
@@ -105,16 +33,194 @@ class SimpleWebFace:
         return True
 
     async def start(self, msg):
-        self.recipient = msg.get('sender')
-        http_host = self.adaptor.get_param('ip')
-        http_port = msg.get('body').get('port') if msg.get('body') else None
-        ans = await self.adaptor.ask(self.adaptor.get_msg('get_log_desc'))
-        self.process = multiprocessing.Process(
-            target=http_server.create_new,
-            args=(ans.get('body'), self.link_host, self.link_port, self.adaptor.get_serializer(), http_host, http_port))
-        self.process.start()
+        self.http_host = self.adaptor.get_param('ip')
+        self.http_port = msg.get('body').get('port') if msg.get('body') else None
+        self.runner = await self.initialize_http_server()
+        recipient = msg.get('sender')
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))
 
-    def exit(self):
-        if self.adaptor.get_param('exit'):
-            os.kill(self.process.pid, signal.SIGINT)
-            self.process.join()
+    async def initialize_http_server(self):
+        app = web.Application()
+        app.add_routes([web.get('/', self.root_handler)])
+        app.add_routes([web.get('/ws', self.websocket_handler)])
+        app.add_routes([web.get('/favicon.ico', favicon)])
+        app.add_routes([web.get('/logs', logs_handler)])
+        app.add_routes([web.get('/logs/{path:.*}', logs_handler)])
+        app.add_routes([web.get('/log_view', log_view_handler)])
+        app.add_routes([web.get('/log_view/{path:.*}', log_view_handler)])
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', self.http_port)
+        await site.start()
+        logging.info(f'HTTP server started at http://localhost:{self.http_port}')
+        return runner
+
+    async def root_handler(self, request):
+        param_level = request.query.get('level')
+        param_recipient = request.query.get('recipient')
+        if not param_recipient:
+            param_recipient = self.adaptor.get_head_addr()
+        param_id = request.query.get('id')
+        body = {'page_size': self.page_size, 'level': param_level, 'recipient': param_recipient, 'id': param_id}
+        ans = await self.adaptor.ask(self.adaptor.get_msg('get_members', body, param_recipient))
+        head = f'<head>\n<meta charset="UTF-8">\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n'
+        text = f'<!DOCTYPE html>\n<html>\n{head}<body>\n\n'
+        body = ans.get('body')
+        if body.get('_back'):
+            text += back(body)
+        text += members(body)
+        if body.get('nav'):
+            text += nav(body)
+        if body.get('level') == 'actor':
+            text += comm(body)
+        text += '<script>\n'
+        text += html_addons.script_common
+        if body.get('level') == 'actor':
+            text += script_command(self.http_host, self.http_port)
+        text += '</script>\n</body>\n</html>'
+        return web.Response(text=text, content_type='text/html')
+
+    async def websocket_handler(self, request):
+        logging.info('Websocket connection starting')
+        ws = web.WebSocketResponse()
+        self.sockets.append(ws)
+        await ws.prepare(request)
+        logging.info(f'Websocket({id(ws)}) ready')
+        async for msg in ws:
+            if msg.type == WSMsgType.TEXT:
+                logging.debug(f'Received from websocket({id(ws)}): {msg.data}')
+                res = await self.websocket_handle(msg.data)
+                await ws.send_str(res)
+                logging.debug(f'Sent to websocket({id(ws)}): {res}')
+        self.sockets.remove(ws)
+        logging.info(f'Websocket({id(ws)}) closed')
+        return ws
+
+    async def websocket_handle(self, body):
+        bd = self.adaptor.json_loads(body)
+        tp = bd.get('type')
+        command = bd.get('command')
+        body = bd.get('body')
+        recipient = bd.get('recipient')
+        query = self.adaptor.get_msg(command, body, recipient)
+        if tp == 'ask':
+            res = self.adaptor.json_dumps(await self.adaptor.ask(query))
+        else:
+            await self.adaptor.send(query)
+            res = 'The message is sent'
+        return res
+
+
+async def favicon(request):
+    return web.FileResponse(f'{os.path.dirname(__file__)}/resources/favicon.ico')
+
+
+def back(body):
+    bck = body.get('_back')
+    res = f'<button class="entity" id="{bck.get("id")}"'
+    res += f' data-next_level="{bck.get("next_level")}" data-recipient="{bck.get("recipient")}"'
+    res += f'>..</button>\n<br><br>\n'
+    return res
+
+
+def members(body):
+    res = ''
+    for member in body.get('members'):
+        clss = 'last_entity' if not member.get('next_level') else 'entity'
+        res += f'<button class="{clss}" id="{member.get("id")}"'
+        res += f' data-next_level="{member.get("next_level")}" data-recipient="{member.get("recipient")}"'
+        res += f'>{member.get("id")}</button>\n'
+    return res
+
+
+def nav(body):
+    nv = body.get('nav')
+    count = nv.get('count')
+    page = nv.get('page')
+    res = '<br><br><br><div class="container">\n'
+    if page > 0:
+        res += f'<button class="entity nav" id="_page_{page - 1}"'
+        res += f' data-next_level="{nv.get("next_level")}" data-recipient="{nv.get("recipient")}"'
+        res += '><</button>\n'
+    res += f'<button id="page" class="page">{page + 1}</button>\n'
+    if page < count - 1:
+        res += f'<button class="entity nav" id="_page_{page + 1}"'
+        res += f' data-next_level="{nv.get("next_level")}" data-recipient="{nv.get("recipient")}"'
+        res += '>></button>\n'
+    res += '</div>\n'
+    return res
+
+
+def comm(body):
+    recipient = body.get('members')[0].get('id')
+    res = html_addons.script_command_begin
+    res += f'  <input type="text" id="recipient" name="recipient" value="{recipient}">\n'
+    res += html_addons.script_command_end
+    return res
+
+
+def script_command(host, port):
+    res = f'webSocket = new WebSocket("ws://{host}:{port}/ws");'
+    res += html_addons.script_websocket
+    return res
+
+
+async def logs_handler(request):
+    path = request.match_info.get('path', '')
+    print('logs', path)
+    logs_path = os.path.join('/logs/', path)
+    if logs_path.endswith('/'):
+        logs_path = logs_path[:-1]
+    logs_dir = '.' + logs_path
+    if not os.path.exists(logs_dir):
+        return web.Response(text=f'Путь "{logs_dir}" не найден', status=404)
+    if os.path.isfile(logs_dir):
+        with open(logs_dir, 'rb') as f:
+            content = f.read()
+        return web.Response(body=content)
+    content = ''
+    if path:
+        parent_path = os.path.dirname(logs_path)
+        content += f"<a href='{parent_path}'>..</a><br>"
+    items = [(item, os.path.isdir(os.path.join(logs_dir, item))) for item in os.listdir(logs_dir)]
+    foldernames = [item[0] for item in items if item[1]]
+    foldernames.sort()
+    filenames = [item[0] for item in items if not item[1]]
+    filenames.sort()
+    for foldername in foldernames:
+        content += f"<a href='{logs_path}/{foldername}/'>{foldername}/</a><br>"
+    for filename in filenames:
+        content += f"<a href='{logs_path}/{filename}'>{filename}</a><br>"
+    return web.Response(text=content, content_type='text/html')
+
+
+async def log_view_handler(request):
+    path = request.match_info.get('path', '')
+    if not path.startswith('/'):
+        path = '/' + path
+    if path.endswith('/'):
+        path = path[:-1]
+    view_path = f'/log_view{path}'
+    logs_path = f'/logs{path}'
+    logs_dir = '.' + logs_path
+    if not os.path.exists(logs_dir):
+        return web.Response(text=f'Путь "{logs_dir}" не найден', status=404)
+    if os.path.isfile(logs_dir):
+        with open(logs_dir, 'rb') as f:
+            content = f.read()
+        return web.Response(body=content, content_type='text/plain', headers={'Content-Disposition': 'inline'})
+    content = ''
+    if path:
+        parent_path = os.path.dirname(logs_path).replace('/logs', '/log_view')
+        content += f"<a href='{parent_path}'>..</a><br>"
+    items = [(item, os.path.isdir(os.path.join(logs_dir, item))) for item in os.listdir(logs_dir)]
+    foldernames = [item[0] for item in items if item[1]]
+    foldernames.sort()
+    filenames = [item[0] for item in items if not item[1]]
+    filenames.sort()
+    for foldername in foldernames:
+        content += f"<a href='{view_path}/{foldername}/'>{foldername}/</a><br>"
+    for filename in filenames:
+        content += f"<a href='{view_path}/{filename}'>{filename}</a><br>"
+    return web.Response(text=content, content_type='text/html')
