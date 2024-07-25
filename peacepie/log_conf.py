@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 
 import json
@@ -22,9 +23,15 @@ def logger_start(config_filename):
     # global log_desc
     if logger:
         return
+    process = ''
+    if params.instance.get('separate_log_per_process'):
+        process = f'/{multiprocessing.current_process().name}'
     try:
         with open(config_filename) as f:
             config = json.load(f)
+        for _, handler_config in config.get('handlers', {}).items():
+            if 'filename' in handler_config:
+                handler_config['filename'] = f'{params.instance.get("log_dir")}{process}/{handler_config["filename"]}'
         check_paths(config)
         logging.config.dictConfig(config)
         logger = logging.getLogger()
@@ -47,14 +54,10 @@ def get_default_logger():
 
 
 def check_paths(config):
+    if params.instance.get('developing_mode') or 'pycharm' in sys.executable.lower():
+        dir_operations.cleardir(params.instance.get('log_dir'))
     filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
     filepaths = set([os.path.dirname(filename) for filename in filenames])
     for filepath in filepaths:
         if not os.path.exists(filepath):
             os.makedirs(filepath)
-    if params.instance.get('developing_mode') or 'pycharm' in sys.executable.lower():
-        for filename in filenames:
-            try:
-                os.remove(filename)
-            except FileNotFoundError:
-                pass

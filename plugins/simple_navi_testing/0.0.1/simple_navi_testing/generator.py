@@ -19,7 +19,8 @@ class SimpleNaviGen:
         self.sent = 0
 
     async def pre_run(self):
-        self.adaptor.not_log_commands.update(['tick', 'navi_send', 'sent'])
+        pass
+        # self.adaptor.not_log_commands.update(['tick', 'navi_send', 'sent'])
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -40,7 +41,7 @@ class SimpleNaviGen:
         self.t += 0.1
         data = {'id': self.adaptor.series_next('navi_id'), 'type': None, 'code': self.code, 'is_proprietary': False,
                 'navi': {'time': time.time(), 'lat': lat, 'lon': lon}}
-        await self.adaptor.ask(self.adaptor.get_msg('navi_send', data, recipient=self.consumer))
+        await self.adaptor.ask(self.adaptor.get_msg('send_to_channel', data, recipient=self.consumer))
         await self.adaptor.send(self.adaptor.get_msg('navi_data', data, recipient=self.overlooker))
         self.sent += 1
         if self.sent == self.limit:

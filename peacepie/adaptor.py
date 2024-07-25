@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import logging
 
-from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util
+from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util, timer
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
@@ -206,6 +206,11 @@ class Adaptor:
             return name
         return self.ticker_admin.add_ticker(self.queue, period, delay, count, name, command)
 
+    def remove_ticker(self, name):
+        if not self.ticker_admin:
+            return
+        self.ticker_admin.remove_ticker(name)
+
     async def get_queue(self, addr):
         return await self.parent.connector.get_queue(addr)
 
@@ -223,6 +228,9 @@ class Adaptor:
 
     def get_param(self, param_name):
         return params.instance.get(param_name)
+
+    def get_test_param(self, param_name):
+        return params.test_instance.get(param_name)
 
     def get_addr(self, system, node, entity):
         if self.parent:
@@ -299,3 +307,5 @@ class Adaptor:
             package_name = module.__package__
         return f'Package: {package_name}, Module: {module_name}, Line: {line_number}'
 
+    def start_timer(self, queue, mid, timeout):
+        timer.start(queue, mid, timeout)

@@ -1,1 +1,0 @@
-from simple_initiator.initiator import SimpleInitiator

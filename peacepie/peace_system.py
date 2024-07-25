@@ -10,8 +10,8 @@ from peacepie.control import head_prime_admin, prime_admin
 
 class PeaceSystem:
 
-    def __init__(self, path):
-        params.init_params(path)
+    def __init__(self, path, test_params=None):
+        params.init_params(path, test_params)
         log_conf.logger_start(params.instance.get('log_config'))
         self.is_head = params.instance.get('intra_role') == 'master'
         self.host_name = params.instance.get('host_name')

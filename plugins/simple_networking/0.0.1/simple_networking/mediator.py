@@ -1,5 +1,3 @@
-import logging
-
 
 class Mediator:
 
@@ -10,8 +8,8 @@ class Mediator:
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
-        if command == 'raw_data':
-            await self.writing(body)
+        if command == 'send_to_channel':
+            await self.send_to_channel(body)
         elif command == 'set_params':
             self.set_params(body.get('params'))
         else:
@@ -23,7 +21,6 @@ class Mediator:
             if param.get('name') == 'writer':
                 self.writer = param.get('value')
 
-    async def writing(self, data):
+    async def send_to_channel(self, data):
         self.writer.write(data)
         await self.writer.drain()
-        logging.debug(f'{self.adaptor.get_alias(self)} THE DATA ARE SENT')

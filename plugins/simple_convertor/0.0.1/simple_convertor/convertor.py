@@ -13,17 +13,17 @@ class SimpleConvertor:
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
-        if command == 'raw_data':
-            await self.raw_data(body)
-        elif command == 'navi_send':
-            await self.navi_send(body, msg.get('sender'))
+        if command == 'received_from_channel':
+            await self.received_from_channel(body)
+        elif command == 'send_to_channel':
+            await self.send_to_channel(body, msg.get('sender'))
         elif command == 'set_params':
             await self.set_params(body.get('params'), msg.get('sender'))
         else:
             return False
         return True
 
-    async def raw_data(self, data):
+    async def received_from_channel(self, data):
         body = self.packet.process(data)
         if not body:
             return
@@ -31,10 +31,11 @@ class SimpleConvertor:
             await self.adaptor.send(self.adaptor.get_msg('sent', recipient=self.questioner))
             self.questioner = None
         else:
-            await self.adaptor.send(self.adaptor.get_msg('navi_data', body, recipient=self.consumer))
+            if self.consumer:
+                await self.adaptor.send(self.adaptor.get_msg('navi_data', body, recipient=self.consumer))
             await self.send('OK')
 
-    async def navi_send(self, data, questioner):
+    async def send_to_channel(self, data, questioner):
         if self.questioner:
             if questioner:
                 await self.adaptor.send(self.adaptor.get_msg('connection_is_busy', recipient=questioner))
@@ -45,7 +46,7 @@ class SimpleConvertor:
     async def send(self, data):
         buf = self.adaptor.json_dumps(data).encode('utf-8')
         body = b'\xff\xfe' + (len(buf)).to_bytes(2, byteorder='big') + b'\x7f\xff' + buf
-        await self.adaptor.send(self.adaptor.get_msg('raw_data', body, self.mediator))
+        await self.adaptor.send(self.adaptor.get_msg('send_to_channel', body, self.mediator))
 
     async def set_params(self, params, recipient):
         for param in params:

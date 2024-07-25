@@ -1,6 +1,10 @@
 import asyncio
+import json
 import logging
+import logging.config
 import multiprocessing
+import os
+import sys
 from logging.handlers import QueueHandler
 
 from peacepie import msg_factory, loglistener, multimanager, params, adaptor
@@ -41,11 +45,14 @@ class ProcessAdmin:
 
 def create(lord, name, prms, msg_queue, log_desc, sender):
     params.instance = prms
-    logger = logging.getLogger()
-    while logger.hasHandlers():
-        logger.removeHandler(logger.handlers[0])
-    logger.addHandler(QueueHandler(log_desc.queue))
-    logger.setLevel(log_desc.level)
+    if params.instance.get('separate_log_per_process'):
+        log_config()
+    else:
+        logger = logging.getLogger()
+        while logger.hasHandlers():
+            logger.removeHandler(logger.handlers[0])
+        logger.addHandler(QueueHandler(log_desc.queue))
+        logger.setLevel(log_desc.level)
     prefix = f'{name.host_name}.{name.process_name}'
     multimanager.init_multimanager(f'{prefix}.multimanager')
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
@@ -55,3 +62,35 @@ def create(lord, name, prms, msg_queue, log_desc, sender):
         asyncio.run(actr.run())
     except BaseException as ex:
         logging.exception(ex)
+
+
+def log_config():
+    config_filename = params.instance.get('log_config')
+    process = ''
+    if params.instance.get('separate_log_per_process'):
+        process = f'/{multiprocessing.current_process().name}'
+    try:
+        with open(config_filename) as f:
+            config = json.load(f)
+        for _, handler_config in config.get('handlers', {}).items():
+            if 'filename' in handler_config:
+                handler_config['filename'] = f'{params.instance.get("log_dir")}{process}/{handler_config["filename"]}'
+        check_paths(config)
+        logging.config.dictConfig(config)
+    except BaseException as ex:
+        logging.exception(ex)
+
+
+def check_paths(config):
+    filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
+    filepaths = set([os.path.dirname(filename) for filename in filenames])
+    for filepath in filepaths:
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
+    if params.instance.get('developing_mode') or 'pycharm' in sys.executable.lower():
+        for filename in filenames:
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                pass
+

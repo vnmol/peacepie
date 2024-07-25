@@ -25,6 +25,8 @@ class ActorAdmin:
             loader = self.add_actor_loader()
             await loader.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
+        elif command == 'remove_actor':
+            await self.remove_actor(msg)
         elif command == 'get_source_path':
             body = {'path': self.package_admin.source_path}
             ans = self.parent.adaptor.get_msg('source_path', body, recipient=msg.get('sender'))
@@ -50,3 +52,26 @@ class ActorAdmin:
         res.append(self.parent.adaptor.name)
         res.sort()
         return res
+
+    async def remove_actor(self, msg):
+        recipient = msg.get('sender')
+        body = msg.get('body') if msg.get('body') else {}
+        name = body.get('name')
+        if not name:
+            if recipient:
+                await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', body, recipient))
+            return
+        actor = None
+        try:
+            actor = self.actors.get(name)
+        except Exception as e:
+            logging.exception(e)
+        if not actor:
+            if recipient:
+                await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', body, recipient))
+            return
+        task = actor.get('task')
+        task.cancel()
+        await task
+        del self.actors[name]
+        await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_removed', body, recipient))

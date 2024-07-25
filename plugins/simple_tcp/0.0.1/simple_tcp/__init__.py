@@ -1,2 +1,0 @@
-from simple_tcp.tcp_server import SimpleTcpServer
-from simple_tcp.tcp_client import SimpleTcpClient

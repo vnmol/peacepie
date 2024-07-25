@@ -1,23 +1,29 @@
 import asyncio
-import itertools
 import logging
 
-from simple_tcp.channel import Channel
-from simple_tcp.embedded_channel import EmbeddedChannel
-
-gen_id = itertools.count()
+from simple_networking.channel import Channel
+from simple_networking.embedded_channel import EmbeddedChannel
 
 
-class SimpleTcpServer:
+class TcpServer:
 
     def __init__(self):
         self.adaptor = None
+        self.host = None
         self.port = None
         self.convertor_desc = None
-        self.convertor_class = None
-        self.embedded_channel = False
+        self.is_embedded_channel = False
         self.consumer = None
+        self.convertor_class = None
+        self.channels = []
         self.server = None
+
+    async def exit(self):
+        if self.server:
+            self.server.close()
+        for channel in self.channels:
+            await channel.exit()
+        logging.info(f'{self.adaptor.get_alias()} is stopped at {self.host}:{self.port}')
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -36,44 +42,38 @@ class SimpleTcpServer:
         for param in params:
             name = param.get('name')
             value = param.get('value')
+            if name == 'host':
+                self.host = value
             if name == 'port':
                 self.port = value
             elif name == 'convertor_desc':
                 self.convertor_desc = value
-            elif name == 'embedded_channel':
-                self.embedded_channel = value
+            elif name == 'is_embedded_channel':
+                self.is_embedded_channel = value
             elif name == 'consumer':
                 self.consumer = value
-        await self.embedded()
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
-    async def embedded(self):
-        if not self.embedded_channel:
-            return
-        if not self.convertor_desc:
-            return
-        ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}))
-        if ans.get('command') == 'class':
-            self.convertor_class = ans.get('body')
-
     async def start(self, recipient):
-        try:
-            self.server = await asyncio.start_server(self.handle_connection, None, self.port)
-            logging.info(f'{self.adaptor.get_alias()} is started on port {self.port}')
-            if recipient:
-                await self.adaptor.send(self.adaptor.get_msg('started', recipient=recipient))
-        except Exception as ex:
-            logging.exception(ex)
+        if self.is_embedded_channel:
+            ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}))
+            self.convertor_class = ans.get('body')
+        self.server = await asyncio.start_server(self.handle_connection, self.host, self.port)
+        logging.info(f'{self.adaptor.get_alias()} is started at {self.host}:{self.port}')
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('started', recipient=recipient))
 
     async def handle_connection(self, reader, writer):
         channel = None
         try:
-            if self.embedded_channel:
+            if self.is_embedded_channel:
                 channel = EmbeddedChannel(self, reader, writer)
             else:
                 channel = Channel(self, reader, writer)
         except Exception as ex:
             logging.exception(ex)
         if channel:
-            await channel.handle()
+            self.channels.append(channel)
+            await channel.handle(None)
+            self.channels.remove(channel)

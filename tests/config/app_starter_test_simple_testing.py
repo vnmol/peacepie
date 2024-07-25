@@ -18,7 +18,7 @@ class AppStarter:
         name = 'initiator'
         body = {'class_desc': {'package_name': 'simple_testing', 'class': 'Initiator'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
-        body = {'params': [{'name': 'group_count', 'value': 2}, {'name': 'group_size', 'value': 2}]}
+        body = {'params': [{'name': 'group_count', 'value': 5}, {'name': 'group_size', 'value': 5}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.send(self.adaptor.get_msg('start', None, name))
         self.adaptor.add_ticker(10, 10, 1)
