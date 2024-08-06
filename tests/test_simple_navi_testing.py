@@ -8,7 +8,7 @@ import peacepie
 multiprocessing.set_start_method('spawn', force=True)
 
 
-class TestSimple(unittest.TestCase):
+class TestSimpleNavi(unittest.TestCase):
 
     async def separate_channel(self):
         pp = peacepie.PeaceSystem('./config/test_simple_navi_testing.cfg',

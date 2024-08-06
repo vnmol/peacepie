@@ -1,8 +1,0 @@
-setup.py
-intra_initiator/__init__.py
-intra_initiator/initiator.py
-intra_initiator/tester.py
-intra_initiator.egg-info/PKG-INFO
-intra_initiator.egg-info/SOURCES.txt
-intra_initiator.egg-info/dependency_links.txt
-intra_initiator.egg-info/top_level.txt

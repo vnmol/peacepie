@@ -15,14 +15,23 @@ class EmbeddedChannel:
         logging.info(f'{self.parent.adaptor.get_alias(self)} is created')
 
     async def exit(self):
+        log = f'{self.parent.adaptor.get_alias(self)} disconnected '
+        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+        self.writer.close()
+        await self.writer.wait_closed()
+        logging.info(log)
+
+    async def close(self):
         self.writer.close()
         await self.writer.wait_closed()
 
     async def handle(self, queue):
-        logging.info(f'{self.parent.adaptor.get_alias(self)} is opened')
         await self.create_convertor()
         if queue:
             await queue.put(self.parent.adaptor.get_msg('channel_is_opened'))
+        log = f'{self.parent.adaptor.get_alias(self)} connected '
+        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+        logging.info(log)
         while True:
             try:
                 data = await self.reader.read(255)
@@ -32,7 +41,9 @@ class EmbeddedChannel:
                 await self.convertor.handle(msg)
             except Exception as ex:
                 logging.exception(ex)
-        logging.info(self.parent.adaptor.get_alias(self) + ' is closed')
+        log = f'{self.parent.adaptor.get_alias(self)} disconnected '
+        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+        logging.info(log)
 
     async def create_convertor(self):
         name = f'{self.parent.adaptor.name}.convertor_{self.ch_id}'

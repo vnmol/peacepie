@@ -7,14 +7,13 @@ from peacepie.assist import log_util
 class IntraLink:
 
     def __init__(self, parent):
-        self.logger = logging.getLogger()
         self.parent = parent
         self.server = None
         self.host = params.instance['ip']
         self.port = None
         self.links = {}
         self.head = None
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     def get_members(self):
         res = [link[0] for link in self.links.items() if not link[1].lord]

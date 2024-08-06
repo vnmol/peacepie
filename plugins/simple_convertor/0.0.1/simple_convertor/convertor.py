@@ -1,3 +1,4 @@
+import asyncio
 import enum
 
 
@@ -32,7 +33,7 @@ class SimpleConvertor:
             self.questioner = None
         else:
             if self.consumer:
-                await self.adaptor.send(self.adaptor.get_msg('navi_data', body, recipient=self.consumer))
+                await self.adaptor.send(self.adaptor.get_msg('navi_data', body, self.consumer, self.adaptor.name))
             await self.send('OK')
 
     async def send_to_channel(self, data, questioner):

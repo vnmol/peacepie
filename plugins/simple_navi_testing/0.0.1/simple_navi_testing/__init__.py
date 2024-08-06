@@ -1,3 +1,5 @@
+from simple_navi_testing.main_initiator import MainInitiator
+from simple_navi_testing.main_overlooker import MainOverlooker
 from simple_navi_testing.initiator import Initiator
 from simple_navi_testing.generator import SimpleNaviGen
 from simple_navi_testing.overlooker import Overlooker

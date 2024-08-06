@@ -9,9 +9,9 @@ import peacepie
 multiprocessing.set_start_method('spawn', force=True)
 
 
-class TestSimple(unittest.TestCase):
+class TestSimpleWebFace(unittest.TestCase):
 
-    async def main(self):
+    async def simple_web_face(self):
         pp = peacepie.PeaceSystem('./config/test_simple_web_face.cfg')
         await pp.start()
         try:
@@ -25,8 +25,8 @@ class TestSimple(unittest.TestCase):
             pass
         return pp
 
-    def test_main(self):
-        pp = asyncio.run(self.main())
+    def test_simple_web_face(self):
+        pp = asyncio.run(self.simple_web_face())
         for res in pp.test_errors:
             with self.subTest(value=res.get('msg')):
                 self.assertTrue(False, res.get('msg'))

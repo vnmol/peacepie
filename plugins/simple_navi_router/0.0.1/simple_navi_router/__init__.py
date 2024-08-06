@@ -1,1 +1,0 @@
-from simple_navi_router.router import SimpleNaviRouter

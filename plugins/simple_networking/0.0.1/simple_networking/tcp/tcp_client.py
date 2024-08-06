@@ -21,9 +21,10 @@ class TcpClient:
         self.is_opened = False
 
     async def exit(self):
-        self.is_opened = False
-        if self.channel:
-            await self.channel.exit()
+        if self.is_opened:
+            self.is_opened = False
+            if self.channel:
+                await self.channel.exit()
         logging.info(f'{self.adaptor.get_alias()} is stopped at {self.host}:{self.port}')
 
     async def handle(self, msg):
@@ -34,6 +35,8 @@ class TcpClient:
             await self.set_params(msg)
         elif command == 'start':
             await self.start(msg)
+        elif command == 'close':
+            await self.close()
         else:
             return False
         return True
@@ -100,8 +103,16 @@ class TcpClient:
                 logging.exception(ex)
             if channel:
                 self.channel = channel
-                await channel.handle(self.channel_queue)
+                channel.not_log_commands = self.adaptor.not_log_commands
+                await self.channel.handle(self.channel_queue)
+                self.channel = None
             if self.is_on_demand:
                 return
             if not self.is_opened:
                 return
+
+    async def close(self):
+        self.is_opened = False
+        if self.channel:
+            await self.channel.close()
+        self.channel = None

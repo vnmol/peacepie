@@ -25,13 +25,13 @@ class IntraServer(IntraLink):
             self.server = await asyncio.start_server(self.server_handle, self.host, self.port)
             port = self.server.sockets[0].getsockname()[1]
             if port != self.port:
-                self.logger.info(f'Server intra port was changed from {self.port} to {port}!')
+                logging.info(f'Server intra port was changed from {self.port} to {port}!')
                 self.port = port
                 params.instance['intra_port'] = port
             await queue.put(msg_factory.get_msg('ready'))
-            self.logger.info(f'{log_util.get_alias(self)} is started on port {self.port}')
+            logging.info(f'{log_util.get_alias(self)} is started on port {self.port}')
         except Exception as ex:
-            self.logger.exception(ex)
+            logging.exception(ex)
 
     async def exit(self):
         for conn in self.connections:
@@ -49,7 +49,8 @@ class IntraServer(IntraLink):
         msg = msg_factory.get_msg('intra_link', body)
         writer.write(serializer.serialize(msg))
         await writer.drain()
-        self.logger.debug(log_util.sync_sent_log(self, msg))
+        if msg.get('command') not in self.parent.adaptor.not_log_commands:
+            logging.debug(log_util.sync_sent_log(self, msg))
         while reader:
             if reader.at_eof():
                 break
@@ -59,7 +60,7 @@ class IntraServer(IntraLink):
                 if res:
                     await self.handle(res, writer)
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
                 reader = None
         writer.close()
         await writer.wait_closed()
@@ -67,8 +68,9 @@ class IntraServer(IntraLink):
 
     async def handle(self, msgs, writer):
         for msg in msgs:
-            self.logger.debug(log_util.sync_received_log(self, msg))
-            command = msg['command']
+            command = msg.get('command')
+            if command not in self.parent.adaptor.not_log_commands:
+                logging.debug(log_util.sync_received_log(self, msg))
             if command == 'intra_linked':
                 await self.intra_linked(msg, writer)
             elif command == 'find_link':
@@ -77,7 +79,8 @@ class IntraServer(IntraLink):
                 recipient = self.clarify_recipient(msg['recipient'])
                 if isinstance(recipient, asyncio.Queue):
                     await recipient.put(msg)
-                    self.logger.debug(log_util.async_sent_log(self, msg))
+                    if command not in self.parent.adaptor.not_log_commands:
+                        logging.debug(log_util.async_sent_log(self, msg))
 
     async def intra_linked(self, msg, writer):
         body = msg.get('body')
@@ -99,7 +102,8 @@ class IntraServer(IntraLink):
             ans = msg_factory.get_msg('link_not_found', recipient=msg['sender'])
         writer.write(Serializer.serialize(ans))
         await writer.drain()
-        self.logger.debug(log_util.sync_sent_log(self, ans))
+        if ans.get('command') not in self.parent.adaptor.not_log_commands:
+            logging.debug(log_util.sync_sent_log(self, ans))
 
     async def get_intra_queue(self, name):
         res = self.links.get(name)

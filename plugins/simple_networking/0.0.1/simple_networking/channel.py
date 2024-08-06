@@ -19,6 +19,13 @@ class Channel:
         logging.info(f'{self.parent.adaptor.get_alias(self)} is created')
 
     async def exit(self):
+        log = f'{self.parent.adaptor.get_alias(self)} disconnected '
+        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+        self.writer.close()
+        await self.writer.wait_closed()
+        logging.info(log)
+
+    async def close(self):
         self.writer.close()
         await self.writer.wait_closed()
 
@@ -26,9 +33,11 @@ class Channel:
         self.start_queue = queue
         self.mediator = await self.create_mediator()
         self.convertor = await self.create_convertor()
-        logging.info(f'{self.parent.adaptor.get_alias(self)} is opened')
         if self.start_queue:
             await self.start_queue.put(self.parent.adaptor.get_msg('channel_is_opened'))
+        log = f'{self.parent.adaptor.get_alias(self)} connected '
+        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+        logging.info(log)
         while True:
             try:
                 data = await self.reader.read(255)
@@ -40,7 +49,9 @@ class Channel:
                 logging.exception(ex)
         await self.parent.adaptor.ask(self.parent.adaptor.get_msg('remove_actor', {'name': self.mediator}))
         await self.parent.adaptor.ask(self.parent.adaptor.get_msg('remove_actor', {'name': self.convertor}))
-        logging.info(self.parent.adaptor.get_alias(self) + ' is closed')
+        log = f'{self.parent.adaptor.get_alias(self)} disconnected '
+        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+        logging.info(log)
 
     async def create_mediator(self):
         name = f'{self.parent.adaptor.name}.mediator_{self.ch_id}'
@@ -51,6 +62,8 @@ class Channel:
         body = {'params': [{'name': 'writer', 'value': self.writer}]}
         msg = self.parent.adaptor.get_msg('set_params', body, name)
         await self.parent.adaptor.send(msg)
+        body = {'commands': list(self.not_log_commands)}
+        await self.parent.adaptor.send(self.parent.adaptor.get_msg('not_log_commands_set', body, name))
         return name
 
     async def create_convertor(self):
@@ -64,6 +77,8 @@ class Channel:
             {'name': 'consumer', 'value': self.parent.consumer}]}
         msg = self.parent.adaptor.get_msg('set_params', body, name)
         await self.parent.adaptor.ask(msg)
+        body = {'commands': list(self.not_log_commands)}
+        await self.parent.adaptor.send(self.parent.adaptor.get_msg('not_log_commands_set', body, name))
         return name
 
     async def send_to_channel(self, msg):

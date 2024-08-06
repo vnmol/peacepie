@@ -43,6 +43,8 @@ class Connector:
                 res = self.parent.actor_admin.get_actor_queue(recipient)
                 if not res:
                     res = self.cache.get(recipient)
+                if not res:
+                    res = await self.parent.intralink.get_intra_queue(recipient)
                 return res
         else:
             return recipient
@@ -104,7 +106,7 @@ class Connector:
         sender = {'node': self.parent.adaptor.name, 'entity': entity}
         waiting_count = count
         group_mid = msg_factory.get_group_mid()
-        timer.start(queue, group_mid, timeout)
+        timer.start(timeout, queue, group_mid)
         for index in range(count):
             values = get_values(index)
             recipient = values.get('recipient')
@@ -124,10 +126,11 @@ class Connector:
         while waiting_count > 0:
             ans = await queue.get()
             waiting_count -= 1
-            if ans.get('command') == 'timeout':
+            if ans.get('command') == 'timer':
                 del self.asks[entity]
                 return ans
             else:
+                await self.try_put_to_cache(ans)
                 self.answer_on_ask_log(questioner, ans)
         del self.asks[entity]
         return msg_factory.get_msg('group_ask_completed')
@@ -213,3 +216,24 @@ class Connector:
             return
         for name in names:
             self.cache[name] = queue
+
+    async def try_put_to_cache(self, msg):
+        command = msg.get('command')
+        if not command:
+            return
+        if command not in ['actor_is_created']:
+            return
+        body = msg.get('body')
+        if not body:
+            return
+        system = body.get('system')
+        if system and system != params.instance.get('system_name'):
+            return
+        node = body.get('node')
+        if not node or node == self.parent.adaptor.name:
+            return
+        entity = body.get('entity')
+        if not entity:
+            return
+        await self.add_to_cache(node, [entity])
+

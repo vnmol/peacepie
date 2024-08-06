@@ -10,7 +10,7 @@ multiprocessing.set_start_method('spawn', force=True)
 
 class TestSimple(unittest.TestCase):
 
-    async def main(self):
+    async def simple(self):
         pp = peacepie.PeaceSystem('./config/test_simple_testing.cfg')
         await pp.start()
         try:
@@ -19,8 +19,8 @@ class TestSimple(unittest.TestCase):
             pass
         return pp
 
-    def test_main(self):
-        pp = asyncio.run(self.main())
+    def test_simple(self):
+        pp = asyncio.run(self.simple())
         for res in pp.test_errors:
             self.assertTrue(False, res.get('msg'))
 

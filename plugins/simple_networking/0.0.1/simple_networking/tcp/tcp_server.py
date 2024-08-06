@@ -19,11 +19,13 @@ class TcpServer:
         self.server = None
 
     async def exit(self):
-        if self.server:
-            self.server.close()
         for channel in self.channels:
             await channel.exit()
-        logging.info(f'{self.adaptor.get_alias()} is stopped at {self.host}:{self.port}')
+        self.channels.clear()
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
+            logging.info(f'{self.adaptor.get_alias()} is stopped at {self.host}:{self.port}')
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -31,6 +33,8 @@ class TcpServer:
             await self.set_params(msg)
         elif command == 'start':
             await self.start(msg.get('sender'))
+        elif command == 'close_all':
+            await self.close_all()
         else:
             return False
         return True
@@ -74,6 +78,12 @@ class TcpServer:
         except Exception as ex:
             logging.exception(ex)
         if channel:
+            channel.not_log_commands = self.adaptor.not_log_commands
             self.channels.append(channel)
             await channel.handle(None)
             self.channels.remove(channel)
+
+    async def close_all(self):
+        for channel in self.channels:
+            await channel.close()
+        self.channels.clear()

@@ -3,11 +3,11 @@ import asyncio
 from peacepie import msg_factory
 
 
-def start(queue, mid, timeout=1):
-    asyncio.get_running_loop().create_task(wait(queue, mid, timeout))
+def start(timeout, queue, mid):
+    asyncio.get_running_loop().create_task(wait(timeout, queue, mid))
 
 
-async def wait(queue, mid, timeout):
+async def wait(timeout, queue, mid):
     await asyncio.sleep(timeout)
-    await queue.put(msg_factory.get_msg('timeout', {'mid': mid}))
+    await queue.put(msg_factory.get_msg('timer', {'mid': mid}))
 

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 
 from peacepie import params, msg_factory
 from peacepie.assist import log_util, timer, serialization
@@ -23,9 +22,9 @@ class IntraClient(IntraLink):
         try:
             self.server = await asyncio.start_server(self.server_handle, self.host, 0)
             self.port = self.server.sockets[0].getsockname()[1]
-            self.logger.info(f'{log_util.get_alias(self)} is started on port {self.port}')
+            logging.info(f'{log_util.get_alias(self)} is started on port {self.port}')
         except Exception as ex:
-            self.logger.exception(ex)
+            logging.exception(ex)
 
     async def server_handle(self, reader, writer):
         serializer = serialization.Serializer()
@@ -33,7 +32,8 @@ class IntraClient(IntraLink):
         msg = msg_factory.get_msg('intra_link', body)
         writer.write(serializer.serialize(msg))
         await writer.drain()
-        self.logger.debug(log_util.sync_sent_log(self, msg))
+        if msg.get('command') not in self.parent.adaptor.not_log_commands:
+            logging.debug(log_util.sync_sent_log(self, msg))
         while reader:
             if reader.at_eof():
                 break
@@ -43,17 +43,17 @@ class IntraClient(IntraLink):
                 if res:
                     await self.handle(res, writer, None)
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
                 reader = None
 
     async def start_client(self, host, port, queue, is_to_head):
         while True:
             try:
                 reader, self.writer = await asyncio.open_connection(host, port)
-                self.logger.info(log_util.get_alias(self) + f' Channel to ({host}, {port}) is opened')
+                logging.info(log_util.get_alias(self) + f' Channel to ({host}, {port}) is opened')
                 await self.client_handle(reader, self.writer, queue, is_to_head)
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
             await asyncio.sleep(10)
 
     async def exit(self):
@@ -75,17 +75,18 @@ class IntraClient(IntraLink):
                 if res:
                     await self.handle(res, writer, queue, is_to_head)
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
                 reader = None
         if self.head:
-            self.logger.info(log_util.get_alias(self) + ' Channel is closed')
+            logging.info(log_util.get_alias(self) + ' Channel is closed')
             await self.links[self.head].close()
             self.head = None
 
     async def handle(self, msgs, writer, queue, is_to_head=False):
         for msg in msgs:
-            self.logger.debug(log_util.sync_received_log(self, msg))
-            command = msg['command']
+            command = msg.get('command')
+            if command not in self.parent.adaptor.not_log_commands:
+                logging.debug(log_util.sync_received_log(self, msg))
             if command == 'intra_link':
                 body = msg.get('body')
                 name = None
@@ -100,7 +101,8 @@ class IntraClient(IntraLink):
                         'addr': {'host': self.host, 'port': self.port}}
                 ans = msg_factory.get_msg('intra_linked', body)
                 await self.links[name].put(ans)
-                self.logger.debug(log_util.sync_sent_log(self, ans))
+                if ans.get('command') not in self.parent.adaptor.not_log_commands:
+                    logging.debug(log_util.sync_sent_log(self, ans))
                 await queue.put(msg_factory.get_msg('ready'))
             elif command == 'intra_linked':
                 body = msg.get('body')
@@ -117,7 +119,8 @@ class IntraClient(IntraLink):
                 recipient = self.clarify_recipient(msg['recipient'])
                 if isinstance(recipient, asyncio.Queue):
                     await recipient.put(msg)
-                    self.logger.debug(log_util.async_sent_log(self, msg))
+                    if msg.get('command') not in self.parent.adaptor.not_log_commands:
+                        logging.debug(log_util.async_sent_log(self, msg))
 
     async def get_intra_queue(self, name):
         res = self.links.get(name)
@@ -140,13 +143,15 @@ class IntraClient(IntraLink):
         queue = asyncio.Queue()
         self.parent.connector.asks[entity] = queue
         await self.links[self.head].put(msg)
-        self.logger.debug(log_util.async_ask_log(self, msg))
+        if msg.get('command') not in self.parent.adaptor.not_log_commands:
+            logging.debug(log_util.async_ask_log(self, msg))
         timer.start(queue, msg['mid'], 2)
         ans = await queue.get()
-        if ans['command'] == 'timeout':
-            self.logger.warning(log_util.async_received_log(self, ans))
-        else:
-            self.logger.debug(log_util.async_received_log(self, ans))
+        command = ans.get('command')
+        if command == 'timeout':
+            logging.warning(log_util.async_received_log(self, ans))
+        elif command not in self.parent.adaptor.not_log_commands:
+            logging.debug(log_util.async_received_log(self, ans))
         if entity is not None:
             del self.parent.connector.asks[entity]
         return ans

@@ -7,7 +7,7 @@ from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
-ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe',
+ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick'}
 
 
@@ -99,7 +99,11 @@ class Adaptor:
         elif command == 'cumulative_commands_set':
             await self.cumulative_commands_set(body.get('commands'), sender)
         elif command == 'cumulative_commands_remove':
-            self.cumulative_commands_remove(body.get('commands'))
+            await self.cumulative_commands_remove(body.get('commands'), sender)
+        elif command == 'not_log_commands_set':
+            await self.not_log_commands_set(body.get('commands'), sender)
+        elif command == 'not_log_commands_remove':
+            await self.not_log_commands_remove(body.get('commands'), sender)
         elif command == 'subscribe':
             self.subscribe(body.get('command'), msg.get('sender'))
         elif command == 'unsubscribe':
@@ -146,13 +150,26 @@ class Adaptor:
         if not self.ticker_admin or not self.ticker_admin.is_ticker_exists(name):
             self.add_ticker(self.cumulative_period, command='cumulative_tick', name=name)
         if recipient:
-            await self.send(self.get_msg('is_set', recipient=recipient))
+            await self.send(self.get_msg('set', recipient=recipient))
 
-    def cumulative_commands_remove(self, commands):
+    async def cumulative_commands_remove(self, commands, recipient=None):
         for command in commands:
             del self.cumulative_commands[command]
         if not self.cumulative_commands:
             self.ticker_admin.remove('cumulative')
+        if recipient:
+            await self.send(self.get_msg('removed', recipient=recipient))
+
+    async def not_log_commands_set(self, commands, recipient=None):
+        self.not_log_commands.update(commands)
+        if recipient:
+            await self.send(self.get_msg('set', recipient=recipient))
+
+    async def not_log_commands_remove(self, commands, recipient=None):
+        for command in commands:
+            del self.cumulative_commands[command]
+        if recipient:
+            await self.send(self.get_msg('removed', recipient=recipient))
 
     def subscribe(self, command, sender):
         res = self.observers.get(command)
@@ -307,5 +324,7 @@ class Adaptor:
             package_name = module.__package__
         return f'Package: {package_name}, Module: {module_name}, Line: {line_number}'
 
-    def start_timer(self, queue, mid, timeout):
-        timer.start(queue, mid, timeout)
+    def start_timer(self, timeout, queue=None, mid=None):
+        if not queue:
+            queue = self.queue
+        timer.start(timeout, queue, mid)

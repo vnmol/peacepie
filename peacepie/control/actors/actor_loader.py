@@ -78,6 +78,13 @@ class ActorLoader:
                 logging.exception(e)
                 await self.clear(actors, msg.get('sender'))
                 return
+        '''
+        tasks = [actor.get('task') for actor in actors.values()]
+        try:
+            asyncio.gather(*tasks)
+        except Exception as e:
+            logging.exception(e)
+        '''
         timeout = msg.get('timeout')
         if not timeout:
             timeout = 1

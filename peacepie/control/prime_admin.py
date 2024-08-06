@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import signal
 
 from peacepie import loglistener

@@ -18,10 +18,6 @@ class SimpleNaviGen:
         self.limit = 0
         self.sent = 0
 
-    async def pre_run(self):
-        pass
-        # self.adaptor.not_log_commands.update(['tick', 'navi_send', 'sent'])
-
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
@@ -30,7 +26,7 @@ class SimpleNaviGen:
         elif command == 'set_params':
             await self.set_params(body.get('params'), msg.get('sender'))
         elif command == 'start':
-            await self.start()
+            await self.start(msg.get('sender'))
         else:
             return False
         return True
@@ -41,8 +37,8 @@ class SimpleNaviGen:
         self.t += 0.1
         data = {'id': self.adaptor.series_next('navi_id'), 'type': None, 'code': self.code, 'is_proprietary': False,
                 'navi': {'time': time.time(), 'lat': lat, 'lon': lon}}
-        await self.adaptor.ask(self.adaptor.get_msg('send_to_channel', data, recipient=self.consumer))
-        await self.adaptor.send(self.adaptor.get_msg('navi_data', data, recipient=self.overlooker))
+        await self.adaptor.ask(self.adaptor.get_msg('send_to_channel', data, self.consumer))
+        await self.adaptor.send(self.adaptor.get_msg('navi_data', data, self.overlooker, self.adaptor.name))
         self.sent += 1
         if self.sent == self.limit:
             self.adaptor.remove_ticker(self.ticker)
@@ -60,7 +56,7 @@ class SimpleNaviGen:
             elif name == 'consumer':
                 self.consumer = value
             elif name == 'period':
-                self.period = value + random.random()
+                self.period = value  # * (1 + random.random())
             elif name == 'overlooker':
                 self.overlooker = value
             elif name == 'limit':
@@ -68,5 +64,7 @@ class SimpleNaviGen:
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
-    async def start(self):
+    async def start(self, recipient):
         self.ticker = self.adaptor.add_ticker(self.period)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('started', recipient=recipient))
