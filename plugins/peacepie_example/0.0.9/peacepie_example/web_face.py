@@ -1,10 +1,8 @@
-import asyncio
 import logging
 import os
-import signal
 from aiohttp import web, WSMsgType
 
-from simple_web_face import html_addons
+from peacepie_example import html_addons
 
 
 class SimpleWebFace:
@@ -90,22 +88,19 @@ class SimpleWebFace:
         async for msg in ws:
             if msg.type == WSMsgType.TEXT:
                 logging.debug(f'Received from websocket({id(ws)}): {msg.data}')
-                try:
-                    res = await self.websocket_handle(msg.data)
-                except Exception as e:
-                    logging.exception(e)
+                res = await self.websocket_handle(msg.data)
                 await ws.send_str(res)
                 logging.debug(f'Sent to websocket({id(ws)}): {res}')
         self.sockets.remove(ws)
         logging.info(f'Websocket({id(ws)}) closed')
         return ws
 
-    async def websocket_handle(self, data):
-        datum = self.adaptor.json_loads(data)
-        tp = datum.get('type')
-        command = datum.get('command')
-        body = datum.get('body')
-        recipient = datum.get('recipient')
+    async def websocket_handle(self, body):
+        bd = self.adaptor.json_loads(body)
+        tp = bd.get('type')
+        command = bd.get('command')
+        body = bd.get('body')
+        recipient = bd.get('recipient')
         query = self.adaptor.get_msg(command, body, recipient)
         if tp == 'ask':
             res = self.adaptor.json_dumps(await self.adaptor.ask(query))
@@ -165,6 +160,7 @@ def comm(body):
 
 def script_command(host, port):
     res = f'webSocket = new WebSocket("ws://{host}:{port}/ws");'
+    res += 'window.addEventListener("beforeunload", function() { socket.close(); });'
     res += html_addons.script_websocket
     return res
 

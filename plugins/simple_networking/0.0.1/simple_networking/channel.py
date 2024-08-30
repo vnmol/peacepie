@@ -84,7 +84,7 @@ class Channel:
     async def send_to_channel(self, msg):
         if not self.convertor:
             timeout = msg.get('timeout') if msg.get('timeout') else 4
-            self.parent.adaptor.start_timer(self.start_queue, msg.get('mid'), timeout)
+            self.parent.adaptor.start_timer(timeout, self.start_queue, msg.get('mid'))
             ans = await self.start_queue.get()
             if ans.get('command') != 'channel_is_opened':
                 if msg.get('sender'):

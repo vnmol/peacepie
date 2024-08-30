@@ -47,7 +47,7 @@ class TcpClient:
             asyncio.get_running_loop().create_task(self.handle_connection())
         if not self.channel:
             timeout = msg.get('timeout') if msg.get('timeout') else 4
-            self.adaptor.start_timer(self.channel_queue, msg.get('mid'), timeout)
+            self.adaptor.start_timer(timeout, self.channel_queue, msg.get('mid'))
             ans = await self.channel_queue.get()
             if ans.get('command') != 'channel_is_opened':
                 return

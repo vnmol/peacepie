@@ -3,11 +3,11 @@ requires = ['setuptools', 'setuptools-scm']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'simple_ssh_connector'
+name = 'simple_convertor'
 version = '0.0.1'
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
 dependencies = [
-    'asyncssh',
+    'simple_packet',
 ]

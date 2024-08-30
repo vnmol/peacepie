@@ -19,6 +19,8 @@ class EmbeddedChannel:
         log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
         self.writer.close()
         await self.writer.wait_closed()
+        if hasattr(self.convertor, 'exit'):
+            await self.convertor.exit()
         logging.info(log)
 
     async def close(self):
@@ -47,7 +49,10 @@ class EmbeddedChannel:
 
     async def create_convertor(self):
         name = f'{self.parent.adaptor.name}.convertor_{self.ch_id}'
-        self.convertor = self.parent.convertor_class()
+        try:
+            self.convertor = self.parent.convertor_class()
+        except Exception as e:
+            logging.exception(e)
         if not hasattr(self.convertor, 'adaptor'):
             txt = f'The performer "{name}" does not have the attribute "adaptor"'
             raise AttributeError(txt)

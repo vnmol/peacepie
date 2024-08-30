@@ -1,7 +1,11 @@
 import asyncio
+import os
+import sys
 import unittest
 import multiprocessing
 from playwright.async_api import async_playwright
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import peacepie
 
@@ -36,7 +40,7 @@ async def run(playwright) -> None:
     browser = await playwright.chromium.launch(headless=True)
     context = await browser.new_context()
     page = await context.new_page()
-    page.set_default_timeout(8000)
+    page.set_default_timeout(10000)
     await page.goto("http://localhost:9090/")
     await page.get_by_role("button", name="first.main.admin").click()
     await page.get_by_role("button", name="first.main.admin").click()

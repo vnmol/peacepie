@@ -2,9 +2,6 @@
 requires = ['setuptools', 'setuptools-scm']
 build-backend = 'setuptools.build_meta'
 
-[tool.setuptools.package-data]
-"simple_web_face.templates" = ["*.html"]
-
 [project]
 name = 'simple_web_face'
 version = '0.0.1'

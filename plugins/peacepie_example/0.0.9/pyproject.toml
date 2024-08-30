@@ -1,0 +1,16 @@
+[build-system]
+requires = ['setuptools', 'setuptools-scm']
+build-backend = 'setuptools.build_meta'
+
+[tool.setuptools.package-data]
+"peacepie_example.templates" = ["*.html"]
+
+[project]
+name = 'peacepie_example'
+version = '0.0.9'
+description = 'Примеры для пакета "peacepie"'
+license = {text = "MIT"}
+authors = [{name = 'Владимир Молодцов', email = 'vmol@mail.ru'},]
+dependencies = [
+        'aiohttp',
+]

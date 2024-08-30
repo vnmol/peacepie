@@ -1,0 +1,62 @@
+
+'Комманда' = 'create_actor'
+'Тело' = '{"class_desc": {"package_name": "peacepie_example", "class": "HelloWorld"}, "name": "hello_world"}'
+'Получатель' = 'first.main.admin'
+
+'Комманда' = 'tick'
+'Тело' = ''
+'Получатель' = 'first.main.admin'
+
+'Комманда' = 'remove_actor'
+'Тело' = '{"name": "hello_world"}'
+'Получатель' = 'first.main.admin'
+
+*****************************************************
+
+'Комманда' = 'create_actor'
+'Тело' = '{"class_desc": {"package_name": "peacepie_example", "class": "IteratingHelloWorld"}, "name": "iterating_hello_world"}'
+'Получатель' = 'first.main.admin'
+
+'Комманда' = 'set_params'
+'Тело' = '{"params": [{"name": "period", "value": 2}, {"name": "limit", "value": null}]}'
+'Получатель' = 'iterating_hello_world'
+
+'Комманда' = 'start'
+'Тело' = ''
+'Получатель' = 'iterating_hello_world'
+
+'Комманда' = 'stop'
+'Тело' = ''
+'Получатель' = 'iterating_hello_world'
+
+'Комманда' = 'remove_actor'
+'Тело' = '{"name": "iterating_hello_world"}'
+'Получатель' = 'first.main.admin'
+
+*****************************************************
+
+'Комманда' = 'create_actor'
+'Тело' = '{"class_desc": {"package_name": "peacepie_example", "class": "CircleStarter"}, "name": "circle_starter"}'
+'Получатель' = 'first.main.admin'
+
+'Комманда' = 'start'
+'Тело' = '{"process_count": 3, "period": 2}'
+'Получатель' = 'circle_starter'
+
+'Комманда' = 'create_process'
+'Тело' = ''
+'Получатель' = 'first.main.admin'
+
+'Комманда' = 'create_actor'
+'Тело' = '{"class_desc": {"package_name": "peacepie_example", "class": "CircleDancer"}, "name": "dancer_x"}'
+'Получатель' = 'first.process_2.admin'
+
+'Комманда' = 'set_params'
+'Тело' = '{"params": [{"name": "consumer", "value": "dancer_00"}, {"name": "period", "value": 10}]}'
+'Получатель' = 'dancer_x'
+
+'Комманда' = 'set_params'
+'Тело' = '{"params": [{"name": "consumer", "value": "dancer_x"}]}'
+'Получатель' = 'dancer_05'
+
+*****************************************************

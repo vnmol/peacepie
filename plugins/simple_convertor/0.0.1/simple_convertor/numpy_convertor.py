@@ -1,7 +1,14 @@
 import enum
+import time
+
+import numpy
+
+total = 0
+packet = 0
+details = 0
 
 
-class SimpleConvertor:
+class NumpyConvertor:
 
     def __init__(self):
         self.adaptor = None
@@ -9,6 +16,14 @@ class SimpleConvertor:
         self.consumer = None
         self.questioner = None
         self.packet = Packet(self)
+
+    async def exit(self):
+        global total
+        global packet
+        global details
+        if total:
+            print(f'TOTAL={total}, packet={packet}, details={details}')
+            total = None
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -24,16 +39,25 @@ class SimpleConvertor:
         return True
 
     async def received_from_channel(self, data):
-        packs = self.packet.process(data)
-        for pack in packs:
-            body = self.adaptor.json_loads(pack)
-            if isinstance(body, str) and body == 'OK':
-                await self.adaptor.send(self.adaptor.get_msg('sent', recipient=self.questioner))
-                self.questioner = None
-            else:
-                if self.consumer:
-                    await self.adaptor.send(self.adaptor.get_msg('navi_data', body, self.consumer, self.adaptor.name))
-                await self.send('OK')
+        global total
+        global packet
+        t = time.time()
+        body = self.packet.process(data)
+        packet += time.time() - t
+        if not body:
+            return
+        if isinstance(body, str) and body == 'OK':
+            t1 = time.time()
+            await self.adaptor.send(self.adaptor.get_msg('sent', recipient=self.questioner))
+            t1 = time.time() - t1
+            self.questioner = None
+        else:
+            t1 = time.time()
+            if self.consumer:
+                await self.adaptor.send(self.adaptor.get_msg('navi_data', body, self.consumer, self.adaptor.name))
+            await self.send('OK')
+            t1 = time.time() - t1
+        total += time.time() - t - t1
 
     async def send_to_channel(self, data, questioner):
         if self.questioner:
@@ -70,29 +94,44 @@ class Packet:
         self.parent = parent
         self.state = self.State.MARKER
         self.length = 0
-        self.data = b''
+        self.data = numpy.array([], dtype=numpy.uint8)
 
     def process(self, data):
-        res = []
-        self.data += data
+        global details
+        t = time.time()
+        ndata = numpy.frombuffer(data, dtype=numpy.uint8)
+        details += time.time() - t
+        self.data = numpy.concatenate((self.data, ndata))
         while True:
             if self.state is self.State.MARKER:
                 if len(self.data) < 6:
-                    break
-                pos = self.data.find(b'\xff\xfe')
+                    return
+                pos = self.pos(b'\xff\xfe')
                 if pos == -1:
-                    break
+                    return
                 self.data = self.data[pos+2:]
-                if self.data[2:4] != b'\x7f\xff':
-                    continue
+                if not numpy.array_equal(self.data[2:4], numpy.frombuffer(b'\x7f\xff', dtype=numpy.uint8)):
+                    break
                 self.length = int.from_bytes(self.data[:2], byteorder='big')
                 self.data = self.data[4:]
                 self.state = self.State.BODY
             if self.state is self.State.BODY:
                 if len(self.data) < self.length:
-                    break
-                res.append(self.data[:self.length])
+                    return
+                buf = self.data[:self.length]
                 self.data = self.data[self.length:]
                 self.state = self.State.MARKER
                 self.length = 0
-        return res
+                res = self.parent.adaptor.json_loads(buf.tobytes())
+                return res
+
+    def pos(self, pattern):
+        sequence = numpy.frombuffer(pattern, dtype=numpy.uint8)
+        seq_len = len(sequence)
+        arr_len = len(self.data)
+        if seq_len == 0 or seq_len > arr_len:
+            return -1
+        for i in range(arr_len - seq_len + 1):
+            if numpy.array_equal(self.data[i:i + seq_len], sequence):
+                return i
+        return -1

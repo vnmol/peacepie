@@ -1,1 +1,2 @@
 from simple_convertor.convertor import SimpleConvertor
+from simple_convertor.numpy_convertor import NumpyConvertor

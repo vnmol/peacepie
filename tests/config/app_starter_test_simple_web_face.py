@@ -18,7 +18,7 @@ class AppStarter:
         body = {'class_desc': {'package_name': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
         ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
         await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
-        self.adaptor.add_ticker(10, 10, 1)
+        self.adaptor.add_ticker(100, 100, 1)
 
     async def tick(self):
         head = self.adaptor.get_head_addr()
