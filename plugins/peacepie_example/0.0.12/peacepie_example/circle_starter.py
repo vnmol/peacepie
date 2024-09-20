@@ -14,8 +14,9 @@ class CircleStarter:
         return True
 
     async def start(self, msg):
-        process_count = msg['body']['process_count']
-        period = msg['body']['period']
+        body = msg.get('body') if msg.get('body') else {}
+        process_count = body.get('process_count')
+        period = body.get('period')
         processes = []
         for _ in range(process_count - 1):
             ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'))
@@ -37,7 +38,7 @@ class CircleStarter:
         name1 = f'dancer_{(index * 2 + 1):02d}'
         name2 = f'dancer_{(index * 2 + 2):02d}'
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': name0}, process)
-        await self.adaptor.ask(msg)
+        await self.adaptor.ask(msg, 30)
         msg['body']['name'] = name1
         await self.adaptor.ask(msg)
         params = [{'name': 'consumer', 'value': name1}, {'name': 'period', 'value': period}]

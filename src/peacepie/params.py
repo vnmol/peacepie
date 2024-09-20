@@ -1,3 +1,4 @@
+import logging
 import os
 import socket
 
@@ -13,6 +14,11 @@ def init_params(path, test_params):
     test_instance = test_params
     res = {}
     params = []
+    try:
+        with open(path) as f:
+            pass
+    except FileNotFoundError:
+        path = None
     if not path:
         path = deploy_envirement()
     try:

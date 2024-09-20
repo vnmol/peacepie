@@ -123,6 +123,7 @@ script_websocket = '''
         type: id,
         command: document.getElementById("command").value,
         body: body_val,
+        timeout: document.getElementById("timeout").value,
         recipient: recipient_val,
       };
       webSocket.send(JSON.stringify(msg));
@@ -139,6 +140,10 @@ script_command_begin = '''
     <div class="input_container">
       <label for="body">Тело</label>
       <textarea id="body" name="body" rows="4"></textarea>
+    </div>
+    <div class="input_container">
+      <label for="timeout">Таймаут</label>
+      <input type="text" id="timeout" name="timeout" value="10">
     </div>
     <div class="input_container">
       <label for="recipient">Получатель</label>

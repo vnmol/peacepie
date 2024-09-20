@@ -41,9 +41,9 @@ class PackageLoader:
 
     async def load_package(self, msg):
         log_desc = loglistener.instance.get_log_desc()
-        url = params.instance.get('extra-index-url')
         body = msg.get('body') if msg.get('body') else {}
         package_name = body.get('package_name')
+        url = body.get('extra-index-url') if body.get('extra-index-url') else params.instance.get('extra-index-url')
         recipient = msg.get('sender')
         queue = multiprocessing.Queue()
         process = multiprocessing.Process(target=load_package, args=(log_desc, url, self.path, package_name, queue,))

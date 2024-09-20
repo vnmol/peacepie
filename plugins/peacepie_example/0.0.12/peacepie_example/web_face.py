@@ -95,15 +95,22 @@ class SimpleWebFace:
         logging.info(f'Websocket({id(ws)}) closed')
         return ws
 
-    async def websocket_handle(self, body):
-        bd = self.adaptor.json_loads(body)
-        tp = bd.get('type')
-        command = bd.get('command')
-        body = bd.get('body')
-        recipient = bd.get('recipient')
+    async def websocket_handle(self, data):
+        datum = self.adaptor.json_loads(data)
+        tp = datum.get('type')
+        command = datum.get('command')
+        body = datum.get('body')
+        timeout = 4
+        try:
+            timeout = int(datum.get('timeout'))
+        except ValueError as e:
+            logging.exception(e)
+        recipient = datum.get('recipient')
+        if recipient == '':
+            recipient = None
         query = self.adaptor.get_msg(command, body, recipient)
         if tp == 'ask':
-            res = self.adaptor.json_dumps(await self.adaptor.ask(query))
+            res = self.adaptor.json_dumps(await self.adaptor.ask(query, timeout))
         else:
             await self.adaptor.send(query)
             res = 'The message is sent'

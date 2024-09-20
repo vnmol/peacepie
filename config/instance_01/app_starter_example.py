@@ -13,10 +13,8 @@ class AppStarter:
         return True
 
     async def start(self):
-        await self.web_face()
-
-    async def web_face(self):
         name = 'initiator'
-        body = {'class_desc': {'package_name': 'peacepie_example', 'class': 'Initiator'}, 'name': name}
+        class_desc = {'package_name': 'peacepie_example', 'class': 'Initiator', 'extra-index-url': 'http://localhost:9000'}
+        body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 120)
-        await self.adaptor.ask(self.adaptor.get_msg('start', None, name))
+        await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, name), 10)

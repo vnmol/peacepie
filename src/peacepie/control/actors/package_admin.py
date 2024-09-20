@@ -3,7 +3,6 @@ import importlib
 import inspect
 import logging
 import os
-import shutil
 import subprocess
 import sys
 
@@ -13,6 +12,7 @@ from peacepie.assist import log_util, version, dir_operations
 CLASS = 'class'
 PACKAGE = 'package'
 PACKAGE_NAME = 'package_name'
+URL = 'extra-index-url'
 
 
 class PackageAdmin:
@@ -68,18 +68,20 @@ class PackageAdmin:
         return queue
 
     async def load_package(self, class_desc, timeout):
-        if not await self.load(class_desc.get(PACKAGE_NAME), class_desc.get(version.VERSION), timeout):
+        if not await self.load(class_desc, timeout):
             return
         if not self.are_packages_suitable():
             return
         await self.install(class_desc.get(PACKAGE_NAME))
 
-    async def load(self, package_name, conditions, timeout):
-        package_name = package_name + version.conditions_as_text(conditions)
+    async def load(self, class_desc, timeout):
+        package_name = class_desc.get(PACKAGE_NAME) + version.conditions_as_text(class_desc.get(version.VERSION))
+        url = class_desc.get(URL)
         if self._load(package_name):
             return True
         recipient = self.parent.parent.connector.get_head_addr()
-        msg = msg_factory.get_msg('load_package', {PACKAGE_NAME: package_name}, recipient)
+        body = {PACKAGE_NAME: package_name, URL: url}
+        msg = msg_factory.get_msg('load_package', body, recipient)
         ans = await self.parent.parent.connector.ask(self, msg, timeout)
         if ans['command'] == 'package_is_not_loaded':
             return False
@@ -118,7 +120,7 @@ class PackageAdmin:
         res = None
         try:
             res = subprocess.check_call(
-                [sys.executable, '-m', 'pip', 'install', package_name, '--no-index',
+                [sys.executable, '-m', 'pip', 'install',  '--upgrade', package_name, '--no-index',
                  f'--find-links={self.tmp_path}', f'--target={self.work_path}'])
             await self.import_and_notify(package_name)
         except Exception as ex:

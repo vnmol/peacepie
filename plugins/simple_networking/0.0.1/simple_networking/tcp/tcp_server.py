@@ -59,14 +59,15 @@ class TcpServer:
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
-    async def start(self, recipient):
+    async def start(self, msg):
         if self.is_embedded_channel:
-            ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}))
+            ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}),
+                                         msg.get('timeout'))
             self.convertor_class = ans.get('body')
         self.server = await asyncio.start_server(self.handle_connection, self.host, self.port)
         logging.info(f'{self.adaptor.get_alias()} is started at {self.host}:{self.port}')
-        if recipient:
-            await self.adaptor.send(self.adaptor.get_msg('started', recipient=recipient))
+        if msg.get('sender'):
+            await self.adaptor.send(self.adaptor.get_msg('started', recipient=msg.get('sender')))
 
     async def handle_connection(self, reader, writer):
         channel = None

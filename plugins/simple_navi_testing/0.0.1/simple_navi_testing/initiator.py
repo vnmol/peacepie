@@ -4,6 +4,7 @@ class Initiator:
     def __init__(self):
         self.adaptor = None
         self.index = None
+        self.url = None
         self.convertor_desc = None
         self.inet_addr = None
         self.is_embedded_channel = False
@@ -36,6 +37,8 @@ class Initiator:
             value = param.get('value')
             if name == 'index':
                 self.index = value
+            elif name == 'extra-index-url':
+                self.url = value
             elif name == 'convertor_desc':
                 self.convertor_desc = value
             elif name == 'inet_addr':
@@ -82,8 +85,9 @@ class Initiator:
 
     async def create_server(self, consumer):
         name = f'tcp_server_{self.index:02d}'
-        body = {'class_desc': {'package_name': 'simple_networking', 'class': 'TcpServer'}, 'name': name}
-        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 4)
+        class_desc = {'package_name': 'simple_networking', 'class': 'TcpServer', 'extra-index-url': self.url}
+        body = {'class_desc': class_desc, 'name': name}
+        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
         body = {'params': [{'name': 'convertor_desc', 'value': self.convertor_desc},
                            {'name': 'host', 'value': self.inet_addr.get('host')},
                            {'name': 'port', 'value': self.inet_addr.get('port')},
@@ -92,11 +96,12 @@ class Initiator:
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name), 4)
         body = {'commands': ['navi_data', 'received_from_channel', 'send_to_channel', 'sent']}
         await self.adaptor.ask(self.adaptor.get_msg('not_log_commands_set', body, name), 4)
-        await self.adaptor.ask(self.adaptor.get_msg('start', None, name), 4)
+        await self.adaptor.ask(self.adaptor.get_msg('start', None, name), 30)
 
     async def create_clients(self):
         names = [f'tcp_client_{self.index:02d}_{n:04d}' for n in range(self.size)]
-        body = {'class_desc': {'package_name': 'simple_networking', 'class': 'TcpClient'}, 'names': names}
+        class_desc = {'package_name': 'simple_networking', 'class': 'TcpClient', 'extra-index-url': self.url}
+        body = {'class_desc': class_desc, 'names': names}
         await self.adaptor.ask(self.adaptor.get_msg('create_actors', body), 4)
         await self.adaptor.group_ask(10, len(names), self.client_factory(names))
         await self.adaptor.group_ask(10, len(names), self.client_not_log_factory(names))

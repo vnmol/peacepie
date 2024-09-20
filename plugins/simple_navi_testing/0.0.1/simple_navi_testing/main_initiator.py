@@ -2,6 +2,7 @@ class MainInitiator:
 
     def __init__(self):
         self.adaptor = None
+        self.url = None
         self.convertor_desc = None
         self.inet_addr = None
         self.is_embedded_channel = False
@@ -29,7 +30,9 @@ class MainInitiator:
         for param in params:
             name = param.get('name')
             value = param.get('value')
-            if name == 'convertor_desc':
+            if name == 'extra-index-url':
+                self.url = value
+            elif name == 'convertor_desc':
                 self.convertor_desc = value
             elif name == 'inet_addr':
                 self.inet_addr = value
@@ -51,6 +54,7 @@ class MainInitiator:
                 self.overlooker_period = value
             elif name == 'is_testing':
                 self.is_testing = value
+        self.convertor_desc['extra-index-url'] = self.url
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
@@ -81,10 +85,10 @@ class MainInitiator:
 
     async def create_initiators(self, main_overlooker, processes):
         names = [f'initiator_{index}' for index in range(len(processes))]
-        await self.adaptor.group_ask(10, len(names), self.initiator_create_factory(processes, names))
-        await self.adaptor.group_ask(10, len(names), self.initiator_set_params_factory(names, main_overlooker))
-        await self.adaptor.group_ask(10, len(names), lambda index: {'command': 'prepare', 'recipient': names[index]})
-        await self.adaptor.group_ask(10, len(names), lambda index: {'command': 'start', 'recipient': names[index]})
+        await self.adaptor.group_ask(30, len(names), self.initiator_create_factory(processes, names))
+        await self.adaptor.group_ask(30, len(names), self.initiator_set_params_factory(names, main_overlooker))
+        await self.adaptor.group_ask(30, len(names), lambda index: {'command': 'prepare', 'recipient': names[index]})
+        await self.adaptor.group_ask(30, len(names), lambda index: {'command': 'start', 'recipient': names[index]})
 
     def initiator_create_factory(self, processes, names):
         class_desc = {'package_name': 'simple_navi_testing', 'class': 'Initiator'}
@@ -102,6 +106,7 @@ class MainInitiator:
         def get_values(index):
             body = {'params': [
                 {'name': 'index', 'value': index},
+                {'name': 'extra-index-url', 'value': self.url},
                 {'name': 'convertor_desc', 'value': self.convertor_desc},
                 {'name': 'inet_addr', 'value': {'host': host, 'port': port+index}},
                 {'name': 'is_embedded_channel', 'value': self.is_embedded_channel},

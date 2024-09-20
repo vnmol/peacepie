@@ -1,7 +1,5 @@
-import asyncio
 import logging
 import os
-import signal
 from aiohttp import web, WSMsgType
 
 from simple_web_face import html_addons
@@ -105,10 +103,17 @@ class SimpleWebFace:
         tp = datum.get('type')
         command = datum.get('command')
         body = datum.get('body')
+        timeout = 4
+        try:
+            timeout = int(datum.get('timeout'))
+        except ValueError as e:
+            logging.exception(e)
         recipient = datum.get('recipient')
+        if recipient == '':
+            recipient = None
         query = self.adaptor.get_msg(command, body, recipient)
         if tp == 'ask':
-            res = self.adaptor.json_dumps(await self.adaptor.ask(query))
+            res = self.adaptor.json_dumps(await self.adaptor.ask(query, timeout))
         else:
             await self.adaptor.send(query)
             res = 'The message is sent'
