@@ -58,7 +58,7 @@ def create(lord, name, prms, msg_queue, log_desc, sender):
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
     performer = admin.Admin(lord, name.host_name, name.process_name, log_desc)
     try:
-        actr = adaptor.Adaptor(name.get_actor_name(), None, performer, sender)
+        actr = adaptor.Adaptor(None, name.get_actor_name(), None, performer, sender)
         asyncio.run(actr.run())
     except BaseException as ex:
         logging.exception(ex)

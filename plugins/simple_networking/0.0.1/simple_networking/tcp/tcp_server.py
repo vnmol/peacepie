@@ -32,7 +32,7 @@ class TcpServer:
         if command == 'set_params':
             await self.set_params(msg)
         elif command == 'start':
-            await self.start(msg.get('sender'))
+            await self.start(msg)
         elif command == 'close_all':
             await self.close_all()
         else:

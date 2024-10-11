@@ -22,18 +22,23 @@ class IntraLink:
         res.sort()
         return res
 
-    def clarify_recipient(self, recipient):
+    def clarify_recipient(self, recipient, is_control):
+        if recipient is None:
+            if is_control:
+                return self.parent.adaptor.control_queue
+            else:
+                return self.parent.adaptor.queue
         if type(recipient) is dict:
             system_name = recipient.get('system')
-            if not system_name or system_name == self.parent.adaptor.get_param('system_name'):
-                recipient = recipient['entity']
-            else:
+            if system_name and system_name != self.parent.adaptor.get_param('system_name'):
                 if self.parent.is_head:
                     return self.parent.interlink.queue
                 else:
                     return self.links[self.head]
-        if not recipient:
-            return self.parent.adaptor.queue
+            else:
+                recipient = recipient.get('entity')
+                if not recipient:
+                    return self.parent.adaptor.queue
         if type(recipient) is not str:
             return None
         if recipient.startswith('_'):
@@ -43,4 +48,4 @@ class IntraLink:
             if recipient == self.parent.adaptor.name:
                 return self.parent.adaptor.queue
             else:
-                return self.parent.actor_admin.get_actor_queue(recipient)
+                return self.parent.actor_admin.get_actor_queue(recipient, is_control)

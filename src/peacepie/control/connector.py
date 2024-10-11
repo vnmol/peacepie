@@ -16,9 +16,12 @@ class Connector:
         self.cache = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
-    async def clarify_recipient(self, recipient):
+    async def clarify_recipient(self, recipient, is_control=False):
         if recipient is None:
-            return self.parent.adaptor.queue
+            if is_control:
+                return self.parent.adaptor.control_queue
+            else:
+                return self.parent.adaptor.queue
         if type(recipient) is dict:
             system_name = recipient.get('system')
             if system_name and system_name != params.instance.get('system_name'):
@@ -27,22 +30,28 @@ class Connector:
                     return self.parent.interlink.queue
                 else:
                     return await self.parent.intralink.get_intra_queue(head)
-            if recipient['node'] == self.parent.adaptor.name:
-                if recipient['entity']:
-                    recipient = recipient['entity']
+            if recipient.get('node') == self.parent.adaptor.name:
+                if recipient.get('entity'):
+                    res = self.parent.actor_admin.get_actor_queue(recipient.get('entity'), is_control)
+                    if res:
+                        return res
+                    recipient = recipient.get('entity')
                 else:
                     return self.parent.adaptor.queue
             else:
                 return await self.parent.intralink.get_intra_queue(recipient['node'])
         if type(recipient) is str:
             if recipient == self.parent.adaptor.name:
-                return self.parent.adaptor.queue
+                if is_control:
+                    return self.parent.adaptor.control_queue
+                else:
+                    return self.parent.adaptor.queue
             elif recipient.startswith('_'):
                 return self.asks.get(recipient)
             else:
-                res = self.parent.actor_admin.get_actor_queue(recipient)
+                res = self.cache.get(recipient)
                 if not res:
-                    res = self.cache.get(recipient)
+                    res = self.parent.actor_admin.get_actor_queue(recipient, is_control)
                 if not res:
                     res = await self.parent.intralink.get_intra_queue(recipient)
                 return res
@@ -51,7 +60,7 @@ class Connector:
 
     async def send(self, sender, msg):
         recipient = msg.get('recipient')
-        res = await self.clarify_recipient(recipient)
+        res = await self.clarify_recipient(recipient, msg.get('is_control'))
         if not res:
             self.find_and_send(sender, msg)
             return
@@ -74,7 +83,7 @@ class Connector:
 
     async def ask(self, questioner, msg, timeout=1):
         recipient = msg.get('recipient')
-        res = await self.clarify_recipient(recipient)
+        res = await self.clarify_recipient(recipient, msg.get('is_control'))
         if not res:
             res = await self.find(questioner, recipient)
             if not res:
@@ -210,11 +219,18 @@ class Connector:
             res = self.parent.actor_admin.get_actor_queue(addr)
         return res
 
-    async def add_to_cache(self, node, names):
+    async def add_to_cache(self, node, names, is_exists = False):
+        if self.parent.adaptor.name == node:
+            for name in names:
+                if self.cache.get(name):
+                    del self.cache[name]
+            return
         queue = await self.parent.intralink.get_intra_queue(node)
         if not queue:
             return
         for name in names:
+            if is_exists and not self.cache.get(name):
+                continue
             self.cache[name] = queue
 
     async def try_put_to_cache(self, msg):

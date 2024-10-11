@@ -33,7 +33,7 @@ class ActorLoader:
         command = msg.get('command')
         if command == 'get_class':
             await self.get_class(msg)
-        elif command == 'create_actor':
+        elif command == 'create_actor' or command == 'clone_actor':
             await self.create_actor(msg)
         elif command == 'create_actors':
             await self.create_actors(msg)
@@ -47,13 +47,21 @@ class ActorLoader:
         await self.parent.parent.connector.send(self, ans)
 
     async def create_actor(self, msg):
+        body = msg.get('body') if msg.get('body') else {}
+        class_desc = body.get('class_desc')
+        name = body.get('name')
+        if self.parent.actors.get(name):
+            answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
+            await self.parent.parent.connector.send(self, answer)
+            return
         clss = await self._get_class(msg)
-        name = msg['body']['name']
         try:
-            adptr = adaptor.Adaptor(name, self.parent.parent, clss(), msg['sender'])
+            adptr = adaptor.Adaptor(class_desc, name, self.parent.parent, clss(), msg.get('sender'))
+            if msg.get('command') == 'clone_actor':
+                adptr.is_enabled = False
         except Exception as e:
             logging.exception(e)
-            answer = msg_factory.get_msg('actor_is_not_created', recipient=msg['sender'])
+            answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
             await self.parent.parent.connector.send(self, answer)
             return
         task = asyncio.get_running_loop().create_task(adptr.run())
@@ -63,7 +71,8 @@ class ActorLoader:
         clss = await self._get_class(msg)
         queue = asyncio.Queue()
         actors = {}
-        body = msg.get('body')
+        body = msg.get('body') if msg.get('body') else {}
+        class_desc = body.get('class_desc')
         if not body:
             return
         names = body.get('names')
@@ -71,20 +80,13 @@ class ActorLoader:
             return
         for name in names:
             try:
-                adptr = adaptor.Adaptor(name, self.parent.parent, clss(), queue)
+                adptr = adaptor.Adaptor(class_desc, name, self.parent.parent, clss(), queue)
                 task = asyncio.get_running_loop().create_task(adptr.run())
                 actors[name] = {'adaptor': adptr, 'task': task}
             except Exception as e:
                 logging.exception(e)
                 await self.clear(actors, msg.get('sender'))
                 return
-        '''
-        tasks = [actor.get('task') for actor in actors.values()]
-        try:
-            asyncio.gather(*tasks)
-        except Exception as e:
-            logging.exception(e)
-        '''
         timeout = msg.get('timeout')
         if not timeout:
             timeout = 1

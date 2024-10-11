@@ -54,6 +54,7 @@ def msg_format(msg):
     res = "{'mid': '" + msg.get('mid') + "', 'command': '" + msg.get('command')
     res += "', 'body': " + str(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
     res += ", 'sender': " + addr_format(msg.get('sender')) + ", 'timeout': " + str(msg.get('timeout'))
+    res += ", 'is_control': " + str(msg.get('is_control'))
     res += "}"
     return res
 

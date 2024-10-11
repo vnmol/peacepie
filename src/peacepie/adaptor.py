@@ -8,24 +8,24 @@ from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
-                    'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick'}
-
-
-def get_msg(command, body=None, recipient=None, sender=None, is_inter=False):
-    return msg_factory.instance.get_msg(command, body, recipient, sender, is_inter)
+                    'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
+                    'set_availability', 'empty'}
 
 
 class Adaptor:
 
-    def __init__(self, name, parent, performer, sender=None):
+    def __init__(self, class_desc, name, parent, performer, sender=None):
         self.name = name
         self.parent = parent
         self.sender = sender
+        self.class_desc = class_desc
+        self.is_enabled = True
         self.performer = performer
         if not hasattr(self.performer, 'adaptor'):
             txt = f'The performer "{name}" does not have the attribute "adaptor"'
             raise AttributeError(txt)
         self.performer.adaptor = self
+        self.control_queue = None
         self.queue = None
         self.is_running = False
         self.ticker_admin = None
@@ -41,6 +41,7 @@ class Adaptor:
         return log_util.get_alias(obj)
 
     async def run(self):
+        self.control_queue = asyncio.Queue()
         self.queue = asyncio.Queue()
         if hasattr(self.performer, 'pre_run'):
             try:
@@ -51,7 +52,12 @@ class Adaptor:
         await self.is_running_notification()
         while True:
             try:
-                msg = await self.queue.get()
+                if self.control_queue.empty() and self.is_enabled:
+                    msg = await self.queue.get()
+                else:
+                    msg = await self.control_queue.get()
+                if not msg:
+                    continue
                 command = msg.get('command')
                 if command not in self.not_log_commands:
                     if command in self.cumulative_commands.keys():
@@ -61,6 +67,8 @@ class Adaptor:
                 if command in ADAPTOR_COMMANDS:
                     if not await self.handle(msg):
                         logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
+                        if msg.get('sender'):
+                            await self.send(self.get_msg('is_not_handled', recipient=msg.get('sender')))
                     if params.instance.get('exit'):
                         break
                     continue
@@ -68,6 +76,8 @@ class Adaptor:
                     await self.notify(msg)
                 else:
                     logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
+                    if msg.get('sender'):
+                        await self.send(self.get_msg('is_not_handled', recipient=msg.get('sender')))
             except asyncio.exceptions.CancelledError:
                 break
             except BaseException as ex:
@@ -76,6 +86,7 @@ class Adaptor:
             try:
                 await self.performer.exit()
             except Exception as ex:
+                print(ex)
                 logging.exception(ex)
 
     async def is_running_notification(self):
@@ -108,6 +119,10 @@ class Adaptor:
             self.subscribe(body.get('command'), msg.get('sender'))
         elif command == 'unsubscribe':
             self.unsubscribe(body.get('command'), msg.get('sender'))
+        elif command == 'set_availability':
+            self.is_enabled = body.get('value')
+        elif command == 'empty':
+            pass
         else:
             return False
         return True
@@ -199,6 +214,9 @@ class Adaptor:
     def get_msg(self, command, body=None, recipient=None, sender=None):
         return msg_factory.get_msg(command, body, recipient, sender)
 
+    def get_control_msg(self, command, body=None, recipient=None, sender=None):
+        return msg_factory.get_control_msg(command, body, recipient, sender)
+
     async def send(self, msg, sender=None):
         if not sender:
             sender = self
@@ -211,10 +229,13 @@ class Adaptor:
         if self.parent:
             return await self.parent.connector.ask(self, msg, timeout)
         else:
-            await self.performer.connector.ask(self, msg, timeout)
+            return await self.performer.connector.ask(self, msg, timeout)
 
     async def group_ask(self, timeout, count, get_values):
-        return await self.parent.connector.group_ask(self, timeout, count, get_values)
+        if self.parent:
+            return await self.parent.connector.group_ask(self, timeout, count, get_values)
+        else:
+            return await self.performer.connector.group_ask(self, timeout, count, get_values)
 
     def add_ticker(self, period, delay=None, count=None, name=None, command=None):
         if not self.ticker_admin:
@@ -328,3 +349,30 @@ class Adaptor:
         if not queue:
             queue = self.queue
         timer.start(timeout, queue, mid)
+
+'''
+                if self.semaphore:
+                    await self.semaphore.get('up').put(self.get_msg('empty'))
+                    res = await self.semaphore.get('down').get()
+                    if res.get('command') == 'exit':
+                        break
+                    else:
+                        self.semaphore = None
+                msg = await self.queue.get()
+                command = msg.get('command')
+                if temporary:
+                    if command == 'clone_message':
+                        msg = msg.get('body')
+                        if not msg:
+                            while not self.queue.empty():
+                                temporary.put_nowait(self.queue.get_nowait())
+                            while not temporary.empty():
+                                self.queue.put_nowait(temporary.get_nowait())
+                            temporary = None
+                            self.is_enabled = True
+                            msg = self.queue.get_nowait()
+                        command = msg.get('command')
+                    else:
+                        await temporary.put(msg)
+                        continue
+'''

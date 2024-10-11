@@ -116,7 +116,7 @@ class IntraClient(IntraLink):
                 self.links[name] = intra_queue.IntraQueue(lord, addr, writer)
                 await self.parent.adaptor.notify(msg)
             else:
-                recipient = self.clarify_recipient(msg['recipient'])
+                recipient = self.clarify_recipient(msg.get('recipient'), msg.get('is_control'))
                 if isinstance(recipient, asyncio.Queue):
                     await recipient.put(msg)
                     if msg.get('command') not in self.parent.adaptor.not_log_commands:

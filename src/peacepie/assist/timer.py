@@ -3,7 +3,7 @@ import asyncio
 from peacepie import msg_factory
 
 
-def start(timeout, queue, mid):
+def start(timeout, queue, mid=None):
     asyncio.get_running_loop().create_task(wait(timeout, queue, mid))
 
 

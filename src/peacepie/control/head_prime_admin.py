@@ -50,6 +50,8 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             logging.debug(log_util.async_sent_log(self, msg))
         elif command == 'get_credentials':
             await self.safe_admin.handle(msg)
+        elif command == 'change_cache':
+            await self.change_cache(msg)
         elif command == 'get_members':
             await self.get_members(msg)
         elif command == 'test_error':
@@ -57,6 +59,18 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         else:
             return await super().handle(msg)
         return True
+
+    async def change_cache(self, msg):
+        recipient = msg.get('sender')
+        body = msg.get('body') if msg.get('body') else {}
+        await self.connector.add_to_cache(body.get('node'), [body.get('name')], True)
+        links = [link for link in self.intralink.links]
+        await self.adaptor.group_ask(10, len(links),
+                                     lambda index: {'command': 'change_cache', 'body': body,
+                                                    'recipient': {'node': links[index], 'entity': None}}
+        )
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
 
     async def get_members(self, msg):
         body = msg.get('body')

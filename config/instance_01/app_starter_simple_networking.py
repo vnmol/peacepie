@@ -33,13 +33,13 @@ class AppStarter:
         class_desc = {'package_name': 'simple_convertor', 'class': 'SimpleConvertor', 'extra-index-url': url}
         body = {'params': [
             {'name': 'extra-index-url', 'value': url},
-            {'name': 'convertor_desc', 'value': {'package_name': 'simple_convertor', 'class': 'SimpleConvertor'}},
+            {'name': 'convertor_desc', 'value': class_desc},
             {'name': 'inet_addr', 'value': {'host': '0.0.0.0', 'port': 5000}},
-            {'name': 'is_embedded_channel', 'value': True},
+            {'name': 'is_embedded_channel', 'value': False},
             {'name': 'is_on_demand', 'value': True},
-            {'name': 'count', 'value': 1},
-            {'name': 'size', 'value': 10},
-            {'name': 'period', 'value': 1.0},
+            {'name': 'count', 'value': 3},
+            {'name': 'size', 'value': 4},
+            {'name': 'period', 'value': 1},
             {'name': 'limit', 'value': None},
             {'name': 'timeout', 'value': None},
             {'name': 'overlooker_period', 'value': 4},

@@ -30,7 +30,7 @@ class PeaceSystem:
             performer = head_prime_admin.HeadPrimeAdmin(self, self.host_name, self.process_name)
         else:
             performer = prime_admin.PrimeAdmin(self.host_name, self.process_name)
-        actr = adaptor.Adaptor(self.prefix + 'admin', None, performer)
+        actr = adaptor.Adaptor(None, self.prefix + 'admin', None, performer)
         self.task = asyncio.get_running_loop().create_task(actr.run())
 
     def set_test_error(self, res):

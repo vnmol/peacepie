@@ -40,6 +40,13 @@ class MainOverlooker:
             await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
 
     async def tick(self):
+        max_name = None
+        max_value = 0
+        for value in self.adaptor.parent.actor_admin.actors.values():
+            adaptor = value.get('adaptor')
+            if adaptor.queue.qsize() > max_value:
+                max_name = adaptor.name
+                max_value = adaptor.queue.qsize()
         if not self.is_testing:
             print(self.received_for_the_period / self.overlooker_period, self.adaptor.get_caller_info())
         self.received_for_the_period = 0

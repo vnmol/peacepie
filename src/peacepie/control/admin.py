@@ -1,14 +1,17 @@
 import asyncio
+import logging
 import signal
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_operations
 from peacepie.control import spy, connector
 
-from peacepie.control.actors import actor_admin, actor_seeker
+from peacepie.control.actors import actor_admin, actor_mover, actor_seeker
 from peacepie.control.intra import intra_server, intra_client
 
-ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor', 'get_source_path'}
+
+ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor', 'get_source_path',
+                        'clone_actor', 'move_actor'}
 
 SPY_COMMANDS = {'gather_info', 'get_info', 'info'}
 
@@ -42,6 +45,8 @@ class Admin:
     async def pre_run(self):
         self.spy = spy.Spy(self)
         self.actor_admin = actor_admin.ActorAdmin(self)
+        self.actor_admin.actor_mover = actor_mover.ActorMover(self.actor_admin)
+        asyncio.get_running_loop().create_task(self.actor_admin.actor_mover.run())
         self.connector = connector.Connector(self)
         if self.is_head:
             self.actor_seeker = actor_seeker.HeadActorSeeker(self)
@@ -73,6 +78,8 @@ class Admin:
 
     async def handle(self, msg):
         command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
+        recipient = msg.get('sender')
         if command in ACTOR_ADMIN_COMMANDS:
             await self.actor_admin.handle(msg)
         elif command in SPY_COMMANDS:
@@ -83,6 +90,10 @@ class Admin:
         elif command == 'get_log_desc':
             ans = msg_factory.get_msg('log_desc', self.log_desc, msg['sender'])
             await self.connector.send(self, ans)
+        elif command == 'change_cache':
+            await self.connector.add_to_cache(body.get('node'), [body.get('entity')], True)
+            if recipient:
+                await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
         elif command == 'get_members':
             await self.get_members(msg)
         else:

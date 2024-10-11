@@ -14,21 +14,39 @@ class SimpleWebFace:
         self.http_port = None
         self.runner = None
         self.sockets = []
+        self.is_exiting = False
 
     async def exit(self):
+        self.is_exiting = True
         for ws in self.sockets:
             await ws.close()
             logging.info(f'Websocket({id(ws)}) closed')
-        await self.runner.cleanup()
-        logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+        if self.runner:
+            await self.runner.cleanup()
+            self.runner = None
+            logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
 
     async def handle(self, msg):
         command = msg.get('command')
-        if command == 'start':
+        if command == 'move':
+            await self.move(msg)
+        elif command == 'start':
             await self.start(msg)
+        elif command == 'is_enabled':
+            self.adaptor.is_enabled = True
         else:
             return False
         return True
+
+    async def move(self, msg):
+        recipient = msg.get('sender')
+        addr = msg.get('body')
+        res = await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, addr), 10)
+        if recipient:
+            if res.get('command') == 'started':
+                await self.adaptor.send(self.adaptor.get_msg('actor_is_moved', None, recipient))
+            else:
+                await self.adaptor.send(self.adaptor.get_msg('actor_is_not_moved', None, recipient))
 
     async def start(self, msg):
         self.http_host = self.adaptor.get_param('ip')
@@ -95,7 +113,8 @@ class SimpleWebFace:
                 await ws.send_str(res)
                 logging.debug(f'Sent to websocket({id(ws)}): {res}')
         self.sockets.remove(ws)
-        logging.info(f'Websocket({id(ws)}) closed')
+        if not self.is_exiting:
+            logging.info(f'Websocket({id(ws)}) closed')
         return ws
 
     async def websocket_handle(self, data):
