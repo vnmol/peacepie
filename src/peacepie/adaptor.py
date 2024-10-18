@@ -9,7 +9,7 @@ from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
-                    'set_availability', 'empty'}
+                    'set_availability', 'update_running', 'empty'}
 
 
 class Adaptor:
@@ -52,7 +52,7 @@ class Adaptor:
         await self.is_running_notification()
         while True:
             try:
-                if self.control_queue.empty() and self.is_enabled:
+                if self.control_queue.empty() and self.is_enabled and self.is_running:
                     msg = await self.queue.get()
                 else:
                     msg = await self.control_queue.get()
@@ -116,11 +116,13 @@ class Adaptor:
         elif command == 'not_log_commands_remove':
             await self.not_log_commands_remove(body.get('commands'), sender)
         elif command == 'subscribe':
-            self.subscribe(body.get('command'), msg.get('sender'))
+            self.subscribe(body.get('command'), sender)
         elif command == 'unsubscribe':
-            self.unsubscribe(body.get('command'), msg.get('sender'))
+            self.unsubscribe(body.get('command'), sender)
         elif command == 'set_availability':
-            self.is_enabled = body.get('value')
+            await self.set_availability(body.get('value'), sender)
+        elif command == 'update_running':
+            await self.update_running(body.get('value'), sender)
         elif command == 'empty':
             pass
         else:
@@ -197,6 +199,16 @@ class Adaptor:
         res = self.observers.get(command)
         if res:
             res.remove(sender)
+
+    async def set_availability(self, value, recipient):
+        self.is_enabled = value
+        if recipient:
+            await self.send(self.get_msg('availability_is_set', recipient=recipient))
+
+    async def update_running(self, value, recipient):
+        self.is_running = value
+        if recipient:
+            await self.send(self.get_msg('running_flag_updated', recipient=recipient))
 
     async def notify(self, msg):
         res = self.observers.get(msg.get('command'))

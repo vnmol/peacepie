@@ -144,14 +144,14 @@ class IntraClient(IntraLink):
         self.parent.connector.asks[entity] = queue
         await self.links[self.head].put(msg)
         if msg.get('command') not in self.parent.adaptor.not_log_commands:
-            logging.debug(log_util.async_ask_log(self, msg))
+            logging.debug(log_util.sync_ask_log(self, msg))
         timer.start(2, queue, msg['mid'])
         ans = await queue.get()
         command = ans.get('command')
         if command == 'timeout':
             logging.warning(log_util.async_received_log(self, ans))
         elif command not in self.parent.adaptor.not_log_commands:
-            logging.debug(log_util.async_received_log(self, ans))
+            logging.debug(log_util.sync_received_log(self, ans))
         if entity is not None:
             del self.parent.connector.asks[entity]
         return ans

@@ -176,8 +176,8 @@ class Connector:
 
     async def find(self, sender, name):
         res = None
-        msg = msg_factory.get_msg('seek_actor', {'name': name})
-        ans = await self.ask(sender, msg)
+        msg = msg_factory.get_msg('seek_actor', {'name': name}, self.parent.adaptor.get_head_addr())
+        ans = await self.ask(sender, msg, 2)
         if ans['command'] == 'actor_found':
             res = await self.parent.intralink.get_intra_queue(ans['body']['node'])
             if res:

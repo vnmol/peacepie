@@ -1,0 +1,5 @@
+from simple_actor_move_testing.generator import Generator
+from simple_actor_move_testing.consumer import Consumer
+from simple_actor_move_testing.major import Major
+from simple_actor_move_testing.junior import Junior
+

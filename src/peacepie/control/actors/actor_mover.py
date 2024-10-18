@@ -39,20 +39,25 @@ class ActorMover:
         recipient = msg.get('sender')
         body = msg.get('body') if msg.get('body') else {}
         node = body.get('node')
-        name = body.get('name')
+        name = body.get('entity')
         actor = self.parent.actors.get(name)
         if not actor:
             if recipient:
-                await self.grandparent.connector.send(self, msg_factory.get_msg('is_not_moved', None, recipient))
+                await self.grandparent.connector.send(self, msg_factory.get_msg('actor_is_not_moved', None, recipient))
             return
         adaptor = actor.get('adaptor')
+        ans = await self.grandparent.connector.ask(self, msg_factory.get_control_msg('is_ready_to_move', None, adaptor.name))
+        if ans.get('command') != 'ready':
+            if recipient:
+                await self.grandparent.connector.send(self, msg_factory.get_msg('actor_is_not_moved', None, recipient))
+            return
         body = {'class_desc': adaptor.class_desc, 'name': adaptor.name}
         ans = await self.grandparent.connector.ask(self, msg_factory.get_msg('clone_actor', body, node), 10)
         if ans.get('command') != 'actor_is_created':
             if recipient:
                 await self.grandparent.connector.send(self, msg_factory.get_msg('actor_is_not_moved', None, recipient))
             return
-        await self.grandparent.connector.send(self, msg_factory.get_msg('set_availability', {'value': False}, name))
+        await self.grandparent.connector.ask(self, msg_factory.get_control_msg('update_running', {'value': False}, name))
         if hasattr(adaptor.performer, 'exit'):
             try:
                 await adaptor.performer.exit()
@@ -60,7 +65,7 @@ class ActorMover:
                 logging.exception(ex)
         await self.grandparent.connector.add_to_cache(node, [name])
         new_addr = {'node': node, 'entity': name}
-        query = msg_factory.get_msg('change_cache', new_addr, self.grandparent.adaptor.get_head_addr())
+        query = msg_factory.get_msg('change_caches', new_addr, self.grandparent.adaptor.get_head_addr())
         await self.grandparent.connector.ask(self, query, 10)
         old_addr = {'node': self.grandparent.adaptor.name, 'entity': name}
         await self.grandparent.connector.ask(self, msg_factory.get_control_msg('move', new_addr, old_addr), 10)
@@ -72,4 +77,5 @@ class ActorMover:
         await self.parent.removing_actor(name)
         await self.grandparent.connector.send(self, msg_factory.get_control_msg('set_availability', {'value': True}, name))
         if recipient:
+            print(name, self.parent.parent.adaptor.get_caller_info())
             await self.grandparent.adaptor.send(self.grandparent.adaptor.get_msg('actor_is_moved', None, recipient))

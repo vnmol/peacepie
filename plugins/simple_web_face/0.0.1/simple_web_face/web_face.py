@@ -28,25 +28,26 @@ class SimpleWebFace:
 
     async def handle(self, msg):
         command = msg.get('command')
-        if command == 'move':
-            await self.move(msg)
+        body = msg.get('body') if msg.get('body') else {}
+        sender = msg.get('sender')
+        if command == 'is_ready_to_move':
+            await self.is_ready_to_move(sender)
+        elif command == 'move':
+            await self.move(body, sender)
         elif command == 'start':
             await self.start(msg)
-        elif command == 'is_enabled':
-            self.adaptor.is_enabled = True
         else:
             return False
         return True
 
-    async def move(self, msg):
-        recipient = msg.get('sender')
-        addr = msg.get('body')
-        res = await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, addr), 10)
+    async def is_ready_to_move(self, recipient):
         if recipient:
-            if res.get('command') == 'started':
-                await self.adaptor.send(self.adaptor.get_msg('actor_is_moved', None, recipient))
-            else:
-                await self.adaptor.send(self.adaptor.get_msg('actor_is_not_moved', None, recipient))
+            await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
+
+    async def move(self, clone_addr, recipient):
+        res = await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, clone_addr), 10)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))
 
     async def start(self, msg):
         self.http_host = self.adaptor.get_param('ip')

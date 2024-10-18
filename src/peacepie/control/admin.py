@@ -79,7 +79,7 @@ class Admin:
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
-        recipient = msg.get('sender')
+        sender = msg.get('sender')
         if command in ACTOR_ADMIN_COMMANDS:
             await self.actor_admin.handle(msg)
         elif command in SPY_COMMANDS:
@@ -88,17 +88,20 @@ class Admin:
             msg['recipient'] = self.actor_seeker.queue
             await self.connector.send(self, msg)
         elif command == 'get_log_desc':
-            ans = msg_factory.get_msg('log_desc', self.log_desc, msg['sender'])
+            ans = msg_factory.get_msg('log_desc', self.log_desc, sender)
             await self.connector.send(self, ans)
         elif command == 'change_cache':
-            await self.connector.add_to_cache(body.get('node'), [body.get('entity')], True)
-            if recipient:
-                await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
+            await self.change_cache(body, sender)
         elif command == 'get_members':
             await self.get_members(msg)
         else:
             return False
         return True
+
+    async def change_cache(self, body, recipient):
+        await self.connector.add_to_cache(body.get('node'), [body.get('entity')], True)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
 
     async def get_members(self, msg):
         body = msg.get('body')

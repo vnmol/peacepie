@@ -106,7 +106,7 @@ class HeadActorSeeker:
     async def find_actor(self, msg):
         name = msg['body']['name']
         res = self.parent.actor_admin.actors.get(name)
-        if not res or not res.get('adaptor').is_enabled:
+        if not res or not res.get('adaptor').is_running:
             return False
         body = {'node': self.parent.adaptor.name, 'entity': name}
         message = msg_factory.get_msg('actor_found', body, recipient=msg['sender'])
