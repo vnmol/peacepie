@@ -1,5 +1,7 @@
 import logging
 import os
+import time
+
 from aiohttp import web, WSMsgType
 
 from simple_web_face import html_addons
@@ -31,7 +33,7 @@ class SimpleWebFace:
         body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
         if command == 'is_ready_to_move':
-            await self.is_ready_to_move(sender)
+            await self.is_ready_to_move(body.get('tm'), sender)
         elif command == 'move':
             await self.move(body, sender)
         elif command == 'start':
@@ -40,12 +42,12 @@ class SimpleWebFace:
             return False
         return True
 
-    async def is_ready_to_move(self, recipient):
+    async def is_ready_to_move(self, tm, recipient):
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
 
     async def move(self, clone_addr, recipient):
-        res = await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, clone_addr), 10)
+        await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, clone_addr), 10)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))
 

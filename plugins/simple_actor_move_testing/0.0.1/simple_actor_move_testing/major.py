@@ -52,6 +52,8 @@ class Major:
         query = self.adaptor.get_msg('create_process')
         nodes = [(await self.adaptor.ask(query, 4)).get('body').get('node') for _ in range(self.junior_count)]
         nodes.insert(0, self.adaptor.get_node())
+        for node in nodes:
+            await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['tick', 'beat']}, node))
         self.junior_count += 1
         names = [f'junior_{index}' for index, _ in enumerate(nodes)]
         class_desc = {'package_name': 'simple_actor_move_testing', 'class': 'Junior'}

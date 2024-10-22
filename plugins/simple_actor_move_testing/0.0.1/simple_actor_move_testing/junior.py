@@ -63,6 +63,7 @@ class Junior:
             {'name': 'limits', 'value': {name: self.gen_limit for name in names}}
         ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, consumer))
+        # await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['beat']}, consumer))
         self.performers = list(names)
         self.performers.append(consumer)
         node_index = self.nodes.index(self.adaptor.get_node())
@@ -81,6 +82,10 @@ class Junior:
         ]}
         await self.adaptor.group_ask(
             10, len(names), lambda index: {'command': 'set_params', 'body': body, 'recipient': names[index]})
+        '''
+        for name in names:
+            await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['tick', 'beat']}, name))
+        '''
         for name in names:
             await self.adaptor.send(self.adaptor.get_msg('start', None, name))
         self.ticker = self.adaptor.add_ticker(self.junior_period, self.junior_period)

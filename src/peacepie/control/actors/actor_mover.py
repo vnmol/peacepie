@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from peacepie import msg_factory
 from peacepie.assist import log_util, timer
@@ -46,18 +47,21 @@ class ActorMover:
                 await self.grandparent.connector.send(self, msg_factory.get_msg('actor_is_not_moved', None, recipient))
             return
         adaptor = actor.get('adaptor')
+        adaptor.is_running = False
+        await self.grandparent.connector.send(self, msg_factory.get_msg('empty', None, adaptor.name))
         ans = await self.grandparent.connector.ask(self, msg_factory.get_control_msg('is_ready_to_move', None, adaptor.name))
         if ans.get('command') != 'ready':
+            adaptor.is_running = True
             if recipient:
                 await self.grandparent.connector.send(self, msg_factory.get_msg('actor_is_not_moved', None, recipient))
             return
         body = {'class_desc': adaptor.class_desc, 'name': adaptor.name}
         ans = await self.grandparent.connector.ask(self, msg_factory.get_msg('clone_actor', body, node), 10)
         if ans.get('command') != 'actor_is_created':
+            adaptor.is_running = True
             if recipient:
                 await self.grandparent.connector.send(self, msg_factory.get_msg('actor_is_not_moved', None, recipient))
             return
-        await self.grandparent.connector.ask(self, msg_factory.get_control_msg('update_running', {'value': False}, name))
         if hasattr(adaptor.performer, 'exit'):
             try:
                 await adaptor.performer.exit()
@@ -69,6 +73,9 @@ class ActorMover:
         await self.grandparent.connector.ask(self, query, 10)
         old_addr = {'node': self.grandparent.adaptor.name, 'entity': name}
         await self.grandparent.connector.ask(self, msg_factory.get_control_msg('move', new_addr, old_addr), 10)
+        if adaptor.not_log_commands:
+            await self.grandparent.connector.send(
+                self, msg_factory.get_control_msg('not_log_commands_set', {'commands': list(adaptor.not_log_commands)}, name))
         while not adaptor.queue.empty():
             parcel = await adaptor.queue.get()
             parcel['recipient'] = name
@@ -77,5 +84,4 @@ class ActorMover:
         await self.parent.removing_actor(name)
         await self.grandparent.connector.send(self, msg_factory.get_control_msg('set_availability', {'value': True}, name))
         if recipient:
-            print(name, self.parent.parent.adaptor.get_caller_info())
             await self.grandparent.adaptor.send(self.grandparent.adaptor.get_msg('actor_is_moved', None, recipient))

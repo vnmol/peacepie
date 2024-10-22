@@ -36,13 +36,15 @@ class Consumer:
         gen = body.get('gen')
         limit = body.get('limit')
         if self.limits.get(gen) - limit != 1:
-            print(self.adaptor.get_caller_info())
+            pass
+            # print(gen, limit, self.limits.get(gen), self.adaptor.get_caller_info())
         self.limits[gen] = limit
         if all(value == 0 for value in self.limits.values()):
             await self.adaptor.send(self.adaptor.get_msg('extra_beat', {'source': self.adaptor.name}, self.parent))
 
     async def is_ready_to_move(self, recipient):
-        await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
 
     async def move(self, clone_addr, recipient):
         body = {'params': [

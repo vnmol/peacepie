@@ -168,9 +168,12 @@ class Connector:
         asyncio.get_running_loop().create_task(self._find_and_send(sender, msg))
 
     async def _find_and_send(self, sender, msg):
+        # print('*' * 32)
+        # print(msg)
         recipient = await self.find(sender, msg['recipient'])
         if not recipient:
             return
+        # print(msg)
         await recipient.put(msg)
         logging.debug(log_util.sync_sent_log(sender, msg))
 

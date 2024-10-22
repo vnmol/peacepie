@@ -361,30 +361,3 @@ class Adaptor:
         if not queue:
             queue = self.queue
         timer.start(timeout, queue, mid)
-
-'''
-                if self.semaphore:
-                    await self.semaphore.get('up').put(self.get_msg('empty'))
-                    res = await self.semaphore.get('down').get()
-                    if res.get('command') == 'exit':
-                        break
-                    else:
-                        self.semaphore = None
-                msg = await self.queue.get()
-                command = msg.get('command')
-                if temporary:
-                    if command == 'clone_message':
-                        msg = msg.get('body')
-                        if not msg:
-                            while not self.queue.empty():
-                                temporary.put_nowait(self.queue.get_nowait())
-                            while not temporary.empty():
-                                self.queue.put_nowait(temporary.get_nowait())
-                            temporary = None
-                            self.is_enabled = True
-                            msg = self.queue.get_nowait()
-                        command = msg.get('command')
-                    else:
-                        await temporary.put(msg)
-                        continue
-'''

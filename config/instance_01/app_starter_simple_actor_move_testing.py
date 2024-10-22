@@ -13,7 +13,7 @@ class AppStarter:
         return True
 
     async def start(self):
-        await self.web_face()
+        # await self.web_face()
         await self.major()
 
     async def web_face(self):
@@ -27,11 +27,11 @@ class AppStarter:
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
         body = {'params': [
             {'name': 'major_timeout', 'value': 60},
-            {'name': 'junior_count', 'value': 4},
+            {'name': 'junior_count', 'value': 2},
             {'name': 'junior_period', 'value': 3},
-            {'name': 'gen_count', 'value': 10},
-            {'name': 'gen_period', 'value': 0.1},
-            {'name': 'gen_limit', 'value': 100},
+            {'name': 'gen_count', 'value': 1},
+            {'name': 'gen_period', 'value': 0.01},
+            {'name': 'gen_limit', 'value': 300},
             {'name': 'does_gen_ask', 'value': False}
         ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
