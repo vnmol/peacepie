@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from datetime import datetime
 
 from peacepie import msg_factory
 from peacepie.assist import log_util, timer
@@ -67,7 +68,7 @@ class ActorMover:
                 await adaptor.performer.exit()
             except Exception as ex:
                 logging.exception(ex)
-        await self.grandparent.connector.add_to_cache(node, [name])
+        await self.grandparent.add_to_cache(node, [name])
         new_addr = {'node': node, 'entity': name}
         query = msg_factory.get_msg('change_caches', new_addr, self.grandparent.adaptor.get_head_addr())
         await self.grandparent.connector.ask(self, query, 10)

@@ -32,6 +32,9 @@ class Admin:
         self.adaptor = None
         self.actor_admin = None
         self.connector = None
+        self.asks = {}
+        self.ask_index = 0
+        self.cache = {}
         self.intralink = None
         self.actor_seeker = None
         self.spy = None
@@ -99,9 +102,43 @@ class Admin:
         return True
 
     async def change_cache(self, body, recipient):
-        await self.connector.add_to_cache(body.get('node'), [body.get('entity')], True)
+        await self.add_to_cache(body.get('node'), [body.get('entity')], True)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
+
+    async def add_to_cache(self, node, names, is_exists = False):
+        if self.adaptor.name == node:
+            for name in names:
+                if self.cache.get(name):
+                    del self.cache[name]
+            return
+        queue = await self.intralink.get_intra_queue(node)
+        if not queue:
+            return
+        for name in names:
+            if is_exists and not self.cache.get(name):
+                continue
+            self.cache[name] = queue
+
+    async def try_put_to_cache(self, msg):
+        command = msg.get('command')
+        if not command:
+            return
+        if command not in ['actor_is_created']:
+            return
+        body = msg.get('body')
+        if not body:
+            return
+        system = body.get('system')
+        if system and system != params.instance.get('system_name'):
+            return
+        node = body.get('node')
+        if not node or node == self.adaptor.name:
+            return
+        entity = body.get('entity')
+        if not entity:
+            return
+        await self.add_to_cache(node, [entity])
 
     async def get_members(self, msg):
         body = msg.get('body')

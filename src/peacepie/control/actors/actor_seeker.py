@@ -87,9 +87,9 @@ class HeadActorSeeker:
         if await self.find_actor(msg):
             return
         queue = asyncio.Queue()
-        entity = f'_{self.parent.connector.ask_index}'
-        self.parent.connector.ask_index += 1
-        self.parent.connector.asks[entity] = queue
+        entity = f'_{self.parent.ask_index}'
+        self.parent.ask_index += 1
+        self.parent.asks[entity] = queue
         sender = {'node': self.parent.adaptor.name, 'entity': entity}
         message = msg_factory.get_msg('find_actor', msg['body'], sender=sender)
         for recipient in self.parent.intralink.get_recipients():
@@ -97,7 +97,7 @@ class HeadActorSeeker:
             self.logger.debug(log_util.sync_ask_log(self, message))
         timer.start(1, queue, message['mid'])
         res = await queue.get()
-        del self.parent.connector.asks[entity]
+        del self.parent.asks[entity]
         if res['command'] == 'tick':
             return
         res['recipient'] = msg['sender']

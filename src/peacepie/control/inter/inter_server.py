@@ -59,7 +59,7 @@ class InterServer:
         peer = writer.get_extra_info('socket').getpeername()
         logging.warning(log_util.get_alias(self) + f' Channel to ({peer[0]}, {peer[1]}) is opened')
         serializer = serialization.Serializer()
-        body = self.parent.connector.get_addr(self.system_name, self.parent.adaptor.name, None)
+        body = self.parent.adaptor.get_addr(self.system_name, self.parent.adaptor.name, None)
         msg = msg_factory.get_msg('inter_link', body)
         writer.write(serializer.serialize(msg))
         await writer.drain()
@@ -164,7 +164,7 @@ class InterServer:
         system_addr = msg.get('body')
         system_name = system_addr.get('system')
         self.links[system_name] = res
-        body = self.parent.connector.get_addr(self.system_name, self.parent.adaptor.name, None)
+        body = self.parent.adaptor.get_addr(self.system_name, self.parent.adaptor.name, None)
         ans = msg_factory.get_msg('inter_linked', body)
         await res.put(ans)
         logging.debug(log_util.sync_sent_log(self, ans))
@@ -186,7 +186,7 @@ class InterServer:
         res = self.links.get(msg['recipient'].get('system'))
         if msg.get('sender'):
             if res:
-                msg['sender'] = self.parent.connector.add_system(msg['sender'], self.system_name)
+                msg['sender'] = self.parent.adaptor.add_system(msg['sender'], self.system_name)
             else:
                 ans = msg_factory.get_msg('system_is_not_registered', recipient=msg['sender'])
                 await self.parent.adaptor.send(ans, self)
@@ -206,7 +206,7 @@ class InterServer:
         if type(recipient) is not str:
             return None
         if recipient.startswith('_'):
-            res = self.parent.connector.asks[recipient]
+            res = self.parent.asks[recipient]
             return res
         else:
             if recipient == self.parent.adaptor.name:

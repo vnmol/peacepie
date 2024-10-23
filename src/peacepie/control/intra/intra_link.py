@@ -42,7 +42,7 @@ class IntraLink:
         if type(recipient) is not str:
             return None
         if recipient.startswith('_'):
-            res = self.parent.connector.asks[recipient]
+            res = self.parent.asks[recipient]
             return res
         else:
             if recipient == self.parent.adaptor.name:

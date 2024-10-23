@@ -262,52 +262,16 @@ class Adaptor:
         self.ticker_admin.remove_ticker(name)
 
     async def get_queue(self, addr):
-        return await self.parent.connector.get_queue(addr)
-
-    def get_node(self):
-        if self.parent:
-            return self.parent.adaptor.name
-        else:
-            return self.name
-
-    def get_self_addr(self):
-        if self.parent:
-            return self.get_addr(None, self.parent.adaptor.name, self.name)
-        else:
-            return self.get_addr(None, self.name, None)
+        res = None
+        if isinstance(addr, str):
+            res = self.parent.actor_admin.get_actor_queue(addr)
+        return res
 
     def get_param(self, param_name):
         return params.instance.get(param_name)
 
     def get_test_param(self, param_name):
         return params.test_instance.get(param_name)
-
-    def get_addr(self, system, node, entity):
-        if self.parent:
-            return self.parent.connector.get_addr(system, node, entity)
-        else:
-            return self.performer.connector.get_addr(system, node, entity)
-
-    def get_head_name(self):
-        return self.parent.connector.get_head_name()
-
-    def get_head_addr(self):
-        if self.parent:
-            return self.parent.connector.get_head_addr()
-        else:
-            return self.performer.connector.get_head_addr()
-
-    def get_prime_name(self):
-        if self.parent:
-            return self.parent.connector.get_prime_name()
-        else:
-            return self.performer.connector.get_prime_name()
-
-    def get_prime_addr(self):
-        if self.parent:
-            return self.parent.connector.get_prime_addr()
-        else:
-            return self.performer.connector.get_prime_addr()
 
     def get_serializer(self):
         return serialization.Serializer()
@@ -342,9 +306,6 @@ class Adaptor:
     def series_next(self, name):
         return series_admin.instance.next(name)
 
-    async def add_to_cache(self, node, names):
-        await self.parent.connector.add_to_cache(node, names)
-
     def get_caller_info(self):
         caller_frame = inspect.currentframe().f_back
         caller_info = inspect.getframeinfo(caller_frame)
@@ -361,3 +322,51 @@ class Adaptor:
         if not queue:
             queue = self.queue
         timer.start(timeout, queue, mid)
+
+    def get_head_name(self):
+        if self.parent:
+            if self.parent.intralink.head:
+                return self.parent.intralink.head
+            else:
+                return self.parent.adaptor.name
+        else:
+            if self.performer.intralink.head:
+                return self.performer.intralink.head
+            else:
+                return self.name
+
+    def get_prime_name(self):
+        if self.parent:
+            if self.parent.lord:
+                return self.parent.lord
+            else:
+                return self.parent.adaptor.name
+        else:
+            return self.name
+
+    def get_addr(self, system, node, entity):
+        if system:
+            return {'system': system, 'node': node, 'entity': entity}
+        else:
+            return {'node': node, 'entity': entity}
+
+    def add_system(self, addr, system_name):
+        return self.get_addr(system_name, addr['node'], addr['entity'])
+
+    def get_head_addr(self):
+        return self.get_addr(None, self.get_head_name(), None)
+
+    def get_prime_addr(self):
+        return self.get_addr(None, self.get_prime_name(), None)
+
+    def get_self_addr(self):
+        if self.parent:
+            return self.get_addr(None, self.parent.adaptor.name, self.name)
+        else:
+            return self.get_addr(None, self.name, None)
+
+    def get_node(self):
+        if self.parent:
+            return self.parent.adaptor.name
+        else:
+            return self.name

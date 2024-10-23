@@ -11,9 +11,6 @@ class Connector:
 
     def __init__(self, parent):
         self.parent = parent
-        self.asks = {}
-        self.ask_index = 0
-        self.cache = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
     async def clarify_recipient(self, recipient, is_control=False):
@@ -25,7 +22,7 @@ class Connector:
         if type(recipient) is dict:
             system_name = recipient.get('system')
             if system_name and system_name != params.instance.get('system_name'):
-                head = self.get_head_name()
+                head = self.parent.adaptor.get_head_name()
                 if head == self.parent.adaptor.name:
                     return self.parent.interlink.queue
                 else:
@@ -47,9 +44,9 @@ class Connector:
                 else:
                     return self.parent.adaptor.queue
             elif recipient.startswith('_'):
-                return self.asks.get(recipient)
+                return self.parent.asks.get(recipient)
             else:
-                res = self.cache.get(recipient)
+                res = self.parent.cache.get(recipient)
                 if not res:
                     res = self.parent.actor_admin.get_actor_queue(recipient, is_control)
                 if not res:
@@ -90,10 +87,10 @@ class Connector:
                 return
         msg['timeout'] = timeout
         queue = asyncio.Queue()
-        entity = f'_{self.ask_index}'
-        self.ask_index += 1
+        entity = f'_{self.parent.ask_index}'
+        self.parent.ask_index += 1
         msg['sender'] = {'node': self.parent.adaptor.name, 'entity': entity}
-        self.asks[entity] = queue
+        self.parent.asks[entity] = queue
         if not (isinstance(recipient, str) or isinstance(recipient, dict)):
             msg['recipient'] = None
         await res.put(msg)
@@ -104,14 +101,14 @@ class Connector:
             logging.warning(log_util.async_received_log(questioner, ans))
         else:
             self.answer_on_ask_log(questioner, ans)
-        del self.asks[entity]
+        del self.parent.asks[entity]
         return ans
 
     async def group_ask(self, questioner, timeout, count, get_values):
-        entity = f'_{self.ask_index}'
-        self.ask_index += 1
+        entity = f'_{self.parent.ask_index}'
+        self.parent.ask_index += 1
         queue = asyncio.Queue()
-        self.asks[entity] = queue
+        self.parent.asks[entity] = queue
         sender = {'node': self.parent.adaptor.name, 'entity': entity}
         waiting_count = count
         group_mid = msg_factory.get_group_mid()
@@ -136,12 +133,12 @@ class Connector:
             ans = await queue.get()
             waiting_count -= 1
             if ans.get('command') == 'timer':
-                del self.asks[entity]
+                del self.parent.asks[entity]
                 return ans
             else:
-                await self.try_put_to_cache(ans)
+                await self.parent.try_put_to_cache(ans)
                 self.answer_on_ask_log(questioner, ans)
-        del self.asks[entity]
+        del self.parent.asks[entity]
         return msg_factory.get_msg('group_ask_completed')
 
     def ask_log(self, questioner, is_local, msg):
@@ -168,12 +165,9 @@ class Connector:
         asyncio.get_running_loop().create_task(self._find_and_send(sender, msg))
 
     async def _find_and_send(self, sender, msg):
-        # print('*' * 32)
-        # print(msg)
         recipient = await self.find(sender, msg['recipient'])
         if not recipient:
             return
-        # print(msg)
         await recipient.put(msg)
         logging.debug(log_util.sync_sent_log(sender, msg))
 
@@ -184,75 +178,7 @@ class Connector:
         if ans['command'] == 'actor_found':
             res = await self.parent.intralink.get_intra_queue(ans['body']['node'])
             if res:
-                self.cache[name] = res
+                self.parent.cache[name] = res
             else:
                 logging.warning(f'The actor "{name}" is not found')
         return res
-
-    def get_addr(self, system, node, entity):
-        if system:
-            return {'system': system, 'node': node, 'entity': entity}
-        else:
-            return {'node': node, 'entity': entity}
-
-    def add_system(self, addr, system_name):
-        return self.get_addr(system_name, addr['node'], addr['entity'])
-
-    def get_head_name(self):
-        if self.parent.intralink.head:
-            return self.parent.intralink.head
-        else:
-            return self.parent.adaptor.name
-
-    def get_head_addr(self):
-        return self.get_addr(None, self.get_head_name(), None)
-
-    def get_prime_name(self):
-        if self.parent.lord:
-            return self.parent.lord
-        else:
-            return self.parent.adaptor.name
-
-    def get_prime_addr(self):
-        return self.get_addr(None, self.get_prime_name(), None)
-
-    async def get_queue(self, addr):
-        res = None
-        if isinstance(addr, str):
-            res = self.parent.actor_admin.get_actor_queue(addr)
-        return res
-
-    async def add_to_cache(self, node, names, is_exists = False):
-        if self.parent.adaptor.name == node:
-            for name in names:
-                if self.cache.get(name):
-                    del self.cache[name]
-            return
-        queue = await self.parent.intralink.get_intra_queue(node)
-        if not queue:
-            return
-        for name in names:
-            if is_exists and not self.cache.get(name):
-                continue
-            self.cache[name] = queue
-
-    async def try_put_to_cache(self, msg):
-        command = msg.get('command')
-        if not command:
-            return
-        if command not in ['actor_is_created']:
-            return
-        body = msg.get('body')
-        if not body:
-            return
-        system = body.get('system')
-        if system and system != params.instance.get('system_name'):
-            return
-        node = body.get('node')
-        if not node or node == self.parent.adaptor.name:
-            return
-        entity = body.get('entity')
-        if not entity:
-            return
-        await self.add_to_cache(node, [entity])
-

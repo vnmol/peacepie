@@ -30,8 +30,8 @@ class AppStarter:
             {'name': 'junior_count', 'value': 2},
             {'name': 'junior_period', 'value': 3},
             {'name': 'gen_count', 'value': 1},
-            {'name': 'gen_period', 'value': 0.01},
-            {'name': 'gen_limit', 'value': 300},
+            {'name': 'gen_period', 'value': 1},
+            {'name': 'gen_limit', 'value': 10},
             {'name': 'does_gen_ask', 'value': False}
         ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))

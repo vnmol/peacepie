@@ -63,7 +63,7 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
     async def change_caches(self, msg):
         recipient = msg.get('sender')
         body = msg.get('body') if msg.get('body') else {}
-        await self.connector.add_to_cache(body.get('node'), [body.get('entity')], True)
+        await self.add_to_cache(body.get('node'), [body.get('entity')], True)
         links = [link for link in self.intralink.links]
         await self.adaptor.group_ask(10, len(links),
                                      lambda index: {'command': 'change_cache', 'body': body,

@@ -137,11 +137,11 @@ class IntraClient(IntraLink):
         return self.links.get(name)
 
     async def ask(self, msg):
-        entity = f'_{self.parent.connector.ask_index}'
-        self.parent.connector.ask_index += 1
+        entity = f'_{self.parent.ask_index}'
+        self.parent.ask_index += 1
         msg['sender'] = {'node': self.parent.adaptor.name, 'entity': entity}
         queue = asyncio.Queue()
-        self.parent.connector.asks[entity] = queue
+        self.parent.asks[entity] = queue
         await self.links[self.head].put(msg)
         if msg.get('command') not in self.parent.adaptor.not_log_commands:
             logging.debug(log_util.sync_ask_log(self, msg))
@@ -153,5 +153,5 @@ class IntraClient(IntraLink):
         elif command not in self.parent.adaptor.not_log_commands:
             logging.debug(log_util.sync_received_log(self, ans))
         if entity is not None:
-            del self.parent.connector.asks[entity]
+            del self.parent.asks[entity]
         return ans
