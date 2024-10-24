@@ -13,20 +13,11 @@ class AppStarter:
         return True
 
     async def start(self):
-        # await self.web_face()
-        await self.major()
-
-    async def web_face(self):
-        body = {'class_desc': {'package_name': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
-        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
-        await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
-
-    async def major(self):
         name = 'major'
         body = {'class_desc': {'package_name': 'simple_actor_move_testing', 'class': 'Major'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), timeout=30)
         body = {'params': [
-            {'name': 'major_timeout', 'value': 60},
+            {'name': 'major_timeout', 'value': 30},
             {'name': 'junior_count', 'value': 4},
             {'name': 'junior_period', 'value': 3},
             {'name': 'gen_count', 'value': 10},

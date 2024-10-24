@@ -1,10 +1,9 @@
 import asyncio
-import logging
 import signal
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_operations
-from peacepie.control import spy, connector
+from peacepie.control import spy
 
 from peacepie.control.actors import actor_admin, actor_mover, actor_seeker
 from peacepie.control.intra import intra_server, intra_client
@@ -31,7 +30,6 @@ class Admin:
         self.log_desc = log_desc
         self.adaptor = None
         self.actor_admin = None
-        self.connector = None
         self.asks = {}
         self.ask_index = 0
         self.cache = {}
@@ -50,7 +48,6 @@ class Admin:
         self.actor_admin = actor_admin.ActorAdmin(self)
         self.actor_admin.actor_mover = actor_mover.ActorMover(self.actor_admin)
         asyncio.get_running_loop().create_task(self.actor_admin.actor_mover.run())
-        self.connector = connector.Connector(self)
         if self.is_head:
             self.actor_seeker = actor_seeker.HeadActorSeeker(self)
             self.intralink = intra_server.IntraServer(self)
@@ -89,10 +86,10 @@ class Admin:
             self.spy.handle(msg)
         elif command in ACTOR_SEEKER_COMMANDS:
             msg['recipient'] = self.actor_seeker.queue
-            await self.connector.send(self, msg)
+            await self.adaptor.send(msg)
         elif command == 'get_log_desc':
             ans = msg_factory.get_msg('log_desc', self.log_desc, sender)
-            await self.connector.send(self, ans)
+            await self.adaptor.send(ans)
         elif command == 'change_cache':
             await self.change_cache(body, sender)
         elif command == 'get_members':

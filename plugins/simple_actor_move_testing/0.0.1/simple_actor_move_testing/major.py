@@ -50,7 +50,7 @@ class Major:
 
     async def start(self):
         query = self.adaptor.get_msg('create_process')
-        nodes = [(await self.adaptor.ask(query, 4)).get('body').get('node') for _ in range(self.junior_count)]
+        nodes = [(await self.adaptor.ask(query, timeout=4)).get('body').get('node') for _ in range(self.junior_count)]
         nodes.insert(0, self.adaptor.get_node())
         for node in nodes:
             await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['tick', 'beat']}, node))
@@ -77,7 +77,9 @@ class Major:
         self.adaptor.start_timer(self.major_timeout)
 
     async def timer(self):
-        await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
+        head = self.adaptor.get_head_addr()
+        await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}, head))
+        await self.adaptor.send(self.adaptor.get_msg('exit', None, head))
 
     async def extra_beat(self):
         self.beat_count += 1

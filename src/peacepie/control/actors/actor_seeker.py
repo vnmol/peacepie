@@ -38,10 +38,10 @@ class ActorSeeker:
     async def seek_actor(self, msg):
         sender = msg['sender']
         msg['recipient'] = {'node': self.parent.intralink.head, 'entity': None}
-        ans = await self.parent.connector.ask(self, msg)
+        ans = await self.parent.adaptor.ask(msg, questioner=self)
         if ans:
             ans['recipient'] = sender
-            await self.parent.connector.send(self, ans)
+            await self.parent.adaptor.send(ans, self)
 
     async def find_actor(self, msg):
         name = msg['body']['name']
@@ -50,7 +50,7 @@ class ActorSeeker:
             return
         body = {'node': self.parent.adaptor.name, 'entity': name}
         message = msg_factory.get_msg('actor_found', body, recipient=msg['sender'])
-        await self.parent.connector.send(self, message)
+        await self.parent.adaptor.send(message, self)
 
 
 class HeadActorSeeker:
@@ -101,7 +101,7 @@ class HeadActorSeeker:
         if res['command'] == 'tick':
             return
         res['recipient'] = msg['sender']
-        await self.parent.connector.send(self, res)
+        await self.parent.adaptor.send(res, self)
 
     async def find_actor(self, msg):
         name = msg['body']['name']
@@ -110,5 +110,5 @@ class HeadActorSeeker:
             return False
         body = {'node': self.parent.adaptor.name, 'entity': name}
         message = msg_factory.get_msg('actor_found', body, recipient=msg['sender'])
-        await self.parent.connector.send(self, message)
+        await self.parent.adaptor.send(message, self)
         return True

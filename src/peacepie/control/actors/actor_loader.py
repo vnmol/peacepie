@@ -44,7 +44,7 @@ class ActorLoader:
     async def get_class(self, msg):
         clss = await self._get_class(msg)
         ans = msg_factory.get_msg('class', clss, recipient=msg.get('sender'))
-        await self.parent.parent.connector.send(self, ans)
+        await self.parent.parent.adaptor.send(ans, self)
 
     async def create_actor(self, msg):
         body = msg.get('body') if msg.get('body') else {}
@@ -52,7 +52,7 @@ class ActorLoader:
         name = body.get('name')
         if self.parent.actors.get(name):
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
-            await self.parent.parent.connector.send(self, answer)
+            await self.parent.parent.adaptor.send(answer, self)
             return
         clss = await self._get_class(msg)
         try:
@@ -62,7 +62,7 @@ class ActorLoader:
         except Exception as e:
             logging.exception(e)
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
-            await self.parent.parent.connector.send(self, answer)
+            await self.parent.parent.adaptor.send(answer, self)
             return
         task = asyncio.get_running_loop().create_task(adptr.run())
         self.parent.actors[name] = {'adaptor': adptr, 'task': task}
@@ -105,13 +105,13 @@ class ActorLoader:
             return
         self.parent.actors.update(actors)
         ans = msg_factory.get_msg('actors_are_created', self.parent.parent.adaptor.name, msg.get('sender'))
-        await self.parent.parent.connector.send(self, ans)
+        await self.parent.parent.adaptor.send(ans, self)
 
     async def clear(self, actors, recipient):
         for actor in actors:
             actor['task'].cancel()
         ans = msg_factory.get_msg('actors_are_not_created', recipient=recipient)
-        await self.parent.parent.connector.send(self, ans)
+        await self.parent.parent.adaptor.send(ans, self)
 
     async def _get_class(self, msg):
         body = msg.get('body')

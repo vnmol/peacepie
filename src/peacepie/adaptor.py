@@ -17,6 +17,7 @@ class Adaptor:
     def __init__(self, class_desc, name, parent, performer, sender=None):
         self.name = name
         self.parent = parent
+        self.admin = parent if parent else performer
         self.sender = sender
         self.class_desc = class_desc
         self.is_enabled = True
@@ -229,26 +230,6 @@ class Adaptor:
     def get_control_msg(self, command, body=None, recipient=None, sender=None):
         return msg_factory.get_control_msg(command, body, recipient, sender)
 
-    async def send(self, msg, sender=None):
-        if not sender:
-            sender = self
-        if self.parent:
-            await self.parent.connector.send(sender, msg)
-        else:
-            await self.performer.connector.send(sender, msg)
-
-    async def ask(self, msg, timeout=1):
-        if self.parent:
-            return await self.parent.connector.ask(self, msg, timeout)
-        else:
-            return await self.performer.connector.ask(self, msg, timeout)
-
-    async def group_ask(self, timeout, count, get_values):
-        if self.parent:
-            return await self.parent.connector.group_ask(self, timeout, count, get_values)
-        else:
-            return await self.performer.connector.group_ask(self, timeout, count, get_values)
-
     def add_ticker(self, period, delay=None, count=None, name=None, command=None):
         if not self.ticker_admin:
             self.ticker_admin = ticker_admin.TickerAdmin()
@@ -370,3 +351,174 @@ class Adaptor:
             return self.parent.adaptor.name
         else:
             return self.name
+
+    async def clarify_recipient(self, recipient, is_control=False):
+        if recipient is None:
+            if is_control:
+                return self.admin.adaptor.control_queue
+            else:
+                return self.admin.adaptor.queue
+        if type(recipient) is dict:
+            system_name = recipient.get('system')
+            if system_name and system_name != params.instance.get('system_name'):
+                head = self.get_head_name()
+                if head == self.admin.adaptor.name:
+                    return self.admin.interlink.queue
+                else:
+                    return await self.admin.intralink.get_intra_queue(head)
+            if recipient.get('node') == self.admin.adaptor.name:
+                if recipient.get('entity'):
+                    res = self.admin.actor_admin.get_actor_queue(recipient.get('entity'), is_control)
+                    if res:
+                        return res
+                    recipient = recipient.get('entity')
+                else:
+                    return self.admin.adaptor.queue
+            else:
+                return await self.admin.intralink.get_intra_queue(recipient['node'])
+        if type(recipient) is str:
+            if recipient == self.admin.adaptor.name:
+                if is_control:
+                    return self.admin.adaptor.control_queue
+                else:
+                    return self.admin.adaptor.queue
+            elif recipient.startswith('_'):
+                return self.admin.asks.get(recipient)
+            else:
+                res = self.admin.cache.get(recipient)
+                if not res:
+                    res = self.admin.actor_admin.get_actor_queue(recipient, is_control)
+                if not res:
+                    res = await self.admin.intralink.get_intra_queue(recipient)
+                return res
+        else:
+            return recipient
+
+    async def send(self, msg, sender=None):
+        if not sender:
+            sender = self
+        recipient = msg.get('recipient')
+        res = await self.clarify_recipient(recipient, msg.get('is_control'))
+        if not res:
+            res = await self.find(sender, recipient)
+            if not res:
+                return
+        is_local = isinstance(res, asyncio.Queue)
+        if not (is_local or isinstance(recipient, str) or isinstance(recipient, dict)):
+            msg['recipient'] = None
+        await res.put(msg)
+        self.send_log(sender, is_local, msg)
+
+    def send_log(self, sender, is_local, msg):
+        command = msg.get('command')
+        if command in sender.not_log_commands:
+            return
+        if command in sender.cumulative_commands.keys():
+            sender.cumulative_commands[command]['local_sent' if is_local else 'remote_sent'] += 1
+        elif is_local:
+            logging.debug(log_util.async_sent_log(sender, msg))
+        else:
+            logging.debug(log_util.sync_sent_log(sender, msg))
+
+    async def ask(self, msg, timeout=1, questioner=None):
+        if not questioner:
+            questioner = self
+        recipient = msg.get('recipient')
+        res = await self.clarify_recipient(recipient, msg.get('is_control'))
+        if not res:
+            print(recipient)
+            res = await self.find(questioner, recipient)
+            if not res:
+                return
+        msg['timeout'] = timeout
+        queue = asyncio.Queue()
+        entity = f'_{self.admin.ask_index}'
+        self.admin.ask_index += 1
+        msg['sender'] = {'node': self.admin.adaptor.name, 'entity': entity}
+        self.admin.asks[entity] = queue
+        if not (isinstance(recipient, str) or isinstance(recipient, dict)):
+            msg['recipient'] = None
+        await res.put(msg)
+        self.ask_log(questioner, isinstance(res, asyncio.Queue), msg)
+        timer.start(timeout, queue, msg['mid'])
+        ans = await queue.get()
+        if ans.get('command') == 'timer':
+            logging.warning(log_util.async_received_log(questioner, ans))
+        else:
+            self.answer_on_ask_log(questioner, ans)
+        del self.admin.asks[entity]
+        return ans
+
+    async def group_ask(self, timeout, count, get_values, questioner=None):
+        if not questioner:
+            questioner = self
+        entity = f'_{self.admin.ask_index}'
+        self.admin.ask_index += 1
+        queue = asyncio.Queue()
+        self.admin.asks[entity] = queue
+        sender = {'node': self.admin.adaptor.name, 'entity': entity}
+        waiting_count = count
+        group_mid = msg_factory.get_group_mid()
+        timer.start(timeout, queue, group_mid)
+        for index in range(count):
+            values = get_values(index)
+            recipient = values.get('recipient')
+            res = await self.clarify_recipient(recipient)
+            if not res:
+                res = await self.find(questioner, recipient)
+                if not res:
+                    waiting_count -= 1
+                    continue
+            recipient = recipient if isinstance(recipient, str) or isinstance(recipient, dict) else None
+            command = values.get('command')
+            body = values.get('body')
+            msg = msg_factory.get_msg(command, body, recipient=recipient, sender=sender, timeout=timeout,
+                                      group_mid=group_mid)
+            await res.put(msg)
+            self.ask_log(questioner, isinstance(res, asyncio.Queue), msg)
+        while waiting_count > 0:
+            ans = await queue.get()
+            waiting_count -= 1
+            if ans.get('command') == 'timer':
+                del self.admin.asks[entity]
+                return ans
+            else:
+                await self.admin.try_put_to_cache(ans)
+                self.answer_on_ask_log(questioner, ans)
+        del self.admin.asks[entity]
+        return msg_factory.get_msg('group_ask_completed')
+
+    def ask_log(self, questioner, is_local, msg):
+        command = msg.get('command')
+        if command in questioner.not_log_commands:
+            return
+        if command in questioner.cumulative_commands.keys():
+            questioner.cumulative_commands[command]['local_asked' if is_local else 'remote_asked'] += 1
+        elif is_local:
+            logging.debug(log_util.async_ask_log(questioner, msg))
+        else:
+            logging.debug(log_util.sync_ask_log(questioner, msg))
+
+    def answer_on_ask_log(self, questioner, msg):
+        command = msg.get('command')
+        if command in questioner.not_log_commands:
+            return
+        if command in questioner.cumulative_commands.keys():
+            questioner.cumulative_commands[command]['received'] += 1
+        else:
+            logging.debug(log_util.async_received_log(questioner, msg))
+
+    async def find(self, sender, name):
+        res = None
+        msg = msg_factory.get_msg('seek_actor', {'name': name}, self.parent.adaptor.get_head_addr())
+        ans = await self.ask(msg, 2, sender)
+        if ans['command'] == 'actor_found':
+            res = await self.admin.intralink.get_intra_queue(ans['body']['node'])
+            if res:
+                self.admin.cache[name] = res
+            else:
+                logging.warning(f'The actor "{name}" is not found')
+        return res
+
+    async def add_to_cache(self, node, names):
+        await self.admin.add_to_cache(node, names)
