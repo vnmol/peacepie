@@ -58,7 +58,7 @@ class ActorLoader:
         try:
             adptr = adaptor.Adaptor(class_desc, name, self.parent.parent, clss(), msg.get('sender'))
             if msg.get('command') == 'clone_actor':
-                adptr.is_enabled = False
+                adptr.is_clone_copy = True
         except Exception as e:
             logging.exception(e)
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))

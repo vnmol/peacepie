@@ -44,12 +44,12 @@ class ActorMover:
                 await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_not_moved', None, recipient), self)
             return
         adaptor = actor.get('adaptor')
-        adaptor.is_running = False
+        adaptor.is_clone_prototype = True
         await self.grandparent.adaptor.send(msg_factory.get_msg('empty', None, adaptor.name), self)
         ans = await self.grandparent.adaptor.ask(
             msg_factory.get_control_msg('is_ready_to_move', None, adaptor.name), 1, self)
         if ans.get('command') != 'ready':
-            adaptor.is_running = True
+            adaptor.is_clone_prototype = False
             if recipient:
                 await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_not_moved', None, recipient), self)
             return
@@ -82,7 +82,6 @@ class ActorMover:
             parcel['is_control'] = True
             await self.grandparent.adaptor.send(parcel, self)
         await self.parent.removing_actor(name)
-        await self.grandparent.adaptor.send(msg_factory.get_control_msg('set_availability', {'value': True}, name),
-                                            self)
+        await self.grandparent.adaptor.send(msg_factory.get_control_msg('is_cloned', None, name), self)
         if recipient:
-            await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_moved', None, recipient))
+            await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_moved', None, recipient), self)

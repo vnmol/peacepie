@@ -38,6 +38,7 @@ class Consumer:
         if self.limits.get(gen) - limit != 1:
             head = self.adaptor.get_head_addr()
             await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}, head))
+            await self.adaptor.send(self.adaptor.get_msg('exit', None, head))
         self.limits[gen] = limit
         if all(value == 0 for value in self.limits.values()):
             await self.adaptor.send(self.adaptor.get_msg('extra_beat', {'source': self.adaptor.name}, self.parent))

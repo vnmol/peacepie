@@ -9,7 +9,7 @@ from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
-                    'set_availability', 'update_running', 'empty'}
+                    'is_cloned', 'update_running', 'empty'}
 
 
 class Adaptor:
@@ -20,7 +20,9 @@ class Adaptor:
         self.admin = parent if parent else performer
         self.sender = sender
         self.class_desc = class_desc
-        self.is_enabled = True
+        self.is_running = False
+        self.is_clone_prototype = False
+        self.is_clone_copy = False
         self.performer = performer
         if not hasattr(self.performer, 'adaptor'):
             txt = f'The performer "{name}" does not have the attribute "adaptor"'
@@ -28,7 +30,6 @@ class Adaptor:
         self.performer.adaptor = self
         self.control_queue = None
         self.queue = None
-        self.is_running = False
         self.ticker_admin = None
         self.observers = {}
         self.not_log_commands = set()
@@ -53,7 +54,7 @@ class Adaptor:
         await self.is_running_notification()
         while True:
             try:
-                if self.control_queue.empty() and self.is_enabled and self.is_running:
+                if self.control_queue.empty() and not self.is_clone_prototype and not self.is_clone_copy:
                     msg = await self.queue.get()
                 else:
                     msg = await self.control_queue.get()
@@ -120,8 +121,8 @@ class Adaptor:
             self.subscribe(body.get('command'), sender)
         elif command == 'unsubscribe':
             self.unsubscribe(body.get('command'), sender)
-        elif command == 'set_availability':
-            await self.set_availability(body.get('value'), sender)
+        elif command == 'is_cloned':
+            await self.is_cloned()
         elif command == 'update_running':
             await self.update_running(body.get('value'), sender)
         elif command == 'empty':
@@ -201,10 +202,8 @@ class Adaptor:
         if res:
             res.remove(sender)
 
-    async def set_availability(self, value, recipient):
-        self.is_enabled = value
-        if recipient:
-            await self.send(self.get_msg('availability_is_set', recipient=recipient))
+    async def is_cloned(self):
+        self.is_clone_copy = False
 
     async def update_running(self, value, recipient):
         self.is_running = value
@@ -241,12 +240,6 @@ class Adaptor:
         if not self.ticker_admin:
             return
         self.ticker_admin.remove_ticker(name)
-
-    async def get_queue(self, addr):
-        res = None
-        if isinstance(addr, str):
-            res = self.parent.actor_admin.get_actor_queue(addr)
-        return res
 
     def get_param(self, param_name):
         return params.instance.get(param_name)
@@ -426,7 +419,6 @@ class Adaptor:
         recipient = msg.get('recipient')
         res = await self.clarify_recipient(recipient, msg.get('is_control'))
         if not res:
-            print(recipient)
             res = await self.find(questioner, recipient)
             if not res:
                 return

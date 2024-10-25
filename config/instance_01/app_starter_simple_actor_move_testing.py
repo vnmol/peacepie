@@ -26,12 +26,12 @@ class AppStarter:
         body = {'class_desc': {'package_name': 'simple_actor_move_testing', 'class': 'Major'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), timeout=30)
         body = {'params': [
-            {'name': 'major_timeout', 'value': 60},
-            {'name': 'junior_count', 'value': 4},
+            {'name': 'major_timeout', 'value': 30},
+            {'name': 'junior_count', 'value': 2},
             {'name': 'junior_period', 'value': 3},
-            {'name': 'gen_count', 'value': 10},
-            {'name': 'gen_period', 'value': 0.01},
-            {'name': 'gen_limit', 'value': 1000},
+            {'name': 'gen_count', 'value': 1},
+            {'name': 'gen_period', 'value': 1},
+            {'name': 'gen_limit', 'value': 10},
             {'name': 'does_gen_ask', 'value': False}
         ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))

@@ -61,7 +61,7 @@ class ActorAdmin:
             return adaptor.queue
 
     def get_members(self):
-        res = [actor for actor in self.actors if self.actors.get(actor).get('adaptor').is_enabled]
+        res = [actor for actor in self.actors]
         res.sort()
         res.insert(0, self.parent.adaptor.name)
         return res
@@ -95,41 +95,3 @@ class ActorAdmin:
         del self.actors[name]
         logging.info(f'{alias} is removed')
         return True
-
-    async def move_actor(self, msg):
-        recipient = msg.get('sender')
-        body = msg.get('body') if msg.get('body') else {}
-        node = body.get('node')
-        name = body.get('name')
-        actor = self.actors.get(name)
-        if not actor:
-            if recipient:
-                await self.parent.adaptor.send(self.parent.adaptor.get_msg('is_not_moved', None, recipient))
-            return
-        adptr = actor.get('adaptor')
-        if not await self.clone_actor(node, name, adptr):
-            if recipient:
-                await self.parent.adaptor.send(self.parent.adaptor.get_msg('is_not_moved', None, recipient))
-            return
-        await self.removing_actor(name)
-        # await self.parent.adaptor.send(self.parent.adaptor.get_msg('is_enabled', recipient=ans.get('body')))
-        if recipient:
-            await self.parent.adaptor.send(self.parent.adaptor.get_msg('is_moved', None, recipient))
-
-    async def clone_actor(self, node, name, adptr):
-        adptr.is_enabled = False
-        semaphore = {'up': asyncio.Queue(), 'down': asyncio.Queue()}
-        adptr.semaphore = semaphore
-        if adptr.queue.qsize() == 0:
-            msg = self.parent.adaptor.get_msg('empty')
-            await adptr.queue.put(msg)
-            logging.debug(log_util.async_sent_log(self, msg))
-        await semaphore.get('up').get()
-        query = self.parent.adaptor.get_msg('clone_actor', {'class_desc': adptr.class_desc, 'name': name}, node)
-        ans = await self.parent.adaptor.ask(query, 30)
-        res = ans.get('command') == 'actor_is_created'
-        await semaphore.get('down').put('exit' if res else 'resume')
-        body = {'name': name, 'old': adptr.get_self_addr().get('node'), 'new': node}
-        msg = self.parent.adaptor.get_msg('change_cache', body, self.parent.adaptor.get_head_addr())
-        await self.parent.adaptor.ask(msg, 10)
-        return res

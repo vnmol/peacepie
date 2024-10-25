@@ -86,7 +86,8 @@ class Junior:
             await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['tick', 'beat']}, name))
         for name in names:
             await self.adaptor.send(self.adaptor.get_msg('start', None, name))
-        self.ticker = self.adaptor.add_ticker(self.junior_period, self.junior_period)
+        if parent_index == 1:
+            self.ticker = self.adaptor.add_ticker(self.junior_period, self.junior_period)
 
     async def tick(self):
         size = len(self.nodes)

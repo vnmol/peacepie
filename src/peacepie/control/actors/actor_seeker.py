@@ -36,7 +36,7 @@ class ActorSeeker:
         return True
 
     async def seek_actor(self, msg):
-        sender = msg['sender']
+        sender = msg.get('sender')
         msg['recipient'] = {'node': self.parent.intralink.head, 'entity': None}
         ans = await self.parent.adaptor.ask(msg, questioner=self)
         if ans:
@@ -46,7 +46,7 @@ class ActorSeeker:
     async def find_actor(self, msg):
         name = msg['body']['name']
         res = self.parent.actor_admin.actors.get(name)
-        if not res or not res.get('adaptor').is_enabled:
+        if not res or res.get('adaptor').is_clone_prototype:
             return
         body = {'node': self.parent.adaptor.name, 'entity': name}
         message = msg_factory.get_msg('actor_found', body, recipient=msg['sender'])
