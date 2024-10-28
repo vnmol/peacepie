@@ -52,7 +52,7 @@ class PackageLoader:
             await asyncio.sleep(1)
         process.join()
         res = queue.get()
-        await self.parent.connector.send(self, msg_factory.get_msg(res.get('command'), None, recipient))
+        await self.parent.adaptor.send(msg_factory.get_msg(res.get('command'), None, recipient), self)
 
 
 def load_package(log_desc, url, path, package_name, queue):

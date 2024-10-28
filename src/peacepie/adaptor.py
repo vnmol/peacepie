@@ -7,6 +7,7 @@ from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
+
 ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
                     'is_cloned', 'update_running', 'empty'}
@@ -391,14 +392,14 @@ class Adaptor:
         if not sender:
             sender = self
         recipient = msg.get('recipient')
+        if self.is_clone_prototype and isinstance(recipient, dict) and recipient.get('entity') == self.name:
+            msg['is_control'] = True
         res = await self.clarify_recipient(recipient, msg.get('is_control'))
         if not res:
             res = await self.find(sender, recipient)
             if not res:
                 return
         is_local = isinstance(res, asyncio.Queue)
-        if not (is_local or isinstance(recipient, str) or isinstance(recipient, dict)):
-            msg['recipient'] = None
         await res.put(msg)
         self.send_log(sender, is_local, msg)
 
@@ -417,6 +418,8 @@ class Adaptor:
         if not questioner:
             questioner = self
         recipient = msg.get('recipient')
+        if self.is_clone_prototype and isinstance(recipient, dict) and recipient.get('entity') == self.name:
+            msg['is_control'] = True
         res = await self.clarify_recipient(recipient, msg.get('is_control'))
         if not res:
             res = await self.find(questioner, recipient)

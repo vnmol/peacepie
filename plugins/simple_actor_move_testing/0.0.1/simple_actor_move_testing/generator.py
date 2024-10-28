@@ -68,8 +68,8 @@ class Generator:
             {'name': 'does_gen_ask', 'value': self.does_gen_ask},
             {'name': 'consumer', 'value': self.consumer}
         ]}
-        msg = self.adaptor.get_control_msg('set_params', body, clone_addr)
+        msg = self.adaptor.get_msg('set_params', body, clone_addr)
         await self.adaptor.ask(msg, 4)
-        await self.adaptor.send(self.adaptor.get_control_msg('start', None, clone_addr))
+        await self.adaptor.send(self.adaptor.get_msg('start', None, clone_addr))
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))

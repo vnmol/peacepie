@@ -59,9 +59,9 @@ class Delivery:
         package_name = package_name + version.conditions_as_text(conditions)
         if self._download(package_name):
             return True
-        recipient = self.parent.connector.get_head_addr()
+        recipient = self.parent.adaptor.get_head_addr()
         msg = msg_factory.get_msg('load_package', {'package_name': package_name}, recipient=recipient)
-        ans = await self.parent.connector.ask(self, msg)
+        ans = await self.parent.adaptor.ask(self, msg)
         if ans['command'] == 'package_is_not_loaded':
             return False
         return self._download(package_name)
@@ -85,7 +85,7 @@ class Delivery:
                         break
                     body = {'filename': filename, 'data': data.decode('latin-1')}
                     msg = msg_factory.get_msg('transfer', body, recipient=recipient)
-                    ans = await self.parent.connector.ask(self, msg, 10)
+                    ans = await self.parent.adaptor.ask(self, msg, 10)
                     if ans.get('command') != 'transferred':
                         return False
         return True
@@ -94,6 +94,6 @@ class Delivery:
         body = msg.get('body')
         with open(f'{self.delivery_path}/{body.get("filename")}', 'ba') as f:
             f.write(body.get('data').encode('latin-1'))
-        await self.parent.connector.send(self, msg_factory.get_msg('transferred', recipient=msg.get('sender')))
+        await self.parent.adaptor.send(self, msg_factory.get_msg('transferred', recipient=msg.get('sender')))
 
 

@@ -29,6 +29,6 @@ class SafeAdmin:
             body = msg.get('body') if isinstance(msg.get('body'), dict) else dict()
             body = self.credentials.get(body.get('credentials_name'))
             msg = msg_factory.get_msg('credentials', body, msg.get('sender'))
-            await self.parent.connector.send(self, msg)
+            await self.parent.adaptor.send(self, msg)
         else:
             logging.warning(log_util.get_alias(self) + ' The message is not handled: ' + str(msg))

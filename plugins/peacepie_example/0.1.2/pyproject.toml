@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'peacepie_example'
-version = '0.1.0'
+version = '0.1.2'
 description = 'Примеры для пакета "peacepie"'
 license = {text = "MIT"}
 authors = [{name = 'Владимир Молодцов', email = 'vmol@mail.ru'},]

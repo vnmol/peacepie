@@ -48,7 +48,7 @@ class PrimeAdmin(admin.Admin):
             logging.debug(log_util.async_sent_log(self, msg))
         elif command in DELIVERY_COMMANDS:
             msg['recipient'] = self.delivery.queue
-            await self.connector.send(self, msg)
+            await self.adaptor.send(self, msg)
         elif command == 'get_members':
             await self.get_members(msg)
         else:
@@ -69,7 +69,7 @@ class PrimeAdmin(admin.Admin):
         if level == 'process':
             members = self.process_admin.get_members()
             members = [{'next_level': 'actors', 'recipient': member, 'id': member} for member in members]
-            back = self.connector.get_head_name()
+            back = self.adaptor.get_head_name()
         elif level == 'actors':
             members = self.actor_admin.get_members()
             members = [{'next_level': 'actor', 'recipient': self.adaptor.name, 'id': member} for member in members]

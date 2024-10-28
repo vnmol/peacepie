@@ -29,7 +29,7 @@ class Spy:
     async def gathering(self, msg):
         message = msg_factory.get_msg('get_info', msg.body)
         with_delta = 'delta' in msg.body['fields']
-        messages = await self.parent.connector.ask_admins(self, message, None, with_delta=with_delta)
+        messages = await self.parent.adaptor.ask_admins(self, message, None, with_delta=with_delta)
         res = []
         for message in messages:
             body = message['msg'].body
@@ -38,7 +38,7 @@ class Spy:
                 body['delta'] = message['delta']
             res.append(body)
         message = msg_factory.get_msg('info', res, recipient=msg.sender)
-        await self.parent.connector.send(self, message)
+        await self.parent.adaptor.send(self, message)
 
     def get_info(self, msg):
         asyncio.get_running_loop().create_task(self.getting(msg))
@@ -66,7 +66,7 @@ class Spy:
         except Exception as e:
             logging.exception(e)
         message = msg_factory.get_msg('info', body, recipient=msg.sender, sender=self.parent.adaptor.name)
-        await self.parent.connector.send(self, message)
+        await self.parent.adaptor.send(self, message)
 
     async def is_loaded(self, class_desc):
         return self.parent.actor_admin.package_admin.is_loaded(class_desc)

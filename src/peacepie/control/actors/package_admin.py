@@ -79,10 +79,10 @@ class PackageAdmin:
         url = class_desc.get(URL)
         if self._load(package_name):
             return True
-        recipient = self.parent.parent.connector.get_head_addr()
+        recipient = self.parent.parent.adaptor.get_head_addr()
         body = {PACKAGE_NAME: package_name, URL: url}
         msg = msg_factory.get_msg('load_package', body, recipient)
-        ans = await self.parent.parent.connector.ask(self, msg, timeout)
+        ans = await self.parent.parent.adaptor.ask(msg, timeout, self)
         if ans['command'] == 'package_is_not_loaded':
             return False
         return self._load(package_name)

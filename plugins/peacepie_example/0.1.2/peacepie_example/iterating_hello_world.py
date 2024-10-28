@@ -10,14 +10,19 @@ class IteratingHelloWorld:
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
+        sender = msg.get('sender')
         if command == 'set_params':
-            await self.set_params(body.get('params'), msg.get('sender'))
+            await self.set_params(body.get('params'), sender)
         elif command == 'start':
-            await self.start(msg.get('sender'))
+            await self.start(sender)
         elif command == 'stop':
-            await self.stop(msg.get('sender'))
+            await self.stop(sender)
         elif command == 'tick':
             await self.tick()
+        elif command == 'is_ready_to_move':
+            await self.is_ready_to_move(sender)
+        elif command == 'move':
+            await self.move(body, sender)
         else:
             return False
         return True
@@ -30,6 +35,8 @@ class IteratingHelloWorld:
                 self.period = value
             elif name == 'limit':
                 self.limit = value
+            elif name == 'index':
+                self.index = value
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
@@ -50,7 +57,22 @@ class IteratingHelloWorld:
             await self.adaptor.send(self.adaptor.get_msg('stopped', recipient=recipient))
 
     async def tick(self):
-        print(f'{self.adaptor.get_alias()} says "Hello, World! ({self.index})"')
+        print(f'{self.adaptor.get_alias()} from "{self.adaptor.get_node()}" says "Hello, World! ({self.index})"')
         self.index += 1
         if self.index == self.limit:
             self.adaptor.remove_ticker(self.ticker_name)
+
+    async def is_ready_to_move(self, recipient):
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
+
+    async def move(self, clone_addr, recipient):
+        body = {'params': [
+            {'name': 'period', 'value': self.period},
+            {'name': 'limit', 'value': self.limit},
+            {'name': 'index', 'value': self.index}
+        ]}
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, clone_addr), 4)
+        await self.adaptor.ask(self.adaptor.get_msg('start', None, clone_addr), 4)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))

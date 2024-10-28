@@ -52,6 +52,6 @@ class Consumer:
             {'name': 'parent', 'value': self.parent},
             {'name': 'limits', 'value': self.limits},
         ]}
-        await self.adaptor.ask(self.adaptor.get_control_msg('set_params', body, clone_addr))
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, clone_addr))
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))

@@ -58,7 +58,7 @@ class ActorMover:
         if ans.get('command') != 'actor_is_created':
             adaptor.is_running = True
             if recipient:
-                await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_not_moved', None, recipient), send)
+                await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_not_moved', None, recipient), self)
             return
         if hasattr(adaptor.performer, 'exit'):
             try:
