@@ -17,10 +17,10 @@ def init_params(path, test_params):
     try:
         with open(path) as f:
             pass
-    except FileNotFoundError:
+    except (FileNotFoundError, TypeError):
         path = None
     if not path:
-        path = deploy_envirement()
+        path = deploy_environment()
     try:
         with open(path) as f:
             params = [line.strip().split('#')[0] for line in f.readlines()]
@@ -66,7 +66,7 @@ def get_ip():
         s.close()
     return res
 
-def deploy_envirement():
+def deploy_environment():
     src = f'{os.path.dirname(__file__)}/resources/config/'
     dst = f'{os.getcwd()}/config/'
     dir_operations.rem_dir(dst)
