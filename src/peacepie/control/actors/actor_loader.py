@@ -104,7 +104,10 @@ class ActorLoader:
             await self.clear(actors, msg.get('sender'))
             return
         self.parent.actors.update(actors)
-        ans = msg_factory.get_msg('actors_are_created', self.parent.parent.adaptor.name, msg.get('sender'))
+        system = self.parent.parent.adaptor.get_param('system_name')
+        node = self.parent.parent.adaptor.name
+        body = {'system': system, 'node': node, 'names': names}
+        ans = msg_factory.get_msg('actors_are_created', body, msg.get('sender'))
         await self.parent.parent.adaptor.send(ans, self)
 
     async def clear(self, actors, recipient):

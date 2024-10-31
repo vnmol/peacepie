@@ -24,11 +24,26 @@ class SimpleWebFace:
 
     async def handle(self, msg):
         command = msg.get('command')
+        body = msg.get('body') if msg.get('body') else {}
+        sender = msg.get('sender')
         if command == 'start':
             await self.start(msg)
+        elif command == 'is_ready_to_move':
+            await self.is_ready_to_move(sender)
+        elif command == 'move':
+            await self.move(body, sender)
         else:
             return False
         return True
+
+    async def is_ready_to_move(self, recipient):
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
+
+    async def move(self, clone_addr, recipient):
+        await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, clone_addr), 10)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))
 
     async def start(self, msg):
         self.http_host = self.adaptor.get_param('ip')

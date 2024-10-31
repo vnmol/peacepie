@@ -52,6 +52,8 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             await self.safe_admin.handle(msg)
         elif command == 'change_caches':
             await self.change_caches(msg)
+        elif command == 'remove_from_caches':
+            await self.remove_from_caches(msg)
         elif command == 'get_members':
             await self.get_members(msg)
         elif command == 'test_error':
@@ -71,6 +73,18 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         )
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('caches_are_changed', None, recipient))
+
+    async def remove_from_caches(self, msg):
+        recipient = msg.get('sender')
+        body = msg.get('body') if msg.get('body') else {}
+        await self.remove_from_cache(body, None)
+        links = [link for link in self.intralink.links]
+        await self.adaptor.group_ask(10, len(links),
+                                     lambda index: {'command': 'remove_from_cache', 'body': body,
+                                                    'recipient': {'node': links[index], 'entity': None}}
+        )
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('removed_from_caches', None, recipient))
 
     async def get_members(self, msg):
         body = msg.get('body')

@@ -4,12 +4,10 @@ import logging
 from peacepie import params, msg_factory
 from peacepie.assist import log_util
 from peacepie.assist.serialization import Serializer
-from peacepie.control.intra.intra_link import IntraLink
-
-from peacepie.control.intra import intra_queue
+from peacepie.control.intra import intra_queue, intra_link
 
 
-class IntraServer(IntraLink):
+class IntraServer(intra_link.IntraLink):
 
     def __init__(self, parent):
         super().__init__(parent)

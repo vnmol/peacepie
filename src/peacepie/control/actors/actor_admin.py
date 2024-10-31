@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from peacepie import msg_factory
 from peacepie.assist import log_util
 from peacepie.control.actors import actor_loader, package_admin
 
@@ -16,6 +17,8 @@ class ActorAdmin:
         self.actor_mover = None
         self.actor_loaders = []
         self.actors = {}
+        self.not_log_commands = set()
+        self.cumulative_commands = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
     async def handle(self, msg):
@@ -79,7 +82,6 @@ class ActorAdmin:
         else:
             await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', {'name': name}, recipient))
 
-
     async def removing_actor(self, name):
         actor = None
         try:
@@ -93,5 +95,7 @@ class ActorAdmin:
         task.cancel()
         await task
         del self.actors[name]
+        query = msg_factory.get_msg('remove_from_caches', {'name': name}, self.parent.adaptor.get_head_addr())
+        await self.parent.adaptor.ask(query, 10, self)
         logging.info(f'{alias} is removed')
         return True

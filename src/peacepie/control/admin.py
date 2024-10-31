@@ -92,6 +92,8 @@ class Admin:
             await self.adaptor.send(ans)
         elif command == 'change_cache':
             await self.change_cache(body, sender)
+        elif command == 'remove_from_cache':
+            await self.remove_from_cache(body, sender)
         elif command == 'get_members':
             await self.get_members(msg)
         else:
@@ -117,25 +119,12 @@ class Admin:
                 continue
             self.cache[name] = queue
 
-    async def try_put_to_cache(self, msg):
-        command = msg.get('command')
-        if not command:
-            return
-        if command not in ['actor_is_created']:
-            return
-        body = msg.get('body')
-        if not body:
-            return
-        system = body.get('system')
-        if system and system != params.instance.get('system_name'):
-            return
-        node = body.get('node')
-        if not node or node == self.adaptor.name:
-            return
-        entity = body.get('entity')
-        if not entity:
-            return
-        await self.add_to_cache(node, [entity])
+    async def remove_from_cache(self, body, recipient):
+        name = body.get('name')
+        if name in self.cache:
+            del self.cache[name]
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('removed_from_cache', None, recipient))
 
     async def get_members(self, msg):
         body = msg.get('body')

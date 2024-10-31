@@ -1,10 +1,11 @@
 import logging
+from abc import abstractmethod, ABC
 
 from peacepie import params
 from peacepie.assist import log_util
 
 
-class IntraLink:
+class IntraLink(ABC):
 
     def __init__(self, parent):
         self.parent = parent
@@ -14,6 +15,10 @@ class IntraLink:
         self.links = {}
         self.head = None
         logging.info(log_util.get_alias(self) + ' is created')
+
+    @abstractmethod
+    async def get_intra_queue(self, name):
+        pass
 
     def get_members(self):
         res = [link[0] for link in self.links.items() if not link[1].lord]

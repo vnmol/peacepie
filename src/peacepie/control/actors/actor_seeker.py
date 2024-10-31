@@ -36,12 +36,8 @@ class ActorSeeker:
         return True
 
     async def seek_actor(self, msg):
-        sender = msg.get('sender')
         msg['recipient'] = {'node': self.parent.intralink.head, 'entity': None}
-        ans = await self.parent.adaptor.ask(msg, questioner=self)
-        if ans:
-            ans['recipient'] = sender
-            await self.parent.adaptor.send(ans, self)
+        await self.parent.adaptor.send(msg, self)
 
     async def find_actor(self, msg):
         name = msg['body']['name']

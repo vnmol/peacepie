@@ -41,8 +41,11 @@ class PrimeAdmin(admin.Admin):
 
     async def handle(self, msg):
         command = msg.get('command')
+        sender = msg.get('sender')
         if command == 'create_process':
-            asyncio.get_running_loop().create_task(self.create_process(msg))
+            await self.create_process(sender)
+        elif command == 'remove_process':
+            await self.remove_process(msg)
         elif command in PACKAGE_LOADER_COMMANDS:
             await self.package_loader.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
@@ -55,8 +58,11 @@ class PrimeAdmin(admin.Admin):
             return await super().handle(msg)
         return True
 
-    async def create_process(self, msg):
-        await self.process_admin.create_process(msg['sender'])
+    async def create_process(self, recipient):
+        asyncio.get_running_loop().create_task(self.process_admin.create_process(recipient))
+
+    async def remove_process(self, msg):
+        asyncio.get_running_loop().create_task(self.process_admin.remove_process(msg))
 
     async def get_members(self, msg):
         body = msg.get('body')

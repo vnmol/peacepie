@@ -32,18 +32,34 @@ class ProcessAdmin:
         res.sort()
         return res
 
-    async def create_process(self, sender):
+    async def remove_process(self, msg):
+        body = msg.get('body') if msg.get('body') else {}
+        recipient = msg.get('sender')
+        name = misc.ComplexName.parse_name(body.get('name'))
+        p = self.processes.get(name)
+        if not p:
+            if recipient:
+                await self.parent.adaptor.send(msg_factory.get_msg('process_is_not_removed', None, recipient), self)
+            return
+        p.terminate()
+        p.join()
+        del self.processes[name]
+        if recipient:
+            await self.parent.adaptor.send(msg_factory.get_msg('process_is_removed', None, recipient), self)
+
+
+    async def create_process(self, recipient):
         name = misc.ComplexName(self.parent.host_name, f'process_{self.process_index}', 'admin')
         self.process_index += 1
         p = multiprocessing.Process(
             target=create,
             args=(self.parent.adaptor.name, name, params.instance,
-                  msg_factory.instance.get_queue(), loglistener.instance.get_log_desc(), sender))
+                  msg_factory.instance.get_queue(), loglistener.instance.get_log_desc(), recipient))
         p.start()
         self.processes[name] = p
 
 
-def create(lord, name, prms, msg_queue, log_desc, sender):
+def create(lord, name, prms, msg_queue, log_desc, recipient):
     params.instance = prms
     if params.instance.get('separate_log_per_process'):
         log_config()
@@ -58,7 +74,7 @@ def create(lord, name, prms, msg_queue, log_desc, sender):
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
     performer = admin.Admin(lord, name.host_name, name.process_name, log_desc)
     try:
-        actr = adaptor.Adaptor(None, name.get_actor_name(), None, performer, sender)
+        actr = adaptor.Adaptor(None, name.get_actor_name(), None, performer, recipient)
         asyncio.run(actr.run())
     except BaseException as ex:
         logging.exception(ex)

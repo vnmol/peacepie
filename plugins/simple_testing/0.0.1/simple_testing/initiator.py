@@ -46,7 +46,6 @@ class Initiator:
             ans = await self.adaptor.ask(self.adaptor.get_msg('create_actors', body, ans.get('body')))
             if ans.get('command') == 'actors_are_created':
                 all_names.extend(names)
-                await self.adaptor.add_to_cache(ans.get('body'), names)
         await self.adaptor.group_ask(10, len(all_names), consumer_factory(all_names))
         await self.adaptor.send(self.adaptor.get_msg('start_test', None, all_names[0]))
 

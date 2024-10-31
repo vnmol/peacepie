@@ -12,6 +12,8 @@ ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
                     'is_cloned', 'update_running', 'empty'}
 
+CACHE_COMMANDS = {'actor_is_created', 'actors_are_created', 'actor_found'}
+
 
 class Adaptor:
 
@@ -76,6 +78,8 @@ class Adaptor:
                         break
                     continue
                 if await self.performer.handle(msg):
+                    if command in CACHE_COMMANDS:
+                        await self.add_to_cache(msg)
                     await self.notify(msg)
                 else:
                     logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
@@ -442,6 +446,8 @@ class Adaptor:
         else:
             self.answer_on_ask_log(questioner, ans)
         del self.admin.asks[entity]
+        if ans.get('command') in CACHE_COMMANDS:
+            await self.add_to_cache(ans)
         return ans
 
     async def group_ask(self, timeout, count, get_values, questioner=None):
@@ -478,7 +484,8 @@ class Adaptor:
                 del self.admin.asks[entity]
                 return ans
             else:
-                await self.admin.try_put_to_cache(ans)
+                if ans.get('command') in CACHE_COMMANDS:
+                    await self.add_to_cache(ans)
                 self.answer_on_ask_log(questioner, ans)
         del self.admin.asks[entity]
         return msg_factory.get_msg('group_ask_completed')
@@ -505,7 +512,7 @@ class Adaptor:
 
     async def find(self, sender, name):
         res = None
-        msg = msg_factory.get_msg('seek_actor', {'name': name}, self.parent.adaptor.get_head_addr())
+        msg = msg_factory.get_msg('seek_actor', {'name': name}, self.admin.adaptor.get_head_addr())
         ans = await self.ask(msg, 2, sender)
         if ans['command'] == 'actor_found':
             res = await self.admin.intralink.get_intra_queue(ans['body']['node'])
@@ -515,5 +522,24 @@ class Adaptor:
                 logging.warning(f'The actor "{name}" is not found')
         return res
 
-    async def add_to_cache(self, node, names):
+    async def add_to_cache(self, msg):
+        command = msg.get('command')
+        body = msg.get('body')
+        if not body:
+            return
+        system =body.get('system')
+        if system and system != self.admin.adaptor.get_param('system_name'):
+            return
+        node = body.get('node')
+        if not node or node == self.admin.adaptor.name:
+            return
+        if command == 'actors_are_created':
+            names = body.get('names')
+            if not names:
+                return
+        else:
+            name = body.get('entity')
+            if not name:
+                return
+            names = [name]
         await self.admin.add_to_cache(node, names)

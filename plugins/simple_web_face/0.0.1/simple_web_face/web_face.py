@@ -33,7 +33,7 @@ class SimpleWebFace:
         body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
         if command == 'is_ready_to_move':
-            await self.is_ready_to_move(body.get('tm'), sender)
+            await self.is_ready_to_move(sender)
         elif command == 'move':
             await self.move(body, sender)
         elif command == 'start':
@@ -42,7 +42,7 @@ class SimpleWebFace:
             return False
         return True
 
-    async def is_ready_to_move(self, tm, recipient):
+    async def is_ready_to_move(self, recipient):
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
 
