@@ -13,3 +13,6 @@ python3 peacepie_service.pyz
 
 
 sudo systemctl restart NetworkManager
+
+command = f'echo "{password}" | su -c "echo {password} | sudo -S apt update" - {username}'
+res = await self.adaptor.command_execute(command)

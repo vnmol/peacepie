@@ -1,6 +1,8 @@
 import asyncio
+import importlib
 import inspect
 import logging
+import os
 
 from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util, timer
 from peacepie import msg_factory, params
@@ -255,6 +257,19 @@ class Adaptor:
     def get_serializer(self):
         return serialization.Serializer()
 
+    def get_serializer_desc(self):
+        return f"'{serialization.__name__}|{serialization.Serializer.__name__}'"
+
+    def get_package_path(self, path_only:bool=True):
+        res = None
+        spec = importlib.util.find_spec(__package__)
+        if spec and spec.origin:
+            res = os.path.dirname(spec.origin)
+            if path_only:
+                res = os.path.dirname(res)
+            res = f"'{res}'"
+        return res
+
     def makedir(self, dirpath, clear=False):
         dir_operations.makedir(dirpath, clear)
 
@@ -270,17 +285,34 @@ class Adaptor:
         elif isinstance(coms, list):
             coms = (coms, timeout)
         res = await self.sync_as_async(self.execute, sync_args=coms)
-        res1 = res[1]
-        if len(res1) > 200:
-            res1 = res1[:200] + ' >>>>'
-        res2 = res[2]
-        if len(res2) > 200:
-            res2 = res2[:200] + ' >>>>'
         if res[0] == 0:
-            logging.debug(f'{coms}: ({res[0]}, {res1}, {res2})')
+            logging.debug(f'{coms}: ({res[0]}, {self.res_squeeze(res[1])}, {self.res_squeeze(res[2])})')
         else:
-            raise Exception(f'{coms}: ({res[0]}, {res1}, {res2})')
+            raise Exception(f'{coms}: ({res[0]}, {self.res_squeeze(res[1])}, {self.res_squeeze(res[2])})')
         return res
+
+    async def command_execute(self, command, timeout=300):
+        res = None
+        try:
+            process = await asyncio.create_subprocess_shell(
+                command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            await asyncio.wait_for(process.wait(), timeout)
+            stdout, stderr = await process.communicate()
+            res = (process.returncode, stdout.decode('utf-8'), stderr.decode('utf-8'))
+            title = f'{self.get_alias()} executed command "{command}"'
+            text = f'{title}: ({res[0]}, "{self.res_squeeze(res[1])}", "{self.res_squeeze(res[2])}")'
+            if res[0] == 0:
+                logging.debug(text)
+            else:
+                logging.warning(text)
+        except Exception as e:
+            logging.exception(e)
+        return res
+
+    def res_squeeze(self, param):
+        res = param[:200] + ' >>>>' if len(param) > 200 else param
+        return res.replace("\n", "\\n")
 
     def series_next(self, name):
         return series_admin.instance.next(name)
@@ -543,3 +575,18 @@ class Adaptor:
                 return
             names = [name]
         await self.admin.add_to_cache(node, names)
+
+    async def get_credentials(self, credentials_name):
+        body = {'credentials_name': credentials_name}
+        query = self.get_msg('get_credentials', body, self.get_head_addr())
+        ans = await self.ask(query)
+        body = ans.get('body') if isinstance(ans.get('body'), dict) else {}
+        return body
+
+    def get_log_path(self):
+        res = None
+        for handler in logging.getLogger().handlers:
+            if isinstance(handler, logging.FileHandler):
+                res = os.path.dirname(handler.baseFilename)
+                break
+        return res

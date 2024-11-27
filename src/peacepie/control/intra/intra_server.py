@@ -29,6 +29,7 @@ class IntraServer(intra_link.IntraLink):
             await queue.put(msg_factory.get_msg('ready'))
             logging.info(f'{log_util.get_alias(self)} is started on port {self.port}')
         except Exception as ex:
+            print(ex)
             logging.exception(ex)
 
     async def exit(self):

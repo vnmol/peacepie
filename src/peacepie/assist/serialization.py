@@ -14,6 +14,11 @@ class Serializer:
         self.length = 0
         self.data = b''
 
+    def clear(self):
+        self.state = self.State.MARKER
+        self.length = 0
+        self.data = b''
+
     @staticmethod
     def serialize(data):
         buf = json_util.json_dumps(data).encode('utf-8')

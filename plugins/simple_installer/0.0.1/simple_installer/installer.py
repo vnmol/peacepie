@@ -14,8 +14,6 @@ class SimpleInstaller:
 
     async def handle(self, msg):
         command = msg.get('command')
-        if not command:
-            return None
         if command == 'add_server':
             await self.signalman.add_server(msg)
         elif command == 'connect':

@@ -3,11 +3,12 @@ requires = ['setuptools', 'setuptools-scm']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'simple_installer'
+name = 'simple_django_dashboard'
 version = '0.0.1'
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
 dependencies = [
-    'asyncssh',
+    'django',
+    'pyzmq',
 ]
