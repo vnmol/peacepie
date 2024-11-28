@@ -1,17 +1,9 @@
 from django.http import HttpResponse
 
-import atexit
-
-from . import zmq_client
-
-from . import html_addons
+from . import html_addons, zmq_client
 
 
 PAGE_SIZE = 5
-
-
-client = zmq_client.ZMQClient()
-atexit.register(client.close)
 
 
 def root(request):
@@ -20,7 +12,7 @@ def root(request):
     param_id = request.GET.get('id')
     body = {'page_size': PAGE_SIZE, 'level': param_level, 'id': param_id}
     msg = {'command': 'get_members', 'body': body, 'recipient': param_recipient}
-    ans = client.send_request(msg)
+    ans = zmq_client.client.send_request(msg)
     head = f'<head>\n<meta charset="UTF-8">\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n'
     text = f'<!DOCTYPE html>\n<html>\n{head}<body>\n\n'
     body = ans.get('body')
@@ -33,10 +25,8 @@ def root(request):
         text += comm(body)
     text += '<script>\n'
     text += html_addons.script_common
-    '''
     if body.get('level') == 'actor':
         text += script_command('localhost', request.META['SERVER_PORT'])
-    '''
     text += '</script>\n</body>\n</html>'
     return HttpResponse(text)
 
@@ -82,4 +72,9 @@ def comm(body):
     res = html_addons.script_command_begin
     res += f'  <input type="text" id="recipient" name="recipient" value="{recipient}">\n'
     res += html_addons.script_command_end
+    return res
+
+def script_command(host, port):
+    res = f'webSocket = new WebSocket("ws://{host}:{port}/ws");'
+    res += html_addons.script_websocket
     return res

@@ -45,7 +45,7 @@ class SimpleDjangoActor:
     async def start(self, body, recipient):
         await self.start_zmq_server()
         self.django = subprocess.Popen(
-            args=['python', 'manage.py', 'runserver', f'0.0.0.0:{body.get("port")}'],
+            args=['daphne', '-b', 'localhost', '-p', f'{body.get("port")}', 'simple_django_site.asgi:application'],
             cwd=self.path
         )
         if recipient:

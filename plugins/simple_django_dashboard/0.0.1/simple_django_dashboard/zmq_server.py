@@ -39,10 +39,20 @@ class ZmqServer:
             try:
                 msgs = self.serializer.deserialize(await asyncio.wait_for(self.socket.recv(), 300))
                 for msg in msgs:
+                    tp = msg.get('type')
                     body = msg.get('body')
                     recipient = msg.get('recipient') if msg.get('recipient') else self.parent.adaptor.get_head_addr()
+                    try:
+                        timeout = int(msg.get('timeout')) if msg.get('timeout') else 4
+                    except Exception as e:
+                        logging.exception(e)
+                        timeout = 4
                     query = self.parent.adaptor.get_msg(msg.get('command'), body, recipient)
-                    ans = await self.parent.adaptor.ask(query)
-                    await self.socket.send(self.serializer.serialize(ans))
+                    if tp == 'send':
+                        await self.parent.adaptor.send(query)
+                        res = {'is_text': True, 'text': 'The message is sent'}
+                    else:
+                        res = await self.parent.adaptor.ask(query, timeout)
+                    await self.socket.send(self.serializer.serialize(res))
             except TimeoutError:
                 pass
