@@ -52,7 +52,8 @@ class SimpleWebFace:
             await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))
 
     async def start(self, msg):
-        self.http_host = self.adaptor.get_param('ip')
+        self.http_host = '127.0.0.1'
+        #self.http_host = self.adaptor.get_param('ip')
         self.http_port = msg.get('body').get('port') if msg.get('body') else None
         self.runner = await self.initialize_http_server()
         recipient = msg.get('sender')
@@ -70,9 +71,9 @@ class SimpleWebFace:
         app.add_routes([web.get('/log_view/{path:.*}', log_view_handler)])
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', self.http_port)
+        site = web.TCPSite(runner, f'{self.http_host}', self.http_port)
         await site.start()
-        logging.info(f'HTTP server started at http://localhost:{self.http_port}')
+        logging.info(f'HTTP server started at http://{self.http_host}:{self.http_port}')
         return runner
 
     async def root_handler(self, request):

@@ -6,7 +6,7 @@ from . import html_addons, zmq_client
 PAGE_SIZE = 5
 
 
-def root(request):
+async def root(request):
     param_level = request.GET.get('level')
     param_recipient = request.GET.get('recipient')
     param_id = request.GET.get('id')
