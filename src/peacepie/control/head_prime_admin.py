@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 
 from peacepie import loglistener
 from peacepie.assist import log_util
@@ -17,6 +18,7 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         self.is_head = True
         self.interlink = None
         self.safe_admin = None
+        self.registered_handlers = {}
 
     async def pre_run(self):
         await super().pre_run()
@@ -28,6 +30,7 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         class_desc = {'package_name': 'peacepie.control.internal_starter', 'class': 'InternalStarter', 'internal': True}
         body = {'class_desc': class_desc, 'name': 'internal_starter'}
         msg = self.adaptor.get_msg('create_actor', body, sender=self.adaptor.get_self_addr())
+        self.signals_check()
         await self.adaptor.send(msg)
 
     async def exit(self):
@@ -50,6 +53,8 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             logging.debug(log_util.async_sent_log(self, msg))
         elif command == 'get_credentials':
             await self.safe_admin.handle(msg)
+        elif command == 'signals_check':
+            self.signals_check()
         elif command == 'change_caches':
             await self.change_caches(msg)
         elif command == 'remove_from_caches':
@@ -61,6 +66,17 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         else:
             return await super().handle(msg)
         return True
+
+    def signals_check(self):
+        for signal_name in {'SIGINT', 'SIGTERM'}:
+            sig = getattr(signal, signal_name)
+            handler = signal.getsignal(sig)
+            if self.registered_handlers.get(sig) == handler:
+                continue
+            handler = lambda signum, frame: asyncio.create_task(self.finalize())
+            signal.signal(sig, handler)
+            handler = signal.getsignal(sig)
+            self.registered_handlers[sig] = handler
 
     async def change_caches(self, msg):
         recipient = msg.get('sender')

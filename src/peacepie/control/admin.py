@@ -58,12 +58,6 @@ class Admin:
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.intralink.run(queue))
         await queue.get()
-        loop = asyncio.get_running_loop()
-        for signal_name in {'SIGINT', 'SIGTERM'}:
-            loop.add_signal_handler(
-                getattr(signal, signal_name),
-                lambda: asyncio.create_task(self.finalize())
-            )
 
     async def finalize(self):
         if self.is_finalizing:
