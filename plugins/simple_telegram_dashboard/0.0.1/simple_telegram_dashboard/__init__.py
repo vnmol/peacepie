@@ -1,1 +1,0 @@
-from simple_telegram_dashboard.simple_telegram_actor import SimpleTelegramActor

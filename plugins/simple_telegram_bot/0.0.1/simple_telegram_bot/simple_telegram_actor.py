@@ -2,9 +2,8 @@ import asyncio
 import hashlib
 
 from aiogram import Dispatcher, Bot, F
-from aiogram.client import bot
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
@@ -112,18 +111,41 @@ class SimpleTelegramActor:
         level = body.get('level')
         member = body.get('_back')
         if member:
-            self.add_menu_item(builder, buttons, level, member)
+            self.add_menu_item(builder, buttons, member)
         for member in body.get('members'):
-            self.add_menu_item(builder, buttons, level, member)
+            self.add_menu_item(builder, buttons, member)
+        nav = body.get('nav')
         builder.adjust(1)
+        if nav:
+            self.add_nav(builder, buttons, nav)
         return level
 
-    def add_menu_item(self, builder, buttons, level, mbr):
-        mbr['level'] = level
-        key = str(mbr.get('level')) + str(mbr.get('next_level')) + str(mbr.get('recipient')) + str(mbr.get('id'))
-        hsh = hashlib.blake2s(key.encode(), digest_size=32).hexdigest()
+    def add_menu_item(self, builder, buttons, mbr):
+        hsh = self.get_hash(mbr)
         text = '...' if mbr.get('id') == '_back' else mbr.get('id')
         builder.button(text=text, callback_data=hsh)
+        buttons[hsh] = mbr
+
+    def get_hash(self, mbr):
+        key = str(mbr.get('next_level')) + str(mbr.get('recipient')) + str(mbr.get('id'))
+        return hashlib.blake2s(key.encode(), digest_size=32).hexdigest()
+
+    def add_nav(self, builder, buttons, nav):
+        count = nav.get('count')
+        page = nav.get('page')
+        row = []
+        if page > 0:
+            self.add_nav_button(buttons, row, nav, f'_page_{page-1}', '<')
+        self.add_nav_button(buttons, row, nav, f'_page_{page}', f'{page+1}', True)
+        if page < count - 1:
+            self.add_nav_button(buttons, row, nav, f'_page_{page+1}', '>')
+        builder.row(*row)
+
+    def add_nav_button(self, buttons, row, nav, xid, text, no_action=False):
+        level = None if no_action else nav.get('next_level')
+        mbr = {'next_level': level, 'recipient': nav.get('recipient'), 'id': xid}
+        hsh = self.get_hash(mbr)
+        row.append(InlineKeyboardButton(text=text, callback_data=hsh))
         buttons[hsh] = mbr
 
     def are_buttons_equal(self, chat_id, new_buttons):
