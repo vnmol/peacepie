@@ -1,5 +1,6 @@
 import asyncio
 import importlib
+import importlib.metadata
 import inspect
 import logging
 import os
@@ -26,9 +27,10 @@ class PackageAdmin:
         self.delivery_path = f'{params.instance["package_dir"]}/delivery'
         self.source_path = f'{params.instance["package_dir"]}/source'
         self.tmp_path = f'{params.instance["package_dir"]}/tmp/{self.parent.parent.process_name}'
-        dir_operations.makedir(self.tmp_path, True)
+        dir_operations.recreatedir(self.tmp_path)
         self.work_path = f'{params.instance["package_dir"]}/work/{self.parent.parent.process_name}'
-        dir_operations.makedir(self.work_path, True)
+        dir_operations.recreatedir(self.work_path)
+        dir_operations.adjust_path(params.instance['package_dir'], self.parent.parent.process_name)
         logging.info(log_util.get_alias(self) + ' is created')
 
     def get_class(self, class_desc, timeout):
@@ -43,9 +45,22 @@ class PackageAdmin:
         return res
 
     def get_package(self, class_desc, timeout):
-        if class_desc.get('internal'):
-            return importlib.import_module(class_desc.get(PACKAGE_NAME))
-        pack = self.packages.get(class_desc.get(PACKAGE_NAME))
+        name = class_desc.get(PACKAGE_NAME)
+        try:
+            pack = importlib.import_module(name)
+            if class_desc.get('internal'):
+                return pack
+            if pack:
+                ver = version.from_string(importlib.metadata.version(name))
+                if version.check_version(self, ver, class_desc.get(version.VERSION)):
+                    return pack
+                else:
+                    return None
+        except ModuleNotFoundError:
+            pass
+        except Exception as e:
+            logging.exception(e)
+        pack = self.packages.get(name)
         if not pack:
             return self.put_into_queue(class_desc, timeout)
         if not version.check_version(self, pack.get(version.VERSION), class_desc.get(version.VERSION)):
@@ -178,17 +193,13 @@ class PackageAdmin:
         self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
 
     async def import_package(self, package_name):
-        count = 3
-        for i in range(count):
-            try:
-                res = importlib.import_module(package_name)
-                return res
-            except ModuleNotFoundError as e:
-                logging.warning(f'Failed to import module "{package_name}"')
-                if i == count - 1:
-                    logging.exception(e)
-                    return
-                await asyncio.sleep(0.1)
+        importlib.invalidate_caches()
+        try:
+            res = importlib.import_module(package_name)
+            logging.info(f'Module "{package_name}" is imported')
+            return res
+        except ModuleNotFoundError as e:
+            logging.exception(e)
 
 def get_primary_class(module):
     classes = inspect.getmembers(module, inspect.isclass)

@@ -38,7 +38,6 @@ class Admin:
         self.spy = None
         self.not_log_commands = set()
         self.cumulative_commands = {}
-        dir_operations.adjust_path(params.instance['package_dir'], self.process_name)
 
     def get_prefix(self):
         return f'{self.host_name}.{self.process_name}.'

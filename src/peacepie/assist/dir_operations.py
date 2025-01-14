@@ -2,7 +2,18 @@ import logging
 import os
 import shutil
 import sys
-import time
+
+
+def recreatedir(dirpath):
+    try:
+        if os.path.exists(dirpath):
+            shutil.rmtree(dirpath)
+            logging.info(f'Old folder "{dirpath}" is deleted')
+        os.makedirs(dirpath)
+        logging.info(f'New folder "{dirpath}" is created')
+        logging.info(f'Folder "{dirpath}" is {"" if len(os.listdir(dirpath)) == 0 else "not "}empty')
+    except Exception as e:
+        logging.exception(e)
 
 
 def makedir(dirpath, clear=False):

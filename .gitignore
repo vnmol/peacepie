@@ -17,3 +17,5 @@ example.stats
 /peacepie_service/safe.cfg
 /tests/config/safe.cfg
 /src/.ssh/
+/peacepie_docker/master/safe.cfg
+/peacepie_docker/slave/safe.cfg

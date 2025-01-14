@@ -1,6 +1,5 @@
 import logging
 import os
-import traceback
 
 from aiohttp import web, WSMsgType
 
@@ -199,7 +198,6 @@ def script_command(host, port):
 
 async def logs_handler(request):
     path = request.match_info.get('path', '')
-    print('logs', path)
     logs_path = os.path.join('/logs/', path)
     if logs_path.endswith('/'):
         logs_path = logs_path[:-1]

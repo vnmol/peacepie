@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from peacepie import adaptor
 
@@ -52,11 +53,19 @@ def sync_received_log(sender, msg):
 
 def msg_format(msg):
     res = "{'mid': '" + msg.get('mid') + "', 'command': '" + str(msg.get('command'))
-    res += "', 'body': " + str(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
+    res += "', 'body': " + body_format(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
     res += ", 'sender': " + addr_format(msg.get('sender')) + ", 'timeout': " + str(msg.get('timeout'))
     res += ", 'is_control': " + str(msg.get('is_control'))
     res += "}"
     return res
+
+
+pattern = r"'password':\s*(['\"])(.*?)(\1)"
+
+
+def body_format(body):
+    res = str(body)
+    return re.sub(pattern, r"'password': '******'", res)
 
 
 def addr_format(addr):

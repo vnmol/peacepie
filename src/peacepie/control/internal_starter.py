@@ -1,6 +1,5 @@
 import os
 import re
-import shutil
 
 from peacepie import msg_factory, params
 from peacepie.assist import dir_operations

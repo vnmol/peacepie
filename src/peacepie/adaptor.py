@@ -1,5 +1,6 @@
 import asyncio
 import importlib
+import importlib.util
 import inspect
 import logging
 import os
@@ -291,7 +292,7 @@ class Adaptor:
             raise Exception(f'{coms}: ({res[0]}, {self.res_squeeze(res[1])}, {self.res_squeeze(res[2])})')
         return res
 
-    async def command_execute(self, command, timeout=300):
+    async def command_execute(self, command, command_for_log, timeout=300):
         res = None
         try:
             process = await asyncio.create_subprocess_shell(
@@ -300,7 +301,7 @@ class Adaptor:
             await asyncio.wait_for(process.wait(), timeout)
             stdout, stderr = await process.communicate()
             res = (process.returncode, stdout.decode('utf-8'), stderr.decode('utf-8'))
-            title = f'{self.get_alias()} executed command "{command}"'
+            title = f'{self.get_alias()} executed command "{command_for_log}"'
             text = f'{title}: ({res[0]}, "{self.res_squeeze(res[1])}", "{self.res_squeeze(res[2])}")'
             if res[0] == 0:
                 logging.debug(text)
@@ -309,6 +310,32 @@ class Adaptor:
         except Exception as e:
             logging.exception(e)
         return res
+
+    async def sudo_command_execute(self, command, credentials_name, timeout=300):
+        credentials = await self.get_credentials(credentials_name)
+        username = credentials.get('username')
+        password = credentials.get('password')
+        com = f'echo "{password}" | su -c "echo {password} | sudo -S {command}" - {username}'
+        password = '******'
+        com_for_log = f'echo "{password}" | su -c "echo {password} | sudo -S {command}" - {username}'
+        res = await self.command_execute(com, com_for_log, timeout)
+        return res[0] == 0
+
+    async def sudo_com_exe(self, credentials_name, command, cwd=None, timeout=300):
+        credentials = await self.get_credentials(credentials_name)
+        username = credentials.get('username')
+        password = credentials.get('password')
+        com = f'echo "{password}" | su -c "echo {password} | sudo -S {command}" - {username}'
+        password = '******'
+        com_for_log = f'echo "{password}" | su -c "echo {password} | sudo -S {command}" - {username}'
+        res = await self.sync_as_async(terminal_util.exe, sync_args=(com, cwd, timeout))
+        title = f'{self.get_alias()} executed command "{com_for_log}"'
+        text = f'{title}: ({res[0]}, "{self.res_squeeze(res[1])}", "{self.res_squeeze(res[2])}")'
+        if res[0] == 0:
+            logging.debug(text)
+        else:
+            logging.warning(text)
+        return res[0] == 0
 
     def res_squeeze(self, param):
         res = param[:200] + ' >>>>' if len(param) > 200 else param
