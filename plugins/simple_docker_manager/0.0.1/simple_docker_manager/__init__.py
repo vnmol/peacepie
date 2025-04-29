@@ -1,1 +1,0 @@
-from simple_docker_manager.installer import SimpleDockerInstaller

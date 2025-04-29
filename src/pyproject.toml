@@ -9,7 +9,7 @@ description = "Простая система акторов"
 authors = [{ name = "Владимир Молодцов", email = "vmol@mail.ru" }]
 readme = "README.md"
 license = { file = "LICENSE" }
-dependencies = ['ujson~=5.10.0']
+dependencies = ['ujson']
 
 [tool.setuptools.packages.find]
 where = ["."]

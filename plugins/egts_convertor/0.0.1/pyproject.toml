@@ -3,11 +3,10 @@ requires = ['setuptools', 'setuptools-scm']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'simple_docker_manager'
+name = 'egts_convertor'
 version = '0.0.1'
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
 dependencies = [
-    'docker',
 ]
