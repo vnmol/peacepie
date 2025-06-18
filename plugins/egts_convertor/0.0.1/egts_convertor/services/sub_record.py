@@ -26,6 +26,15 @@ class SubRecord:
     def __eq__(self, other):
         return compare(self, other)
 
+    def decode_with_print(self, payload, pos):
+        value = f'{payload[pos]:02X}'
+        for i in range(pos + 1, pos + self.srl):
+            value += f' {payload[i]:02X}'
+        print(" " * 12 + value)
+        pos += self.srl
+        print()
+        return pos
+
     def encode(self):
         res = bytearray()
         body = self.encoding()

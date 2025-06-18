@@ -21,6 +21,8 @@ class MainOverlooker:
             await self.timer()
         elif command == 'set_params':
             await self.set_params(body.get('params'), msg.get('sender'))
+        elif command == 'start':
+            self.start()
         else:
             return False
         return True
@@ -31,8 +33,6 @@ class MainOverlooker:
             if self.timeout:
                 self.adaptor.start_timer(self.timeout)
             self.adaptor.add_ticker(self.overlooker_period, self.overlooker_period)
-            if not self.is_testing:
-                print('START', self.adaptor.get_caller_info())
         received = msg.get('body').get('received')
         self.received += received
         self.received_for_the_period += received
@@ -40,12 +40,12 @@ class MainOverlooker:
             await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
 
     async def tick(self):
-        max_name = None
+        # max_name = None
         max_value = 0
         for value in self.adaptor.parent.actor_admin.actors.values():
             adaptor = value.get('adaptor')
             if adaptor.queue.qsize() > max_value:
-                max_name = adaptor.name
+                # max_name = adaptor.name
                 max_value = adaptor.queue.qsize()
         if not self.is_testing:
             print(self.received_for_the_period / self.overlooker_period, self.adaptor.get_caller_info())
@@ -70,3 +70,7 @@ class MainOverlooker:
                 self.is_testing = value
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
+
+    def start(self):
+        if not self.is_testing:
+            print('START', self.adaptor.get_caller_info())

@@ -7,6 +7,8 @@ class EmbeddedChannel:
         self.parent = parent
         self.ch_id = self.parent.adaptor.series_next(self.parent.adaptor.name)
         self.name = f'channel_{self.ch_id}'
+        self.inner_name = '_parent'
+        self.start_queue = None
         self.reader = reader
         self.writer = writer
         self.convertor = None
@@ -28,12 +30,11 @@ class EmbeddedChannel:
         await self.writer.wait_closed()
 
     async def handle(self, queue):
-        await self.create_convertor()
-        if queue:
-            await queue.put(self.parent.adaptor.get_msg('channel_is_opened'))
+        self.start_queue = queue
         log = f'{self.parent.adaptor.get_alias(self)} connected '
         log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
         logging.info(log)
+        await self.create_convertor()
         while True:
             try:
                 data = await self.reader.read(255)
@@ -59,8 +60,16 @@ class EmbeddedChannel:
         self.convertor.adaptor = self
         body = {'params': [
             {'name': 'mediator', 'value': '_mediator'},
-            {'name': 'consumer', 'value': self.parent.consumer}]}
-        msg = self.parent.adaptor.get_msg('set_params', body, name, sender='_parent')
+            {'name': 'consumer', 'value': self.parent.consumer},
+            {'name': 'convertor_params', 'value': self.parent.convertor_params}
+        ]}
+        msg = self.parent.adaptor.get_msg('set_params', body, name, self.inner_name)
+        await self.convertor.handle(msg)
+        if self.not_log_commands:
+            body = {'commands': list(self.not_log_commands)}
+            msg = self.parent.adaptor.get_msg('not_log_commands_set', body, self.inner_name)
+            await self.parent.adaptor.handle(msg)
+        msg = self.parent.adaptor.get_msg('start', {'is_client': self.parent.is_client}, self.inner_name)
         await self.convertor.handle(msg)
 
     async def send_to_channel(self, msg):
@@ -70,8 +79,13 @@ class EmbeddedChannel:
         if msg.get('recipient') == '_parent':
             return
         if msg.get('recipient') == '_mediator':
-            self.writer.write(msg.get('body'))
-            await self.writer.drain()
+            match msg.get('command'):
+                case 'send_to_channel':
+                    self.writer.write(msg.get('body'))
+                    await self.writer.drain()
+                case 'channel_is_opened':
+                    if self.start_queue:
+                        await self.start_queue.put(msg)
         else:
             await self.parent.adaptor.send(msg, self)
 
@@ -83,3 +97,6 @@ class EmbeddedChannel:
 
     def json_loads(self, jsn):
         return self.parent.adaptor.json_loads(jsn)
+
+    def get_caller_info(self):
+        return self.parent.adaptor.get_caller_info()

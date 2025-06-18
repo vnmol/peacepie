@@ -30,19 +30,22 @@ class AppStarter:
         class_desc = {'package_name': 'simple_navi_testing', 'class': 'MainInitiator', 'extra-index-url': url}
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
+        # class_desc = {'package_name': 'egts_convertor', 'class': 'EGTSConvertor', 'extra-index-url': url}
         class_desc = {'package_name': 'simple_convertor', 'class': 'SimpleConvertor', 'extra-index-url': url}
         body = {'params': [
             {'name': 'extra-index-url', 'value': url},
             {'name': 'convertor_desc', 'value': class_desc},
-            {'name': 'inet_addr', 'value': {'host': '0.0.0.0', 'port': 5000}},
+            {'name': 'inet_addr', 'value': {'host': '0.0.0.0', 'port': 4802}},
+            {'name': 'is_single_channel', 'value': False},
             {'name': 'is_embedded_channel', 'value': False},
-            {'name': 'is_on_demand', 'value': True},
-            {'name': 'count', 'value': 3},
-            {'name': 'size', 'value': 4},
-            {'name': 'period', 'value': 1},
+            {'name': 'is_on_demand', 'value': False},
+            {'name': 'count', 'value': 2},
+            {'name': 'size', 'value': 20},
+            {'name': 'period', 'value': 0.02},
             {'name': 'limit', 'value': None},
             {'name': 'timeout', 'value': None},
             {'name': 'overlooker_period', 'value': 4},
+            {'name': 'skip_some_logging', 'value': True},
             {'name': 'is_testing', 'value': False}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.send(self.adaptor.get_msg('start', None, name))

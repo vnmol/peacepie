@@ -155,6 +155,8 @@ class PackageAdmin:
                 self.packages[tokens[0]] = {version.VERSION: ver, PACKAGE: pack}
 
     async def notify(self, package_name, ver, pack):
+        if not pack:
+            pass
         for waiter in self.waiters.get(package_name):
             res = None
             if version.check_version(self, ver, waiter.get(version.VERSION)):
@@ -174,11 +176,13 @@ class PackageAdmin:
         src = f'{path}/{version.to_string(ver)}/{package_name}'
         dst = f'{self.work_path}/{package_name}'
         dir_operations.copy_dir(src, dst)
-        pack = await self.import_package(package_name)
-        if not pack:
-            return
+        pack = None
+        try:
+            pack = await self.import_package(package_name)
+            self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
+        except Exception as e:
+            logging.exception(e)
         await self.notify(package_name, ver, pack)
-        self.packages[package_name] = {version.VERSION: ver, PACKAGE: pack}
 
     async def copy_module(self, class_desc):
         package_name = class_desc.get(PACKAGE_NAME)

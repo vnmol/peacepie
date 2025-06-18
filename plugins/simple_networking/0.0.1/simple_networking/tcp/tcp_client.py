@@ -9,9 +9,11 @@ class TcpClient:
 
     def __init__(self):
         self.adaptor = None
+        self.is_client = True
         self.host = None
         self.port = None
         self.convertor_desc = None
+        self.convertor_params = {}
         self.is_embedded_channel = False
         self.consumer = None
         self.convertor_class = None
@@ -34,7 +36,7 @@ class TcpClient:
         elif command == 'set_params':
             await self.set_params(msg)
         elif command == 'start':
-            await self.start(msg)
+            await self.start(msg.get('sender'))
         elif command == 'close':
             await self.close()
         else:
@@ -44,12 +46,15 @@ class TcpClient:
     async def send_to_channel(self, msg):
         if not self.is_opened:
             self.channel_queue = asyncio.Queue()
-            asyncio.get_running_loop().create_task(self.handle_connection())
-        if not self.channel:
             timeout = msg.get('timeout') if msg.get('timeout') else 4
             self.adaptor.start_timer(timeout, self.channel_queue, msg.get('mid'))
+            asyncio.get_running_loop().create_task(self.handle_connection())
             ans = await self.channel_queue.get()
             if ans.get('command') != 'channel_is_opened':
+                recipient = msg.get('sender')
+                if recipient:
+                    ans['recipient'] = recipient
+                    await self.adaptor.send(ans)
                 return
         await self.channel.send_to_channel(msg)
 
@@ -66,6 +71,8 @@ class TcpClient:
                 self.port = value
             elif name == 'convertor_desc':
                 self.convertor_desc = value
+            elif name == 'convertor_params':
+                self.convertor_params = value
             elif name == 'is_embedded_channel':
                 self.is_embedded_channel = value
             elif name == 'is_on_demand':
@@ -73,16 +80,19 @@ class TcpClient:
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
-    async def start(self, msg):
+    async def start(self, recipient):
         if self.is_embedded_channel:
             ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}))
             self.convertor_class = ans.get('body')
         if not self.is_on_demand:
             self.channel_queue = asyncio.Queue()
             asyncio.get_running_loop().create_task(self.handle_connection())
+            ans = await self.channel_queue.get()
+            if ans.get('command') != 'channel_is_opened':
+                return
         logging.info(f'{self.adaptor.get_alias()} is started at {self.host}:{self.port}')
-        if msg.get('sender'):
-            await self.adaptor.send(self.adaptor.get_msg('started', None, msg.get('sender')))
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))
 
     async def handle_connection(self):
         self.is_opened = True

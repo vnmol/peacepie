@@ -7,11 +7,15 @@ from egts_convertor.services.sub_record import SubRecord
 
 class DispatcherIdentity(SubRecord):
 
-    def __init__(self, parent, srl):
+    def __init__(self, parent, srl=None):
         super().__init__(parent, constants.EGTS_SR_DISPATCHER_IDENTITY, srl)
         self.dt = None
         self.did = None
         self.dscr = None
+
+    def init(self):
+        self.dt = 1
+        self.did = 1
 
     def decode(self, payload, pos):
         self.dt, self.did = struct.unpack_from("<BI", payload, pos)

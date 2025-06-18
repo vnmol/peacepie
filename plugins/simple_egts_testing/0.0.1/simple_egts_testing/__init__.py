@@ -1,1 +1,0 @@
-from simple_egts_testing.initiator import Initiator

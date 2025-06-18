@@ -21,6 +21,7 @@ from egts_convertor.services.teledata_service.loopin_data import LoopinData
 from egts_convertor.services.teledata_service.passengers_counters import PassengersCounters
 from egts_convertor.services.teledata_service.pos_data import PosData
 from egts_convertor.services.teledata_service.state_data import StateData
+from egts_convertor.services.teledata_service.test_id_data import TestIdData
 
 
 class CommonRecord:
@@ -110,13 +111,15 @@ class CommonRecord:
                         return LiquidLevelSensor(self, srl)
                     case constants.EGTS_SR_PASSENGERS_COUNTERS:
                         return PassengersCounters(self, srl)
+                    case constants.EGTS_SR_TEST_ID_DATA:
+                         return TestIdData(self, srl)
             case constants.EGTS_COMMANDS_SERVICE:
                 pass
             case constants.EGTS_FIRMWARE_SERVICE:
                 pass
             case constants.EGTS_ECALL_SERVICE:
                 pass
-        return SubRecord(self, srl, 0)
+        return SubRecord(self, srt, srl)
 
 
     def decode_with_print(self, payload, pos):

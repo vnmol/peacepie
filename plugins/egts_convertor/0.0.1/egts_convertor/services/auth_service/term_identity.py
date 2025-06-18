@@ -21,7 +21,7 @@ class TermIdentity(SubRecord):
         self.bs = None
         self.msisdn =None
 
-    def set(self, imei):
+    def set_imei(self, imei):
         self.tid = 0
         self.imei = imei
 

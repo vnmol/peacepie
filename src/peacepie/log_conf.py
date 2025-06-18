@@ -9,6 +9,7 @@ from logging.handlers import RotatingFileHandler
 
 from peacepie import params
 from peacepie.assist import dir_operations
+from peacepie.assist.auxiliaries import is_pycharm
 
 LOG_PATH = 'logs/log.log'
 
@@ -55,7 +56,7 @@ def get_default_logger():
 
 
 def check_paths(config):
-    if params.instance.get('developing_mode') or 'pycharm' in sys.executable.lower():
+    if params.instance.get('developing_mode') or is_pycharm():
         dir_operations.cleardir(params.instance.get('log_dir'))
     filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
     filepaths = set([os.path.dirname(filename) for filename in filenames])

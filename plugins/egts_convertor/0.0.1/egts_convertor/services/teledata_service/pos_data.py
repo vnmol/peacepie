@@ -26,18 +26,18 @@ class PosData(SubRecord):
         self.lat = None
         self.long = None
         self.flag = None
-        self.spd = None
-        self.dir = None
-        self.odm = None
-        self.din = None
-        self.src = None
+        self.spd = 0
+        self.dir = 0
+        self.odm = 0
+        self.din = 0
+        self.src = 0
         self.alt = None
 
     def get_datetime(self):
-        return datetime.fromtimestamp(self.ntm + constants.DEFAULT_BEGIN_TIME, tz=timezone.utc)
+        return datetime.fromtimestamp(self.ntm + constants.DEFAULT_BEGIN_TIME, tz=timezone.utc).isoformat()
 
     def set_datetime(self, val):
-        self.ntm = int (val.timestamp()) - constants.DEFAULT_BEGIN_TIME
+        self.ntm = int(datetime.fromisoformat(val).timestamp()) - constants.DEFAULT_BEGIN_TIME
 
     def get_lat(self):
         return self.lat * 90 / 0xFFFFFFFF * (-1 if self.flag & PosData.LAHS else 1)
@@ -87,6 +87,8 @@ class PosData(SubRecord):
         return (self.spd & 0x3FFF) * 0.1852
 
     def set_spd(self, val):
+        if val is None:
+            val = 0.0
         if self.spd is None:
             self.spd = 0
         self.spd = (self.spd & (PosData.DIRH | PosData.ALTS)) | (round(val / 0.1852) & 0x3FFF)
@@ -95,6 +97,8 @@ class PosData(SubRecord):
         return ((self.spd & PosData.DIRH) >> 7) | self.dir
 
     def set_dir(self, val):
+        if val is None:
+            val = 0
         self.set_spd_bit(PosData.DIRH, val > 0xFF)
         self.dir = val & 0xFF
 
@@ -102,18 +106,24 @@ class PosData(SubRecord):
         return self.odm / 10
 
     def set_odm(self, val):
+        if val is None:
+            val = 0.0
         self.odm = int(val * 10)
 
     def get_din(self):
         return self.din
 
     def set_din(self, val):
+        if val is None:
+            val = 0
         self.din = val
 
     def get_src(self):
         return self.src
 
     def set_src(self, val):
+        if val is None:
+            val = 0
         self.src = val
 
     def get_alt(self):

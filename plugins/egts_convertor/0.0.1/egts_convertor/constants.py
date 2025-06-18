@@ -98,6 +98,8 @@ EGTS_SR_ABS_LOOPIN_DATA = 26
 EGTS_SR_LIQUID_LEVEL_SENSOR = 27
 # Применяется абонентским терминалом для передачи на аппаратно-программный комплекс данных о показаниях счетчиков пассажиропотока
 EGTS_SR_PASSENGERS_COUNTERS = 28
+
+EGTS_SR_TEST_ID_DATA = 29
 # ======================================================
 EGTS_COMMANDS_SERVICE = 4
 # ======================================================
@@ -178,7 +180,8 @@ sub_record_types = {
         EGTS_SR_ABS_CNTR_DATA: "EGTS_SR_ABS_CNTR_DATA",
         EGTS_SR_ABS_LOOPIN_DATA: "EGTS_SR_ABS_LOOPIN_DATA",
         EGTS_SR_LIQUID_LEVEL_SENSOR: "EGTS_SR_LIQUID_LEVEL_SENSOR",
-        EGTS_SR_PASSENGERS_COUNTERS: "EGTS_SR_PASSENGERS_COUNTERS"
+        EGTS_SR_PASSENGERS_COUNTERS: "EGTS_SR_PASSENGERS_COUNTERS",
+        EGTS_SR_TEST_ID_DATA: "EGTS_SR_TEST_ID_DATA"
     },
     EGTS_COMMANDS_SERVICE: {},
     EGTS_FIRMWARE_SERVICE: {},

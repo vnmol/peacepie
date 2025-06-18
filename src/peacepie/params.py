@@ -1,8 +1,8 @@
-import logging
 import os
 import socket
 
 from peacepie.assist import dir_operations
+from peacepie.assist.auxiliaries import is_testing
 
 instance = None
 test_instance = None
@@ -12,20 +12,20 @@ def init_params(path, test_params):
     global instance
     global test_instance
     test_instance = test_params
-    res = {}
-    params = []
     try:
         with open(path) as f:
             pass
     except (FileNotFoundError, TypeError):
         path = None
-    if not path:
+    if path is None:
         path = deploy_environment()
+    params = []
     try:
         with open(path) as f:
             params = [line.strip().split('#')[0] for line in f.readlines()]
     except BaseException as bex:
         print(bex)
+    res = {}
     for param in params:
         if params == '':
             continue
@@ -66,7 +66,10 @@ def get_ip():
         s.close()
     return res
 
+
 def deploy_environment():
+    if is_testing():
+        return None
     src = f'{os.path.dirname(__file__)}/resources/config/'
     dst = f'{os.getcwd()}/config/'
     dir_operations.rem_dir(dst)

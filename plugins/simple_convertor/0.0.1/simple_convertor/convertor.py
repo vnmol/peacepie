@@ -7,40 +7,47 @@ class SimpleConvertor:
         self.adaptor = None
         self.mediator = None
         self.consumer = None
-        self.questioner = None
+        self.waiter = None
         self.packet = Packet(self)
 
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
+        sender = msg.get('sender')
         if command == 'received_from_channel':
             await self.received_from_channel(body)
         elif command == 'send_to_channel':
-            await self.send_to_channel(body, msg.get('sender'))
+            await self.send_to_channel(body, sender)
+        elif command == 'start':
+            await self.start()
         elif command == 'set_params':
-            await self.set_params(body.get('params'), msg.get('sender'))
+            await self.set_params(body, sender)
         else:
             return False
         return True
+
+    async def start(self):
+        await self.adaptor.send(self.adaptor.get_msg('channel_is_opened', None, self.mediator))
 
     async def received_from_channel(self, data):
         packs = self.packet.process(data)
         for pack in packs:
             body = self.adaptor.json_loads(pack)
             if isinstance(body, str) and body == 'OK':
-                await self.adaptor.send(self.adaptor.get_msg('sent', recipient=self.questioner))
-                self.questioner = None
+                if self.waiter:
+                    await self.adaptor.send(self.adaptor.get_msg('sent', None, self.waiter))
+                self.waiter = None
             else:
                 if self.consumer:
-                    await self.adaptor.send(self.adaptor.get_msg('navi_data', body, self.consumer, self.adaptor.name))
+                    await self.adaptor.send(self.adaptor.get_msg('navi_data', body, self.consumer))
                 await self.send('OK')
 
-    async def send_to_channel(self, data, questioner):
-        if self.questioner:
-            if questioner:
-                await self.adaptor.send(self.adaptor.get_msg('connection_is_busy', recipient=questioner))
+    async def send_to_channel(self, data, recipient):
+        if self.waiter:
+            if recipient:
+                await self.adaptor.send(self.adaptor.get_msg('connection_is_busy', None, recipient))
             return
-        self.questioner = questioner if questioner else self
+        self.waiter = recipient
         await self.send(data)
 
     async def send(self, data):
@@ -48,7 +55,12 @@ class SimpleConvertor:
         body = b'\xff\xfe' + (len(buf)).to_bytes(2, byteorder='big') + b'\x7f\xff' + buf
         await self.adaptor.send(self.adaptor.get_msg('send_to_channel', body, self.mediator))
 
-    async def set_params(self, params, recipient):
+    async def set_params(self, body, recipient):
+        params = body.get('params')
+        if params is None:
+            if recipient:
+                await self.adaptor.send(self.adaptor.get_msg('params_are_not_set', None, recipient))
+            return
         for param in params:
             name = param.get('name')
             value = param.get('value')
@@ -57,7 +69,7 @@ class SimpleConvertor:
             elif name == 'consumer':
                 self.consumer = value
         if recipient:
-            await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
+            await self.adaptor.send(self.adaptor.get_msg('params_are_set', None, recipient))
 
 
 class Packet:

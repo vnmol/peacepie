@@ -31,13 +31,11 @@ class Channel:
 
     async def handle(self, queue):
         self.start_queue = queue
-        self.mediator = await self.create_mediator()
-        self.convertor = await self.create_convertor()
-        if self.start_queue:
-            await self.start_queue.put(self.parent.adaptor.get_msg('channel_is_opened'))
         log = f'{self.parent.adaptor.get_alias(self)} connected '
         log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
         logging.info(log)
+        self.mediator = await self.create_mediator()
+        self.convertor = await self.create_convertor()
         while True:
             try:
                 data = await self.reader.read(255)
@@ -59,36 +57,36 @@ class Channel:
         ans = await self.parent.adaptor.ask(msg)
         if ans.get('command') != 'actor_is_created':
             return None
-        body = {'params': [{'name': 'writer', 'value': self.writer}]}
+        body = {'params': [{'name': 'parent', 'value': self}]}
         msg = self.parent.adaptor.get_msg('set_params', body, name)
-        await self.parent.adaptor.send(msg)
-        body = {'commands': list(self.not_log_commands)}
-        await self.parent.adaptor.send(self.parent.adaptor.get_msg('not_log_commands_set', body, name))
+        await self.parent.adaptor.ask(msg)
+        if self.not_log_commands:
+            body = {'commands': list(self.not_log_commands)}
+            await self.parent.adaptor.send(self.parent.adaptor.get_msg('not_log_commands_set', body, name))
         return name
 
     async def create_convertor(self):
         name = f'{self.parent.adaptor.name}.convertor_{self.ch_id}'
         msg = self.parent.adaptor.get_msg('create_actor', {'class_desc': self.parent.convertor_desc, 'name': name})
-        ans = await self.parent.adaptor.ask(msg)
+        ans = await self.parent.adaptor.ask(msg, 4)
         if ans.get('command') != 'actor_is_created':
             return None
         body = {'params': [
             {'name': 'mediator', 'value': self.mediator},
-            {'name': 'consumer', 'value': self.parent.consumer}]}
+            {'name': 'consumer', 'value': self.parent.consumer},
+            {'name': 'convertor_params', 'value': self.parent.convertor_params}
+        ]}
         msg = self.parent.adaptor.get_msg('set_params', body, name)
         await self.parent.adaptor.ask(msg)
-        body = {'commands': list(self.not_log_commands)}
-        await self.parent.adaptor.send(self.parent.adaptor.get_msg('not_log_commands_set', body, name))
+        if self.not_log_commands:
+            body = {'commands': list(self.not_log_commands)}
+            await self.parent.adaptor.send(self.parent.adaptor.get_msg('not_log_commands_set', body, name))
+        await self.parent.adaptor.send(self.parent.adaptor.get_msg('start', {'is_client': self.parent.is_client}, name))
         return name
 
     async def send_to_channel(self, msg):
-        if not self.convertor:
-            timeout = msg.get('timeout') if msg.get('timeout') else 4
-            self.parent.adaptor.start_timer(timeout, self.start_queue, msg.get('mid'))
-            ans = await self.start_queue.get()
-            if ans.get('command') != 'channel_is_opened':
-                if msg.get('sender'):
-                    await self.parent.adaptor.send(ans)
-                return
         msg['recipient'] = self.convertor
         await self.parent.adaptor.send(msg)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}("{self.name}")'

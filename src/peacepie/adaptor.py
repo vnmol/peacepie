@@ -344,6 +344,12 @@ class Adaptor:
     def series_next(self, name):
         return series_admin.instance.next(name)
 
+    def series_set_value(self, name, value):
+        series_admin.instance.set_value(name, value)
+
+    def series_set_max_value(self, name, max_value):
+        series_admin.instance.set_max_value(name, max_value)
+
     def get_caller_info(self):
         caller_frame = inspect.currentframe().f_back
         caller_info = inspect.getframeinfo(caller_frame)

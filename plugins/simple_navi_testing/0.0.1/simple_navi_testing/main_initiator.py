@@ -5,6 +5,7 @@ class MainInitiator:
         self.url = None
         self.convertor_desc = None
         self.inet_addr = None
+        self.is_single_channel = False
         self.is_embedded_channel = False
         self.is_on_demand = False
         self.count = None
@@ -13,6 +14,7 @@ class MainInitiator:
         self.limit = None
         self.timeout = None
         self.overlooker_period = 4
+        self.skip_some_logging = False
         self.is_testing = False
 
     async def handle(self, msg):
@@ -36,6 +38,8 @@ class MainInitiator:
                 self.convertor_desc = value
             elif name == 'inet_addr':
                 self.inet_addr = value
+            elif name == 'is_single_channel':
+                self.is_single_channel = value
             elif name == 'is_embedded_channel':
                 self.is_embedded_channel = value
             elif name == 'is_on_demand':
@@ -52,6 +56,8 @@ class MainInitiator:
                 self.timeout = value
             elif name == 'overlooker_period':
                 self.overlooker_period = value
+            elif name == 'skip_some_logging':
+                self.skip_some_logging = value
             elif name == 'is_testing':
                 self.is_testing = value
         self.convertor_desc['extra-index-url'] = self.url
@@ -73,7 +79,10 @@ class MainInitiator:
                            {'name': 'overlooker_period', 'value': self.overlooker_period},
                            {'name': 'is_testing', 'value': self.is_testing}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
-        await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['navi_data']}, name))
+        if self.skip_some_logging:
+            body = {'commands': ['tick', 'navi_data', 'packets_received']}
+            msg = self.adaptor.get_msg('not_log_commands_set', body, name)
+            await self.adaptor.send(msg)
         return ans.get('body')
 
     async def create_processes(self):
@@ -89,6 +98,7 @@ class MainInitiator:
         await self.adaptor.group_ask(30, len(names), self.initiator_set_params_factory(names, main_overlooker))
         await self.adaptor.group_ask(30, len(names), lambda index: {'command': 'prepare', 'recipient': names[index]})
         await self.adaptor.group_ask(30, len(names), lambda index: {'command': 'start', 'recipient': names[index]})
+        await self.adaptor.send(self.adaptor.get_msg('start', None, main_overlooker))
 
     def initiator_create_factory(self, processes, names):
         class_desc = {'package_name': 'simple_navi_testing', 'class': 'Initiator'}
@@ -109,6 +119,7 @@ class MainInitiator:
                 {'name': 'extra-index-url', 'value': self.url},
                 {'name': 'convertor_desc', 'value': self.convertor_desc},
                 {'name': 'inet_addr', 'value': {'host': host, 'port': port+index}},
+                {'name': 'is_single_channel', 'value': self.is_single_channel},
                 {'name': 'is_embedded_channel', 'value': self.is_embedded_channel},
                 {'name': 'is_on_demand', 'value': self.is_on_demand},
                 {'name': 'count', 'value': self.count},
@@ -116,7 +127,8 @@ class MainInitiator:
                 {'name': 'period', 'value': self.period},
                 {'name': 'limit', 'value': self.limit},
                 {'name': 'main_overlooker', 'value': main_overlooker},
-                {'name': 'overlooker_period', 'value': self.overlooker_period}
+                {'name': 'overlooker_period', 'value': self.overlooker_period},
+                {'name': 'skip_some_logging', 'value': self.skip_some_logging}
             ]}
             return {'command': 'set_params', 'body': body, 'recipient': names[index]}
 

@@ -7,6 +7,7 @@ class Initiator:
         self.url = None
         self.convertor_desc = None
         self.inet_addr = None
+        self.is_single_channel = False
         self.is_embedded_channel = False
         self.is_on_demand = False
         self.count = None
@@ -15,6 +16,7 @@ class Initiator:
         self.limit = None
         self.main_overlooker = None
         self.overlooker_period = None
+        self.skip_some_logging = False
         self.gens = None
 
     async def handle(self, msg):
@@ -43,6 +45,8 @@ class Initiator:
                 self.convertor_desc = value
             elif name == 'inet_addr':
                 self.inet_addr = value
+            elif name == 'is_single_channel':
+                self.is_single_channel = value
             elif name == 'is_embedded_channel':
                 self.is_embedded_channel = value
             elif name == 'is_on_demand':
@@ -59,6 +63,8 @@ class Initiator:
                 self.main_overlooker = value
             elif name == 'overlooker_period':
                 self.overlooker_period = value
+            elif name == 'skip_some_logging':
+                self.skip_some_logging = value
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
@@ -79,8 +85,9 @@ class Initiator:
             {'name': 'overlooker_period', 'value': self.overlooker_period}
         ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
-        body = {'commands': ['navi_data']}
-        await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', body, name))
+        if self.skip_some_logging:
+            body = {'commands': ['tick', 'navi_data', 'packets_received']}
+            await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', body, name))
         return name
 
     async def create_server(self, consumer):
@@ -94,8 +101,9 @@ class Initiator:
                            {'name': 'is_embedded_channel', 'value': self.is_embedded_channel},
                            {'name': 'consumer', 'value': consumer}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name), 4)
-        body = {'commands': ['navi_data', 'received_from_channel', 'send_to_channel', 'sent']}
-        await self.adaptor.ask(self.adaptor.get_msg('not_log_commands_set', body, name), 4)
+        if self.skip_some_logging:
+            body = {'commands': ['navi_data', 'received_from_channel', 'send_to_channel', 'sent']}
+            await self.adaptor.ask(self.adaptor.get_msg('not_log_commands_set', body, name), 4)
         await self.adaptor.ask(self.adaptor.get_msg('start', None, name), 30)
 
     async def create_clients(self):
@@ -104,17 +112,21 @@ class Initiator:
         body = {'class_desc': class_desc, 'names': names}
         await self.adaptor.ask(self.adaptor.get_msg('create_actors', body), 4)
         await self.adaptor.group_ask(10, len(names), self.client_factory(names))
-        await self.adaptor.group_ask(10, len(names), self.client_not_log_factory(names))
+        if self.skip_some_logging:
+            await self.adaptor.group_ask(10, len(names), self.client_not_log_factory(names))
         await self.adaptor.group_ask(10, len(names), self.client_start_factory(names))
         return names
 
     def client_factory(self, names):
         def get_values(index):
+            code = None if self.is_single_channel else f'101010101{self.index:02d}{index:04d}'
             body = {'params': [{'name': 'convertor_desc', 'value': self.convertor_desc},
+                               {'name': 'convertor_params', 'value': {'code': code}},
                                {'name': 'host', 'value': self.inet_addr.get('host')},
                                {'name': 'port', 'value': self.inet_addr.get('port')},
                                {'name': 'is_embedded_channel', 'value': self.is_embedded_channel},
-                               {'name': 'is_on_demand', 'value': self.is_on_demand}]}
+                               {'name': 'is_on_demand', 'value': self.is_on_demand}
+                               ]}
             return {'command': 'set_params', 'body': body, 'recipient': names[index]}
         return get_values
 
@@ -135,18 +147,19 @@ class Initiator:
         body = {'class_desc': {'package_name': 'simple_navi_testing', 'class': 'SimpleNaviGen'}, 'names': self.gens}
         await self.adaptor.ask(self.adaptor.get_msg('create_actors', body), 4)
         await self.adaptor.group_ask(10, len(self.gens), self.gen_factory(clients, overlooker))
-        await self.adaptor.group_ask(10, len(self.gens), self.gen_not_log_factory())
+        if self.skip_some_logging:
+            await self.adaptor.group_ask(10, len(self.gens), self.gen_not_log_factory())
 
     def gen_factory(self, clients, overlooker):
         def get_values(index):
-            code = f'000000000{self.index:02d}{index:04d}'
             consumer = clients[index]
+            code = f'101010101{self.index:02d}{index:04d}'
             lat = 58.0 + self.index * (10.0 / self.count)
             lon = 39.0 + index * (30.0 / self.size)
-            body = {'params': [{'name': 'code', 'value': code}, {'name': 'lat', 'value': lat},
-                               {'name': 'lon', 'value': lon}, {'name': 'period', 'value': self.period},
-                               {'name': 'consumer', 'value': consumer}, {'name': 'overlooker', 'value': overlooker},
-                               {'name': 'limit', 'value': self.limit}]}
+            body = {'params': [{'name': 'code', 'value': code},
+                               {'name': 'lat', 'value': lat}, {'name': 'lon', 'value': lon},
+                               {'name': 'period', 'value': self.period}, {'name': 'consumer', 'value': consumer},
+                               {'name': 'overlooker', 'value': overlooker}, {'name': 'limit', 'value': self.limit}]}
             return {'command': 'set_params', 'body': body, 'recipient': self.gens[index]}
         return get_values
 

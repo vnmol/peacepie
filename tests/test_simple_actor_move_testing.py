@@ -4,6 +4,7 @@ import sys
 import unittest
 import multiprocessing
 
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import peacepie
@@ -12,9 +13,9 @@ import peacepie
 multiprocessing.set_start_method('spawn', force=True)
 
 
-class TestSimple(unittest.TestCase):
+class TestSimpleActorMove(unittest.TestCase):
 
-    async def simple(self):
+    async def simple_actor_move(self):
         pp = peacepie.PeaceSystem('./config/test_simple_actor_move_testing.cfg')
         await pp.start()
         try:
@@ -23,8 +24,8 @@ class TestSimple(unittest.TestCase):
             pass
         return pp
 
-    def test_simple(self):
-        pp = asyncio.run(self.simple())
+    def test_simple_actor_move(self):
+        pp = asyncio.run(self.simple_actor_move())
         for res in pp.test_errors:
             self.assertTrue(False, res.get('msg'))
 

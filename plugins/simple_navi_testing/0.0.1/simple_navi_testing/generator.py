@@ -1,6 +1,7 @@
 import math
 import random
 import time
+from datetime import datetime
 
 
 class SimpleNaviGen:
@@ -35,10 +36,10 @@ class SimpleNaviGen:
         lat = self.lat * (1 + 0.0001 * self.t * math.sin(self.t))
         lon = self.lon * (1 + 0.0001 * self.t * math.cos(self.t))
         self.t += 0.1
-        data = {'id': self.adaptor.series_next('navi_id'), 'type': None, 'code': self.code, 'is_proprietary': False,
-                'navi': {'time': time.time(), 'lat': lat, 'lon': lon}}
-        await self.adaptor.ask(self.adaptor.get_msg('send_to_channel', data, self.consumer))
-        await self.adaptor.send(self.adaptor.get_msg('navi_data', data, self.overlooker, self.adaptor.name))
+        data = {'navi': {'id': self.adaptor.series_next('navi_id'), 'code': self.code,
+                'datetime': datetime.now().isoformat(), 'lat': lat, 'lon': lon}}
+        await self.adaptor.ask(self.adaptor.get_msg('send_to_channel', data, self.consumer), 4)
+        await self.adaptor.send(self.adaptor.get_msg('navi_data', data, self.overlooker))
         self.sent += 1
         if self.sent == self.limit:
             self.adaptor.remove_ticker(self.ticker)

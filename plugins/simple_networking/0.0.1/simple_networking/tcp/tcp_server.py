@@ -9,9 +9,11 @@ class TcpServer:
 
     def __init__(self):
         self.adaptor = None
+        self.is_client = False
         self.host = None
         self.port = None
         self.convertor_desc = None
+        self.convertor_params = {}
         self.is_embedded_channel = False
         self.consumer = None
         self.convertor_class = None
