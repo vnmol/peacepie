@@ -29,6 +29,9 @@ class Channel:
         self.writer.close()
         await self.writer.wait_closed()
 
+    def error(self):
+        self.parent.error()
+
     async def handle(self, queue):
         self.start_queue = queue
         log = f'{self.parent.adaptor.get_alias(self)} connected '

@@ -96,8 +96,13 @@ class TcpClient:
 
     async def handle_connection(self):
         self.is_opened = True
+        is_first = True
         while True:
             try:
+                if is_first:
+                    is_first = False
+                else:
+                    await asyncio.sleep(20)
                 reader, writer = await asyncio.open_connection(self.host, self.port)
             except Exception as ex:
                 logging.exception(ex)

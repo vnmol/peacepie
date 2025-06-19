@@ -100,8 +100,6 @@ class EGTSConvertor:
                         await self.adaptor.send(self.adaptor.get_msg('navi_data', {'navi': navi}, self.consumer))
 
     async def response_process(self):
-        if not self.waiter:
-            return
         if len(self.packet.records) < 2:
             await self.error()
         else:
@@ -185,12 +183,13 @@ class EGTSConvertor:
         packet.records.append(record)
         await self.adaptor.send(self.adaptor.get_msg('send_to_channel', packet.encode(), self.mediator))
 
-    async def error(self, txt=None):
-        if not self.waiter:
-            return
-        data = {'txt': txt} if txt else None
-        await self.adaptor.send(self.adaptor.get_msg('error', data, self.waiter))
-        self.waiter = None
+    async def error(self):
+        msg = self.adaptor.get_msg('error', None, self.mediator)
+        await self.adaptor.send(msg)
+        if self.waiter and self.waiter != self.mediator:
+            msg['recipient'] = self.waiter
+            await self.adaptor.send(msg)
+            self.waiter = None
 
     def get_next_pid(self):
         self.pid = self.pid + 1 if self.pid < 65535 else 0

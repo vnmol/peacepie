@@ -95,7 +95,7 @@ class ActorAdmin:
         task.cancel()
         await task
         del self.actors[name]
-        query = msg_factory.get_msg('remove_from_caches', {'name': name}, self.parent.adaptor.get_head_addr())
-        await self.parent.adaptor.ask(query, 10, self)
+        if self.parent.cache.get(name):
+            del self.parent.cache[name]
         logging.info(f'{alias} is removed')
         return True

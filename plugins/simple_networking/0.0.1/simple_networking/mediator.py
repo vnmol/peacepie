@@ -17,6 +17,8 @@ class Mediator:
             await self.channel_operation(msg)
         elif command == 'set_params':
             await self.set_params(body.get('params'), sender)
+        elif command == 'error':
+            self.error()
         else:
             return False
         return True
@@ -35,3 +37,6 @@ class Mediator:
     async def channel_operation(self, msg):
         if self.parent.start_queue:
             await self.parent.start_queue.put(msg)
+
+    def error(self):
+        self.parent.writer.close()

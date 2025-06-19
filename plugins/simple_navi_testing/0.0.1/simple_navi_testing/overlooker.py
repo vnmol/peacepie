@@ -28,13 +28,14 @@ class Overlooker:
         if self.first:
             self.first = False
             self.adaptor.add_ticker(self.overlooker_period, self.overlooker_period)
-        nd = msg.get('body')
-        nd_id = nd.get('id')
+        body = msg.get('body')
+        navi = body.get('navi')
+        nd_id = navi.get('id')
         if self.packets.get(nd_id):
             del self.packets[nd_id]
             self.received += 1
         else:
-            self.packets[nd_id] = nd
+            self.packets[nd_id] = navi
 
     async def tick(self):
         if self.main_overlooker:
