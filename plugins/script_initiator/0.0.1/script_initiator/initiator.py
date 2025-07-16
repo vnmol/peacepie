@@ -39,7 +39,7 @@ class ScriptInitiator:
 
     async def create_navi_senders(self, process_name):
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'script_initiator', 'version': version, 'class': 'ScriptTester'}
+        class_desc = {'requires_dist': 'script_initiator', 'version': version, 'class': 'ScriptTester'}
         addr = {'node': process_name, 'entity': None}
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tester'}, addr)
         ans = await self.adaptor.ask(msg, 2)
@@ -49,14 +49,14 @@ class ScriptInitiator:
 
     async def balancer(self):
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_balancer', 'version': version, 'class': 'Balancer'}
+        class_desc = {'requires_dist': 'simple_balancer', 'version': version, 'class': 'Balancer'}
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'balancer'})
         await self.adaptor.ask(msg)
 
     async def navi_router(self):
         name = 'navi_router'
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_navi_router', 'version': version, 'class': 'SimpleNaviRouter'}
+        class_desc = {'requires_dist': 'simple_navi_router', 'version': version, 'class': 'SimpleNaviRouter'}
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': name})
         answer = await self.adaptor.ask(msg)
         if answer.command != 'actor_is_created':
@@ -65,12 +65,12 @@ class ScriptInitiator:
 
     async def simple_tcp_server(self):
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_tcp_server', 'version': version, 'class': 'SimpleTcpServer'}
+        class_desc = {'requires_dist': 'simple_tcp_server', 'version': version, 'class': 'SimpleTcpServer'}
         body = {'class_desc': class_desc, 'name': 'tcp_server_7777'}
         msg = self.adaptor.get_msg('create_actor', body)
         await self.adaptor.ask(msg)
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_convertor', 'version': version, 'class': 'SimpleConvertor'}
+        class_desc = {'requires_dist': 'simple_convertor', 'version': version, 'class': 'SimpleConvertor'}
         body = {'params': [{'name': 'port', 'value': 7777},
                            {'name': 'convertor_desc', 'value': class_desc},
                            {'name': 'embedded_channel', 'value': True},
@@ -88,7 +88,7 @@ class ScriptInitiator:
     async def create_simple_navi_gens(self, items):
         count = len(items)
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_navi_gen', 'version': version, 'class': 'SimpleNaviGen'}
+        class_desc = {'requires_dist': 'simple_navi_gen', 'version': version, 'class': 'SimpleNaviGen'}
         names = [item['gen'] for item in items]
         msg = self.adaptor.get_msg('create_actors', {'class_desc': class_desc, 'names': names})
         await self.adaptor.ask(msg)
@@ -107,13 +107,13 @@ class ScriptInitiator:
 
     async def create_simple_tcp_clients(self, items):
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_tcp_client', 'version': version, 'class': 'SimpleTcpClient'}
+        class_desc = {'requires_dist': 'simple_tcp_client', 'version': version, 'class': 'SimpleTcpClient'}
         names = [item['tcp_client'] for item in items]
         msg = self.adaptor.get_msg('create_actors', {'class_desc': class_desc, 'names': names})
         await self.adaptor.ask(msg)
         for item in items:
             version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-            class_desc = {'package_name': 'simple_convertor', 'version': version, 'class': 'SimpleConvertor'}
+            class_desc = {'requires_dist': 'simple_convertor', 'version': version, 'class': 'SimpleConvertor'}
             body = {'params': [{'name': 'inet_addr', 'value': {'host': 'localhost', 'port': 7777}},
                                {'name': 'balancer', 'value': None},
                                {'name': 'producer', 'value': item['gen']},

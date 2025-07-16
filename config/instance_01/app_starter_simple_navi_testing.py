@@ -20,18 +20,19 @@ class AppStarter:
         await self.networking(url)
 
     async def web_face(self, url):
-        class_desc = {'package_name': 'simple_web_face', 'class': 'SimpleWebFace', 'extra-index-url': url}
+        class_desc = {'requires_dist': 'simple_web_face >0.0.0, <1.0.0, !=0.2.0',
+                      'class': 'SimpleWebFace', 'extra-index-url': url}
         body = {'class_desc': class_desc, 'name': 'web_face'}
         ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
         await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
 
     async def networking(self, url):
         name = 'main_initiator'
-        class_desc = {'package_name': 'simple_navi_testing', 'class': 'MainInitiator', 'extra-index-url': url}
+        class_desc = {'requires_dist': 'simple_navi_testing', 'class': 'MainInitiator', 'extra-index-url': url}
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
-        class_desc = {'package_name': 'egts_convertor', 'class': 'EGTSConvertor', 'extra-index-url': url}
-        # class_desc = {'package_name': 'simple_convertor', 'class': 'SimpleConvertor', 'extra-index-url': url}
+        class_desc = {'requires_dist': 'egts_convertor ==0.0.1', 'class': 'EGTSConvertor', 'extra-index-url': url}
+        # class_desc = {'requires_dist': 'simple_convertor', 'class': 'SimpleConvertor', 'extra-index-url': url}
         body = {'params': [
             {'name': 'extra-index-url', 'value': url},
             {'name': 'convertor_desc', 'value': class_desc},

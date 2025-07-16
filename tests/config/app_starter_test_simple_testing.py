@@ -16,7 +16,7 @@ class AppStarter:
 
     async def start(self):
         name = 'initiator'
-        body = {'class_desc': {'package_name': 'simple_testing', 'class': 'Initiator'}, 'name': name}
+        body = {'class_desc': {'requires_dist': 'simple_testing', 'class': 'Initiator'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
         body = {'params': [{'name': 'group_count', 'value': 5}, {'name': 'group_size', 'value': 5}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))

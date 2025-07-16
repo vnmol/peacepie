@@ -1,0 +1,11 @@
+{
+    package_name: {
+        "info": {
+            "requires_python": python_version,
+            "requires_dist": [requires_dist]
+        },
+        version: {},
+        . . .
+    }
+    . . .
+}

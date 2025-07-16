@@ -1,8 +1,10 @@
 import os
 import socket
+import sys
 
-from peacepie.assist import dir_operations
+from peacepie.assist import dir_operations, version
 from peacepie.assist.auxiliaries import is_testing
+
 
 instance = None
 test_instance = None
@@ -46,7 +48,10 @@ def init_params(path, test_params):
             elif name == 'log_dir':
                 value = normalize(value)
             res[name] = value
+    res['source_path'] = f'{res.get("package_dir")}/source'
     res['ip'] = get_ip()
+    ver = version.version_from_string(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
+    res['python_version'] = ver
     instance = res
 
 

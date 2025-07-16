@@ -56,7 +56,7 @@ class Major:
             await self.adaptor.send(self.adaptor.get_msg('not_log_commands_set', {'commands': ['tick', 'beat']}, node))
         self.junior_count += 1
         names = [f'junior_{index}' for index, _ in enumerate(nodes)]
-        class_desc = {'package_name': 'simple_actor_move_testing', 'class': 'Junior'}
+        class_desc = {'requires_dist': 'simple_actor_move_testing', 'class': 'Junior'}
         await self.adaptor.group_ask(
             10, len(names), lambda index: {'command': 'create_actor',
                                            'body': {'class_desc': class_desc, 'name': names[index]},

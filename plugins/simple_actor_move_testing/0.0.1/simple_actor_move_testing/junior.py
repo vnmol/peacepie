@@ -55,7 +55,7 @@ class Junior:
     async def start(self):
         parent_index = int(self.adaptor.name.split('_')[1])
         consumer = f'consumer_{parent_index}'
-        body = {'class_desc': {'package_name': 'simple_actor_move_testing', 'class': 'Consumer'}, 'name': consumer}
+        body = {'class_desc': {'requires_dist': 'simple_actor_move_testing', 'class': 'Consumer'}, 'name': consumer}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
         names = [f'gen_{parent_index}_{i}' for i in range(self.gen_count)]
         body = {'params': [
@@ -69,7 +69,7 @@ class Junior:
         node_index = self.nodes.index(self.adaptor.get_node())
         for performer_index in range(len(self.performers)):
             self.locations[performer_index] = node_index
-        class_desc = {'package_name': 'simple_actor_move_testing', 'class': 'Generator'}
+        class_desc = {'requires_dist': 'simple_actor_move_testing', 'class': 'Generator'}
         await self.adaptor.group_ask(
             10, len(names), lambda index: {'command': 'create_actor',
                                            'body': {'class_desc': class_desc, 'name': names[index]},

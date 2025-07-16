@@ -21,7 +21,7 @@ class AppStarter:
         await self.variable_start(msg)
 
     async def constant_start(self):
-        body = {'class_desc': {'package_name': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
+        body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
         ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 120)
         await self.adaptor.send(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
 
@@ -35,7 +35,7 @@ class AppStarter:
             internal_starter = body.get('internal_starter')
         if not internal_starter:
             internal_starter = 'internal_starter'
-        class_desc = {'package_name': 'rss_vms_installer', 'class': 'RssVmsInstaller'}
+        class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'RssVmsInstaller'}
         body = {'class_desc': class_desc, 'name': 'vms_installer'}
         query = self.adaptor.get_msg('create_actor', body)
         ans = await self.adaptor.ask(query, 60)

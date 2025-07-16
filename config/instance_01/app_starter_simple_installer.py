@@ -18,7 +18,7 @@ class AppStarter:
         body = ans.get('body') if isinstance(ans.get('body'), dict) else dict()
         username = body.get('username')
         password = body.get('password')
-        class_desc = {'package_name': 'simple_installer', 'class': 'SimpleInstaller'}
+        class_desc = {'requires_dist': 'simple_installer', 'class': 'SimpleInstaller'}
         query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'simple_installer'})
         ans = await self.adaptor.ask(query)
         body = {'system_name': 'local', 'host': '192.168.100.83', 'port': 6999, 'ssh_port': 22,

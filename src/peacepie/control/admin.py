@@ -1,15 +1,13 @@
 import asyncio
-import signal
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_operations
-from peacepie.control import spy
-
 from peacepie.control.actors import actor_admin, actor_mover, actor_seeker
 from peacepie.control.intra import intra_server, intra_client
 
 
-ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor', 'get_source_path',
+ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor',
+                        'get_source_path', 'get_work_path',
                         'clone_actor', 'move_actor'}
 
 SPY_COMMANDS = {'gather_info', 'get_info', 'info'}
@@ -43,7 +41,6 @@ class Admin:
         return f'{self.host_name}.{self.process_name}.'
 
     async def pre_run(self):
-        self.spy = spy.Spy(self)
         self.actor_admin = actor_admin.ActorAdmin(self)
         self.actor_admin.actor_mover = actor_mover.ActorMover(self.actor_admin)
         asyncio.get_running_loop().create_task(self.actor_admin.actor_mover.run())

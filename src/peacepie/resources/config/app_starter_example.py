@@ -14,7 +14,7 @@ class AppStarter:
 
     async def start(self):
         name = 'initiator'
-        class_desc = {'package_name': 'peacepie_example', 'class': 'Initiator'}
+        class_desc = {'requires_dist': 'peacepie_example', 'class': 'Initiator'}
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 100)
         await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, name), 10)

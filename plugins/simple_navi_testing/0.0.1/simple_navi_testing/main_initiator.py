@@ -72,7 +72,7 @@ class MainInitiator:
     async def create_main_overlooker(self):
         overall_limit = self.count * self.size * self.limit if self.limit else self.limit
         name = 'main_overlooker'
-        body = {'class_desc': {'package_name': 'simple_navi_testing', 'class': 'MainOverlooker'}, 'name': name}
+        body = {'class_desc': {'requires_dist': 'simple_navi_testing', 'class': 'MainOverlooker'}, 'name': name}
         ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
         body = {'params': [{'name': 'limit', 'value': overall_limit},
                            {'name': 'timeout', 'value': self.timeout},
@@ -101,7 +101,7 @@ class MainInitiator:
         await self.adaptor.send(self.adaptor.get_msg('start', None, main_overlooker))
 
     def initiator_create_factory(self, processes, names):
-        class_desc = {'package_name': 'simple_navi_testing', 'class': 'Initiator'}
+        class_desc = {'requires_dist': 'simple_navi_testing', 'class': 'Initiator'}
 
         def get_values(index):
             body = {'class_desc': class_desc, 'name': names[index]}

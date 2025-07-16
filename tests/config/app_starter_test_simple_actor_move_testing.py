@@ -14,7 +14,7 @@ class AppStarter:
 
     async def start(self):
         name = 'major'
-        body = {'class_desc': {'package_name': 'simple_actor_move_testing', 'class': 'Major'}, 'name': name}
+        body = {'class_desc': {'requires_dist': 'simple_actor_move_testing', 'class': 'Major'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), timeout=30)
         body = {'params': [
             {'name': 'major_timeout', 'value': 30},

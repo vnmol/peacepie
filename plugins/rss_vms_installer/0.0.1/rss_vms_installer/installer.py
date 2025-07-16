@@ -34,7 +34,7 @@ class RssVmsInstaller:
         return True
 
     async def start(self, msg):
-        class_desc = {'package_name': 'auxiliaries', 'class': 'Auxiliary'}
+        class_desc = {'requires_dist': 'auxiliaries', 'class': 'Auxiliary'}
         query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'auxiliary'})
         ans = await self.adaptor.ask(query, 30)
         auxiliary = ans.get('body')
@@ -49,7 +49,7 @@ class RssVmsInstaller:
         extended_props = props.copy()
         extended_props['auxiliary'] = auxiliary
         if stage == Stages.CURL:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'CurlInstaller'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'CurlInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'curl_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('curl_install', recipient=ans.get('body'))
@@ -59,7 +59,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.LOCALE
         if stage == Stages.LOCALE:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'Utf8RuLocaleInstaller'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'Utf8RuLocaleInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'ru_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('ru_install', recipient=ans.get('body'))
@@ -73,7 +73,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.JAVA
         if stage == Stages.JAVA:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'OpenJdkJava8Installer'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'OpenJdkJava8Installer'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'java_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('java_install', recipient=ans.get('body'))
@@ -82,7 +82,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.POSTGRES
         if stage == Stages.POSTGRES:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'Postgres11Installer'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'Postgres11Installer'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'postgres_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('postgres_install', {'stage': substage}, recipient=ans.get('body'))
@@ -96,7 +96,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.POSTGIS
         if stage == Stages.POSTGIS:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'PostGIS25Installer'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'PostGIS25Installer'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'postgis_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('postgis_install', recipient=ans.get('body'))
@@ -106,7 +106,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.TOMCAT
         if stage == Stages.TOMCAT:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'Tomcat8523Installer'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'Tomcat8523Installer'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tomcat_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('tomcat_install', extended_props, recipient=ans.get('body'))
@@ -116,7 +116,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.TOMCAT_TUNER
         if stage == Stages.TOMCAT_TUNER:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'TomcatTuner'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'TomcatTuner'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tomcat_tuner'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('tomcat_tune', extended_props, recipient=ans.get('body'))
@@ -126,7 +126,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.SERVER_PART
         if stage == Stages.SERVER_PART:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'ServerPartInstaller'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'ServerPartInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'server_part_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('server_part_install', extended_props, recipient=ans.get('body'))
@@ -136,7 +136,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.LOGGER
         if stage == Stages.LOGGER:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'LoggerInstaller'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'LoggerInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'logger_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('logger_install', extended_props, recipient=ans.get('body'))
@@ -146,7 +146,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.DATABASE
         if stage == Stages.DATABASE:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'DatabaseCreator'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'DatabaseCreator'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'database_creator'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('create_database', None, recipient=ans.get('body'))
@@ -156,7 +156,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.POSTGIS_ON_DB
         if stage == Stages.POSTGIS_ON_DB:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'PostgisOnDbInstaller'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'PostgisOnDbInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'postgis_on_db_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('postgis_on_db_install', None, recipient=ans.get('body'))
@@ -166,7 +166,7 @@ class RssVmsInstaller:
                 return
             stage = Stages.POST_SCRIPTS
         if stage == Stages.POST_SCRIPTS:
-            class_desc = {'package_name': 'rss_vms_installer', 'class': 'PostScriptsInstaller'}
+            class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'PostScriptsInstaller'}
             query = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'post_scripts_installer'})
             ans = await self.adaptor.ask(query, 30)
             query = self.adaptor.get_msg('post_scripts_install', extended_props, recipient=ans.get('body'))
@@ -198,7 +198,7 @@ def get_txt(stage, substage, props):
         internal_starter = body.get('internal_starter')
     if not internal_starter:
         internal_starter = 'internal_starter'
-    class_desc = {'package_name': 'rss_vms_installer', 'class': 'RssVmsInstaller'}
+    class_desc = {'requires_dist': 'rss_vms_installer', 'class': 'RssVmsInstaller'}
     body = {'class_desc': class_desc, 'name': 'vms_installer'}
     query = self.adaptor.get_msg('create_actor', body)
     ans = await self.adaptor.ask(query, 30)

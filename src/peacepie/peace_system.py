@@ -2,13 +2,14 @@ import asyncio
 import logging
 
 from peacepie import adaptor, params, multimanager, loglistener, msg_factory, log_conf
-from peacepie.assist import log_util
+from peacepie.assist import log_util, json_util
 from peacepie.control import head_prime_admin, prime_admin
 
 
 class PeaceSystem:
 
-    def __init__(self, path, test_params=None):
+    def __init__(self, path, test_params=None, json_package=None):
+        json_util.init(json_package)
         params.init_params(path, test_params)
         log_conf.logger_start(params.instance.get('log_config'))
         self.is_head = params.instance.get('intra_role') == 'master'

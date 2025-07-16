@@ -125,8 +125,4 @@ class ActorLoader:
             return None
         if isinstance(class_desc, type):
             return class_desc
-        res = self.parent.package_admin.get_class(class_desc, msg.get('timeout'))
-        if isinstance(res, type):
-            return res
-        res = await res.get()
-        return res
+        return await self.parent.package_admin.get_class(class_desc, msg.get('timeout'))

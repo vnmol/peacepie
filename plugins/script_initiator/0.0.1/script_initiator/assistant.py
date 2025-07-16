@@ -27,7 +27,7 @@ class ScriptAssistant:
     async def create_simple_navi_gens(self, items):
         count = len(items)
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_navi_gen', 'version': version, 'class': 'SimpleNaviGen'}
+        class_desc = {'requires_dist': 'simple_navi_gen', 'version': version, 'class': 'SimpleNaviGen'}
         names = [item['gen'] for item in items]
         msg = self.adaptor.get_msg('create_actors', {'class_desc': class_desc, 'names': names})
         t = time.time()
@@ -47,7 +47,7 @@ class ScriptAssistant:
 
     async def create_simple_tcp_clients(self, items):
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'simple_tcp_client', 'version': version, 'class': 'SimpleTcpClient'}
+        class_desc = {'requires_dist': 'simple_tcp_client', 'version': version, 'class': 'SimpleTcpClient'}
         names = [item['tcp_client'] for item in items]
         msg = self.adaptor.get_msg('create_actors', {'class_desc': class_desc, 'names': names})
         t = time.time()
@@ -55,7 +55,7 @@ class ScriptAssistant:
         print('CLIENTS', time.time() - t)
         for item in items:
             version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-            class_desc = {'package_name': 'simple_convertor', 'version': version, 'class': 'SimpleConvertor'}
+            class_desc = {'requires_dist': 'simple_convertor', 'version': version, 'class': 'SimpleConvertor'}
             body = {'params': [{'name': 'inet_addr', 'value': {'host': 'localhost', 'port': 7777}},
                                {'name': 'balancer', 'value': None},
                                {'name': 'producer', 'value': item['gen']},

@@ -3,6 +3,8 @@ import os
 import shutil
 import sys
 
+from peacepie.assist import json_util
+
 
 def recreatedir(dirpath):
     try:
@@ -64,6 +66,24 @@ def rem_dir(dest):
     except Exception as e:
         logging.exception(e)
 
+def create_symlink(orig, dest):
+    try:
+        os.symlink(os.path.abspath(orig), os.path.abspath(dest), target_is_directory=os.path.isdir(orig))
+        return True
+    except Exception as e:
+        logging.exception(e)
+    return False
+
+
+def is_symlink_exist(path):
+    try:
+        res = os.path.islink(os.path.abspath(path))
+        return res
+    except Exception as e:
+        logging.exception(e)
+    return False
+
+
 
 def copy_file(orig, dest):
     try:
@@ -109,3 +129,17 @@ def adjust_path(path, process_name):
     makedir(pth, True)
     sys.path.append(pth)
     logging.info(f'SysPath "{pth}" is added')
+
+
+def load_metadata(path, file_name):
+    file_path = os.path.join(path, file_name)
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as file:
+            res = json_util.json_loads(file.read())
+        if res is None:
+            res = {}
+    else:
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write('')
+        res = {}
+    return res

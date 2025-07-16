@@ -33,7 +33,7 @@ class CircleStarter:
             await self.adaptor.send(self.adaptor.get_msg('started', None, msg.get('sender')))
 
     async def init_process(self, index, process, period):
-        class_desc = {'package_name': 'peacepie_example', 'class': 'CircleDancer'}
+        class_desc = {'requires_dist': 'peacepie_example', 'class': 'CircleDancer'}
         name0 = f'dancer_{(index * 2):02d}'
         name1 = f'dancer_{(index * 2 + 1):02d}'
         name2 = f'dancer_{(index * 2 + 2):02d}'

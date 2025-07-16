@@ -4,7 +4,7 @@ import signal
 
 from peacepie import loglistener
 from peacepie.assist import log_util
-from peacepie.control import admin, process_admin, package_loader, delivery
+from peacepie.control import admin, delivery, package_loader, process_admin
 
 PACKAGE_LOADER_COMMANDS = {'load_package'}
 

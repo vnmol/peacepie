@@ -9,5 +9,5 @@ authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
 dependencies = [
-        'aiohttp',
+        'aiohttp >=3.12',
 ]

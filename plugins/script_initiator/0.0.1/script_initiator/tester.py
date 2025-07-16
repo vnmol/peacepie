@@ -14,7 +14,7 @@ class ScriptTester:
     
     async def start(self):
         version = {'=': {'major': 0, 'minor': 0, 'micro': 1}}
-        class_desc = {'package_name': 'test_tcp_clients', 'version': version, 'class': 'TcpClients'}
+        class_desc = {'requires_dist': 'test_tcp_clients', 'version': version, 'class': 'TcpClients'}
         msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': 'tcp_clients'})
         ans = await self.adaptor.ask(msg, 2)
         if ans['command'] != 'actor_is_created':

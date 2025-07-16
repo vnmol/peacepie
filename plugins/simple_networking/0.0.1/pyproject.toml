@@ -8,5 +8,4 @@ version = '0.0.1'
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
-dependencies = [
-]
+dependencies = []

@@ -15,10 +15,10 @@ class AppStarter:
     async def start(self):
         is_embedded_channel = self.adaptor.get_test_param('is_embedded_channel')
         name = 'initiator'
-        body = {'class_desc': {'package_name': 'simple_navi_testing', 'class': 'MainInitiator'}, 'name': name}
+        body = {'class_desc': {'requires_dist': 'simple_navi_testing', 'class': 'MainInitiator'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
-        class_desc = {'package_name': 'egts_convertor', 'class': 'EGTSConvertor'}
-        # class_desc = {'package_name': 'simple_convertor', 'class': 'SimpleConvertor'}
+        class_desc = {'requires_dist': 'egts_convertor', 'class': 'EGTSConvertor'}
+        # class_desc = {'requires_dist': 'simple_convertor', 'class': 'SimpleConvertor'}
         body = {'params': [
             {'name': 'convertor_desc', 'value': class_desc},
             {'name': 'inet_addr', 'value': {'host': '0.0.0.0', 'port': 5000}},

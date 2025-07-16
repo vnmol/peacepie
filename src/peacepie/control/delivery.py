@@ -60,7 +60,7 @@ class Delivery:
         if self._download(package_name):
             return True
         recipient = self.parent.adaptor.get_head_addr()
-        msg = msg_factory.get_msg('load_package', {'package_name': package_name}, recipient=recipient)
+        msg = msg_factory.get_msg('load_package', {'requires_dist': package_name}, recipient=recipient)
         ans = await self.parent.adaptor.ask(self, msg)
         if ans['command'] == 'package_is_not_loaded':
             return False

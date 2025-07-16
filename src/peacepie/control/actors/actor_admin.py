@@ -41,6 +41,10 @@ class ActorAdmin:
             body = {'path': self.package_admin.source_path}
             ans = self.parent.adaptor.get_msg('source_path', body, recipient=msg.get('sender'))
             await self.parent.adaptor.send(ans)
+        elif command == 'get_work_path':
+            body = {'path': self.package_admin.work_path}
+            ans = self.parent.adaptor.get_msg('work_path', body, recipient=msg.get('sender'))
+            await self.parent.adaptor.send(ans)
         else:
             return False
         return True
