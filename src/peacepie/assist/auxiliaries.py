@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 
 
 def is_testing():
@@ -7,3 +8,8 @@ def is_testing():
 
 def is_pycharm():
     return 'pycharm' in sys.executable.lower()
+
+
+def get_current_time_string():
+    now = datetime.now()
+    return now.strftime('%H:%M:%S.%f')

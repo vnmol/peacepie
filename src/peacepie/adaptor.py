@@ -5,7 +5,8 @@ import inspect
 import logging
 import os
 
-from peacepie.assist import log_util, json_util, serialization, dir_operations, terminal_util, thread_util, timer
+from peacepie.assist import (auxiliaries, log_util, json_util, serialization, dir_operations, terminal_util,
+                             thread_util, timer)
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
@@ -623,3 +624,6 @@ class Adaptor:
                 res = os.path.dirname(handler.baseFilename)
                 break
         return res
+
+    def get_current_time_string(self):
+        return auxiliaries.get_current_time_string()

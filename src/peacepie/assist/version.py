@@ -179,3 +179,11 @@ def parse_requires_dist(requires_dist):
         return result
     else:
         return None
+
+
+def to_canonical(name: str) -> str:
+    name = name.lower()
+    name = re.sub(r'[-_.]+', '-', name)
+    name = re.sub(r'[^a-z0-9-]', '', name)
+    name = name.strip('-')
+    return name

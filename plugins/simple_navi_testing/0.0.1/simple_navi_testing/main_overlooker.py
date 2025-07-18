@@ -73,4 +73,4 @@ class MainOverlooker:
 
     def start(self):
         if not self.is_testing:
-            print('START', self.adaptor.get_caller_info())
+            print(self.adaptor.get_current_time_string(), 'START', self.adaptor.get_caller_info())
