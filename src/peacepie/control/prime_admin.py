@@ -4,7 +4,7 @@ import signal
 
 from peacepie import loglistener
 from peacepie.assist import log_util
-from peacepie.control import admin, delivery, package_loader, selective_package_loader, process_admin
+from peacepie.control import admin, delivery, package_loader, process_admin
 
 PACKAGE_LOADER_COMMANDS = {'load_package'}
 
@@ -22,8 +22,7 @@ class PrimeAdmin(admin.Admin):
     async def pre_run(self):
         await super().pre_run()
         self.process_admin = process_admin.ProcessAdmin(self)
-        # self.package_loader = package_loader.PackageLoader(self)
-        self.package_loader = selective_package_loader.PackageLoader(self)
+        self.package_loader = package_loader.PackageLoader(self)
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.package_loader.run(queue))
         await queue.get()

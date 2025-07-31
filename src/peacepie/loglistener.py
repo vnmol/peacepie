@@ -1,7 +1,7 @@
 import logging
 import os
 
-from peacepie.assist import log_util, dir_operations
+from peacepie.assist import log_util, dir_opers
 from peacepie import multimanager
 
 LOG_PATH = './logs/logs.logs'
@@ -37,7 +37,7 @@ class LogListener:
 
 
 def add_default_handler(logger):
-    dir_operations.makedir(os.path.dirname(LOG_PATH))
+    dir_opers.makedir(os.path.dirname(LOG_PATH))
     handler = logging.handlers.RotatingFileHandler(
         filename=LOG_PATH, mode='a', maxBytes=10485760, backupCount=5)
     formatter = logging.Formatter('%(levelname)-7s %(asctime)s %(processName)-11s %(lineno)4d %(module)-15s : %(message)s')

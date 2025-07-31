@@ -23,7 +23,7 @@ class AppStarter:
         class_desc = {'requires_dist': 'simple_web_face >0.0.0, <1.0.0, !=0.2.0',
                       'class': 'SimpleWebFace', 'extra-index-url': url}
         body = {'class_desc': class_desc, 'name': 'web_face'}
-        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
+        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 60)
         await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
 
     async def networking(self, url):

@@ -4,7 +4,7 @@ import os
 
 import rsa
 
-from peacepie.assist import dir_operations
+from peacepie.assist import dir_opers
 
 KEY_DIR = 'keys'
 
@@ -15,7 +15,7 @@ class RsaManager:
         self.logger = logging.getLogger()
         self.pubkey = None
         self.prvkey = None
-        dir_operations.makedir(KEY_DIR)
+        dir_opers.makedir(KEY_DIR)
         if os.path.isfile(f'{KEY_DIR}/id_rsa.pub') and os.path.isfile(f'{KEY_DIR}/id_rsa.pub'):
             with open(f'{KEY_DIR}/id_rsa.pub', 'br') as f:
                 data = f.read()
@@ -24,7 +24,7 @@ class RsaManager:
                 data = f.read()
             self.prvkey = rsa.PrivateKey.load_pkcs1(data)
         else:
-            dir_operations.makedir(KEY_DIR, True)
+            dir_opers.makedir(KEY_DIR, True)
             self.pubkey, self.prvkey = rsa.newkeys(256)
             with open(f'{KEY_DIR}/id_rsa.pub', 'bw') as f:
                 f.write(rsa.PublicKey.save_pkcs1(self.pubkey))

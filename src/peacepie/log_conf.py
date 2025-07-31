@@ -8,7 +8,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 
 from peacepie import params
-from peacepie.assist import dir_operations
+from peacepie.assist import dir_opers
 from peacepie.assist.auxiliaries import is_pycharm
 
 LOG_PATH = 'logs/log.log'
@@ -28,7 +28,7 @@ def logger_start(config_filename):
     if params.instance.get('separate_log_per_process'):
         process = f'/{multiprocessing.current_process().name}'
     try:
-        dir_operations.makedir(params.instance.get('log_dir'))
+        dir_opers.makedir(params.instance.get('log_dir'))
         with open(config_filename) as f:
             config = json.load(f)
         for _, handler_config in config.get('handlers', {}).items():
@@ -57,7 +57,7 @@ def get_default_logger():
 
 def check_paths(config):
     if params.instance.get('developing_mode') or is_pycharm():
-        dir_operations.cleardir(params.instance.get('log_dir'))
+        dir_opers.cleardir(params.instance.get('log_dir'))
     filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
     filepaths = set([os.path.dirname(filename) for filename in filenames])
     for filepath in filepaths:

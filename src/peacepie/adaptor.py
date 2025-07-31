@@ -5,7 +5,7 @@ import inspect
 import logging
 import os
 
-from peacepie.assist import (auxiliaries, log_util, json_util, serialization, dir_operations, terminal_util,
+from peacepie.assist import (auxiliaries, log_util, json_util, serialization, dir_opers, terminal_util,
                              thread_util, timer)
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
@@ -232,8 +232,8 @@ class Adaptor:
     def json_dumps(self, jsn):
         return json_util.json_dumps(jsn)
 
-    def get_msg(self, command, body=None, recipient=None, sender=None):
-        return msg_factory.get_msg(command, body, recipient, sender)
+    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None):
+        return msg_factory.get_msg(command, body, recipient, sender, timeout)
 
     def get_control_msg(self, command, body=None, recipient=None, sender=None):
         return msg_factory.get_control_msg(command, body, recipient, sender)
@@ -273,7 +273,7 @@ class Adaptor:
         return res
 
     def makedir(self, dirpath, clear=False):
-        dir_operations.makedir(dirpath, clear)
+        dir_opers.makedir(dirpath, clear)
 
     def execute(self, cmd):
         return terminal_util.execute(cmd)

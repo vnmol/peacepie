@@ -17,15 +17,19 @@ def version_to_string(val):
 def version_from_string(val):
     if not val:
         return None
-    lst = val.split('.')
-    if len(lst) == 0:
-        return None
-    while len(lst) < 3:
-        lst.append('0')
-    if not all(val.isnumeric() for val in lst):
-        return None
-    res = {MAJOR_LEVEL: int(lst[0]), MINOR_LEVEL: int(lst[1]), MICRO_LEVEL: int(lst[2])}
-    return res
+    is_prerelease = False
+    suffix_start = 0
+    for i, char in enumerate(val):
+        if not char.isdigit() and char != '.':
+            suffix_start = i
+            is_prerelease = True
+            break
+    base_version = val[:suffix_start] if is_prerelease else val
+    parts = base_version.split('.')
+    major = int(parts[0]) if len(parts) > 0 else 0
+    minor = int(parts[1]) if len(parts) > 1 else 0
+    micro = int(parts[2]) if len(parts) > 2 else 0
+    return {MAJOR_LEVEL: major, MINOR_LEVEL: minor, MICRO_LEVEL: micro}
 
 
 def conditions_to_string(conditions):
@@ -36,18 +40,20 @@ def conditions_to_string(conditions):
 
 
 def conditions_from_string(val):
-    if not val:
-        return {}
-    val = val.split(';')[0]
-    conditions = val.split(',')
-    if not conditions:
-        return {}
-    pattern = r'(==|!=|<=|>=|<|>|~=)\s*([\d.]+)'
-    res = {}
-    for condition in conditions:
-        key, value = re.fullmatch(pattern, condition.strip()).groups()
-        res[key] = version_from_string(value)
-    return res
+    constraints = val.split(',')
+    parsed = []
+    for constraint in constraints:
+        constraint = constraint.strip()
+        if not constraint:
+            continue
+        for op in ['!=', '>=', '<=', '>', '<', '==', '~=', '^=']:
+            if constraint.startswith(op):
+                ver = constraint[len(op):]
+                parsed.append({op: version_from_string(ver)})
+                break
+        else:
+            parsed.append({'==': constraint})
+    return parsed
 
 
 def version_key(v):
@@ -62,10 +68,13 @@ def find_max_version(vers, conditions):
         ver = version_from_string(val)
         if check_version(ver, conditions):
             if res is None:
-                res = ver
+                res = ver, val
             elif check_version(ver, {'>': res}):
-                res = ver
-    return res
+                res = ver, val
+    if res is None:
+        return None
+    else:
+        return res[1]
 
 
 def check_version(ver, conditions):
@@ -73,6 +82,7 @@ def check_version(ver, conditions):
         res = _check_version(ver, conditions)
         return res
     except Exception as ex:
+        logging.info(f'ver: {ver}, conditions: {conditions}')
         logging.exception(ex)
         return False
 
@@ -81,48 +91,51 @@ def _check_version(version, conditions):
     if isinstance(version, str):
         version = version_from_string(version)
     if isinstance(conditions, str):
+        if conditions.startswith('(') and conditions.endswith(')'):
+            conditions = conditions[1:-1]
         conditions = conditions_from_string(conditions)
     if not version:
         return True
     if not conditions:
         return True
-    for (condition, value) in conditions.items():
-        if condition == '==':
+    for condition in conditions:
+        key, value = next(iter(condition.items()))
+        if key == '==':
             for level in VERSION_LEVELS:
                 if version[level] != value[level]:
                     return False
-        elif condition == '>':
+        elif key == '>':
             for level in VERSION_LEVELS:
                 if version[level] > value[level]:
                     break
                 elif version[level] < value[level]:
                     return False
-        elif condition == '<':
+        elif key == '<':
             for level in VERSION_LEVELS:
                 if version[level] < value[level]:
                     break
                 elif version[level] > value[level]:
                     return False
-        elif condition == '>=':
+        elif key == '>=':
             for level in VERSION_LEVELS:
                 if version[level] > value[level]:
                     break
                 elif version[level] < value[level]:
                     return False
-        elif condition == '<=':
+        elif key == '<=':
             for level in VERSION_LEVELS:
                 if version[level] < value[level]:
                     break
                 elif version[level] > value[level]:
                     return False
-        elif condition == '!=':
+        elif key == '!=':
             res = False
             for level in VERSION_LEVELS:
                 if version[level] != value[level]:
                     res = True
                     break
             return res
-        elif condition == '~=':
+        elif key == '~=':
             for level in (MAJOR_LEVEL, MINOR_LEVEL):
                 if version[level] != value[level]:
                     return False
@@ -144,6 +157,12 @@ python_version_pattern = r"""
     (?P<constraints>(?:(?:<|<=|==|>=|>|!=)\s*['"]?[0-9._*]+['"]?(?:\s*,\s*)?)+)
 """
 
+platform_system_pattern = r"""
+    platform_system\s*
+    ==\s*
+    ['"](?P<platform_name>[a-zA-Z0-9_-]+)['"]
+"""
+
 extra_pattern = r"""
     extra\s*
     ==\s*
@@ -152,6 +171,7 @@ extra_pattern = r"""
 
 regex = re.compile(pattern, re.VERBOSE | re.IGNORECASE)
 python_version_regex = re.compile(python_version_pattern, re.VERBOSE | re.IGNORECASE)
+platform_system_regex = re.compile(platform_system_pattern, re.VERBOSE | re.IGNORECASE)
 extra_regex = re.compile(extra_pattern, re.VERBOSE | re.IGNORECASE)
 
 
@@ -173,6 +193,9 @@ def parse_requires_dist(requires_dist):
                         constraints.append(constraint)
             if constraints:
                 result['python_version'] = ",".join(constraints)
+            platform_match = platform_system_regex.search(markers)
+            if platform_match:
+                result['platform_system'] = platform_match.group('platform_name')
             extra_match = extra_regex.search(markers)
             if extra_match:
                 result['extra'] = extra_match.group('extra_name')

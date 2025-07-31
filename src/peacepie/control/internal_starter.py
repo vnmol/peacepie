@@ -2,7 +2,7 @@ import os
 import re
 
 from peacepie import msg_factory, params
-from peacepie.assist import dir_operations
+from peacepie.assist import dir_opers
 
 
 class InternalStarter:

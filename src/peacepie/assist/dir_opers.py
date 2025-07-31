@@ -1,9 +1,10 @@
 import logging
 import os
+import platform
 import shutil
 import sys
 
-from peacepie.assist import json_util
+from peacepie.assist import json_util, version
 
 
 def recreatedir(dirpath):
@@ -12,7 +13,7 @@ def recreatedir(dirpath):
             shutil.rmtree(dirpath)
             logging.info(f'Old folder "{dirpath}" is deleted')
         os.makedirs(dirpath)
-        logging.info(f'New folder "{dirpath}" is created')
+        logging.info(f'Folder "{dirpath}" is created')
         logging.info(f'Folder "{dirpath}" is {"" if len(os.listdir(dirpath)) == 0 else "not "}empty')
     except Exception as e:
         logging.exception(e)
@@ -21,8 +22,10 @@ def recreatedir(dirpath):
 def makedir(dirpath, clear=False):
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
+        logging.info(f'Folder "{dirpath}" is created')
     elif clear:
         cleardir(dirpath)
+        logging.info(f'Folder "{dirpath}" is cleared')
 
 
 def cleardir(dirpath):
@@ -50,29 +53,50 @@ def clear_files(dirpath):
             clear_files(filepath)
 
 
-def copy_dir(orig, dest):
+def copy_dir(src, dst):
     try:
-        shutil.copytree(orig, dest)
+        shutil.copytree(src, dst)
     except Exception as e:
         logging.exception(e)
-    sync_directory(dest)
-    logging.info(f'The directory "{orig}" is copied to "{dest}"')
+    sync_directory(dst)
+    logging.info(f'The directory "{src}" is copied to "{dst}"')
 
-def rem_dir(dest):
-    if not os.path.exists(dest):
-        return
+
+def rem_dir(src):
     try:
-        shutil.rmtree(dest)
+        shutil.rmtree(src)
+        logging.info(f'The directory "{src}" is deleted"')
     except Exception as e:
         logging.exception(e)
+
+
+def move_dir(src, dst):
+    try:
+        shutil.move(src, dst)
+        logging.info(f'The directory "{src}" is moved to "{dst}"')
+    except Exception as e:
+        logging.exception(e)
+
 
 def create_symlink(orig, dest):
     try:
         os.symlink(os.path.abspath(orig), os.path.abspath(dest), target_is_directory=os.path.isdir(orig))
+        logging.info(f'Symlink is created "{orig}" --> "{dest}"')
         return True
     except Exception as e:
         logging.exception(e)
     return False
+
+
+def link_package(src, dst, shared_folders):
+    for entry in os.listdir(src):
+        if entry in shared_folders:
+            for entrance in os.listdir(os.path.join(src, entry)):
+                symlink = f'{dst}/{entry}/{entrance}'
+                if not is_symlink_exist(symlink):
+                    create_symlink(f'{src}/{entry}/{entrance}', symlink)
+        else:
+            create_symlink(os.path.join(src, entry), os.path.join(dst, entry))
 
 
 def is_symlink_exist(path):
@@ -82,7 +106,6 @@ def is_symlink_exist(path):
     except Exception as e:
         logging.exception(e)
     return False
-
 
 
 def copy_file(orig, dest):
@@ -120,7 +143,7 @@ def compare_directories(dir1, dir2):
     return get_files_info(dir1) == get_files_info(dir2)
 
 
-def adjust_path(path, process_name):
+def adjust_path(path, process_name, shared_folders):
     pths = [pth for pth in sys.path]
     for pth in pths:
         if pth.startswith(path):
@@ -129,17 +152,46 @@ def adjust_path(path, process_name):
     makedir(pth, True)
     sys.path.append(pth)
     logging.info(f'SysPath "{pth}" is added')
+    for folder in shared_folders:
+        makedir(f'{pth}/{folder}')
 
 
-def load_metadata(path, file_name):
-    file_path = os.path.join(path, file_name)
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as file:
-            res = json_util.json_loads(file.read())
-        if res is None:
-            res = {}
-    else:
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.write('')
-        res = {}
-    return res
+def rename_dir(old_path, new_path):
+    if not os.path.exists(old_path):
+        return
+    try:
+        os.rename(old_path, new_path)
+        logging.info(f'Folder "{old_path}" successfully renamed to "{new_path}"')
+    except Exception as e:
+        logging.exception(e)
+
+
+def get_metadata(path):
+    name = None
+    ver = None
+    dependencies = []
+    try:
+        with open(f'{path}/METADATA', 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.startswith('Name:'):
+                    name = line.split(':', 1)[1].strip() # .replace('-', '_')
+                elif line.startswith('Version:'):
+                    ver = line.split(':', 1)[1].strip()
+                elif line.startswith('Requires-Dist:'):
+                    dependency = version.parse_requires_dist(line.split('Requires-Dist:')[1].strip())
+                    if is_right_dependency(dependency):
+                        dependencies.append(dependency)
+        return name, ver, dependencies
+    except Exception as e:
+        logging.exception(e)
+
+
+def is_right_dependency(dependency):
+    if 'extra' in dependency:
+        return False
+    if not version.check_version(sys.version, dependency.get('python_version')):
+        return False
+    if dependency.get('platform_system') and platform.system() != dependency.get('platform_system'):
+        return False
+    return True
+

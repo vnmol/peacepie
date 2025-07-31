@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 from peacepie import params, msg_factory
-from peacepie.assist import log_util, dir_operations, version
+from peacepie.assist import log_util, dir_opers, version
 
 DELIVERY_DIR = 'delivery'
 
@@ -17,7 +17,7 @@ class Delivery:
     def __init__(self, parent):
         self.parent = parent
         self.delivery_path = f'{params.instance["package_dir"]}/{DELIVERY_DIR}'
-        dir_operations.makedir(self.delivery_path, True)
+        dir_opers.makedir(self.delivery_path, True)
         self.queue = asyncio.Queue()
         logging.info(log_util.get_alias(self) + ' is created')
 
@@ -42,18 +42,18 @@ class Delivery:
         return True
 
     async def deliver_package(self, msg):
-        dir_operations.cleardir(self.delivery_path)
+        dir_opers.cleardir(self.delivery_path)
         body = msg.get('body')
         package_desc = body.get('package_desc')
         if (not await self.download(package_desc.get('package_name'), package_desc.get(version.VERSION)) or
                 not await self.send(body.get('recipient'))):
             ans = self.parent.adaptor.get_msg('package_is_not_delivered', recipient=msg.get('sender'))
             await self.parent.adaptor.send(ans)
-            dir_operations.cleardir(self.delivery_path)
+            dir_opers.cleardir(self.delivery_path)
             return
         ans = self.parent.adaptor.get_msg('package_delivered', recipient=msg.get('sender'))
         await self.parent.adaptor.send(ans)
-        dir_operations.cleardir(self.delivery_path)
+        dir_opers.cleardir(self.delivery_path)
 
     async def download(self, package_name, conditions):
         package_name = package_name + version.conditions_as_text(conditions)

@@ -1,7 +1,7 @@
 import asyncio
 
 from peacepie import params, msg_factory
-from peacepie.assist import dir_operations
+from peacepie.assist import dir_opers
 from peacepie.control.actors import actor_admin, actor_mover, actor_seeker
 from peacepie.control.intra import intra_server, intra_client
 

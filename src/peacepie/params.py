@@ -2,7 +2,7 @@ import os
 import socket
 import sys
 
-from peacepie.assist import dir_operations, version
+from peacepie.assist import dir_opers, version
 from peacepie.assist.auxiliaries import is_testing
 
 
@@ -77,6 +77,6 @@ def deploy_environment():
         return None
     src = f'{os.path.dirname(__file__)}/resources/config/'
     dst = f'{os.getcwd()}/config/'
-    dir_operations.rem_dir(dst)
-    dir_operations.copy_dir(src, dst)
+    dir_opers.rem_dir(dst)
+    dir_opers.copy_dir(src, dst)
     return dst + 'peacepie.cfg'

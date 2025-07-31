@@ -54,8 +54,8 @@ class ActorLoader:
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
             await self.parent.parent.adaptor.send(answer, self)
             return
-        clss = await self._get_class(msg)
         try:
+            clss = await self._get_class(msg)
             adptr = adaptor.Adaptor(class_desc, name, self.parent.parent, clss(), msg.get('sender'))
             if msg.get('command') == 'clone_actor':
                 adptr.is_clone_copy = True

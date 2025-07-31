@@ -1,13 +1,13 @@
 import asyncio
-import inspect
 import logging
 import importlib
 import os
-import re
 import time
 
 from peacepie import params, msg_factory
-from peacepie.assist import dir_operations, log_util, version
+from peacepie.assist import auxiliaries, dir_opers, log_util, version
+
+shared_folders = {'__pycache__', 'bin'}
 
 
 class PackageAdmin:
@@ -17,13 +17,13 @@ class PackageAdmin:
         self.not_log_commands = set()
         self.cumulative_commands = {}
         self.waiters = {}
-        self.source_path = params.instance.get('source_path')
         self.work_path = f'{params.instance["package_dir"]}/work/{self.parent.parent.process_name}'
-        dir_operations.recreatedir(self.work_path)
-        dir_operations.adjust_path(params.instance['package_dir'], self.parent.parent.process_name)
+        dir_opers.adjust_path(params.instance['package_dir'], self.parent.parent.process_name, shared_folders)
         logging.info(log_util.get_alias(self) + ' is created')
 
     async def get_class(self, class_desc, timeout):
+        if not timeout:
+            timeout = 120
         try:
             pack = await self.get_package(class_desc, timeout)
             if not pack:
@@ -31,7 +31,7 @@ class PackageAdmin:
             if class_desc.get('class'):
                 return getattr(pack, class_desc.get('class'))
             else:
-                return get_primary_class(pack)
+                return auxiliaries.get_primary_class(pack)
         except Exception as ex:
             logging.exception(ex)
         return None
@@ -39,47 +39,53 @@ class PackageAdmin:
     async def get_package(self, class_desc, timeout):
         requires_dist = version.parse_requires_dist(class_desc.get('requires_dist'))
         package_name = requires_dist.get('package_name')
+        version_spec = requires_dist.get('version_spec')
         if not class_desc.get('class'):
             return importlib.import_module(package_name)
-        elif params.instance.get('developing_mode'):
-            version_spec = requires_dist.get('version_spec')
-            dst = f'{self.work_path}/{package_name}'
-            if dir_operations.is_symlink_exist(dst):
-                if self.check_package_info(package_name, version_spec):
-                    return importlib.import_module(package_name)
-                else:
-                    return None
-            res = self.developing_symlink(package_name, version_spec, dst)
+        is_exist = self.check_version(package_name, version_spec)
+        if is_exist is not None:
+            if is_exist:
+                return importlib.import_module(package_name)
+            else:
+                return None
+        if params.instance.get('developing_mode'):
+            res = self.developing_symlink(package_name, version_spec)
             if res:
                 return res
-        return await self.retrieve_package(requires_dist, class_desc.get('extra-index-url'), timeout)
-
-    def check_package_info(self, package_name, version_spec):
-        pattern = re.compile(rf'^{re.escape(package_name)}-(?P<version>\d+\.\d+\.\d+)\.dist-info$')
-        for entry in os.listdir(self.work_path):
-            match = pattern.match(entry)
-            if match:
-                res = version.check_version(match.group('version'), version_spec)
-                return res
-        return False
-
-    def developing_symlink(self, package_name, version_spec, dst):
-        path = f'{params.instance.get("plugin_dir")}/{package_name}'
-        vers = [version.version_from_string(name) for name in os.listdir(path) if version.version_from_string(name)]
-        ver = version.find_max_version(vers, version_spec)
-        src = f'{path}/{version.version_to_string(ver)}/{package_name}'
-        res = None
-        if dir_operations.create_symlink(src, dst):
-            res = importlib.import_module(package_name)
-            self.create_package_info(package_name, ver)
+        res = await self.retrieve_package(requires_dist, class_desc.get('extra-index-url'), timeout)
         return res
 
-    def create_package_info(self, package_name, ver):
-        dir_operations.recreatedir(f'{self.work_path}/{package_name}-{version.version_to_string(ver)}.dist-info')
+    def check_version(self, package_name, version_spec):
+        for entry in os.listdir(self.work_path):
+            entry_path = f'{self.work_path}/{entry}'
+            if not (os.path.isdir(entry_path) and entry.endswith('.dist-info')):
+                continue
+            name, ver, _ = dir_opers.get_metadata(entry_path)
+            if name == package_name:
+                return version.check_version(ver, version_spec)
+        return None
 
+    def developing_symlink(self, package_name, version_spec):
+        path = f'{params.instance.get("plugin_dir")}/{package_name}'
+        vers = [name for name in os.listdir(path) if version.version_from_string(name)]
+        ver = version.find_max_version(vers, version_spec)
+        src = f'{path}/{ver}/{package_name}'
+        if dir_opers.create_symlink(src, f'{self.work_path}/{package_name}'):
+            self.create_package_info(package_name, ver)
+            return importlib.import_module(package_name)
+        return None
+
+    def create_package_info(self, package_name, ver):
+        package_info_path = f'{self.work_path}/{package_name}-{ver}.dist-info'
+        dir_opers.recreatedir(package_info_path)
+        with open(f'{package_info_path}/METADATA', 'w', encoding='utf-8') as f:
+                 f.write(f'Name: {package_name}\n')
+                 f.write(f'Version: {ver}\n')
 
     async def retrieve_package(self, requires_dist, url, timeout):
         queue = asyncio.Queue()
+        if not url:
+            url = params.instance.get('extra-index-url')
         waiter = {'requires_dist': requires_dist, 'url':url, 'timeout': timeout, 'queue': queue}
         package_name = requires_dist.get('package_name')
         waiters = self.waiters.get(package_name)
@@ -116,40 +122,61 @@ class PackageAdmin:
     async def load_package(self, active):
         recipient = self.parent.parent.adaptor.get_head_addr()
         requires_dist = active.get('requires_dist')
+        package_name = requires_dist.get('package_name')
+        version_spec = requires_dist.get('version_spec')
         body = {'requires_dist': requires_dist, 'url': active.get('url')}
         msg = msg_factory.get_msg('load_package', body, recipient)
         ans = await self.parent.parent.adaptor.ask(msg, active.get('timeout'), self)
         if ans.get('command') == 'package_is_loaded':
             try:
-                res = self.link_package(requires_dist, ans.get('body').get('ver'))
-                return res
+                bundle = ans.get('body').get('bundle')
+                packages = {}
+                for member in bundle:
+                    name, ver = member.rsplit('-', 1)
+                    packages[name] = ver
+                need_to_link = self.need_to_link(package_name, version_spec, packages)
+                if self.link_packages(need_to_link):
+                        return importlib.import_module(package_name)
             except Exception as e:
                 logging.exception(e)
         return None
 
-    def link_package(self, requires_dist, ver):
-        package_name = requires_dist.get('package_name')
-        dst = f'{self.work_path}/{package_name}'
-        if dir_operations.is_symlink_exist(dst):
-            if self.check_package_info(package_name, requires_dist.get('version_spec')):
-                return importlib.import_module(package_name)
+    def need_to_link(self, package_name, version_spec, packages):
+        is_exist = self.check_version(package_name, version_spec)
+        if is_exist is not None:
+            if is_exist:
+                return {}
             else:
                 return None
-        source_path = params.instance.get('source_path')
-        with open(f'{source_path}/{package_name}-{ver}.dist-info/BUNDLE', 'r', encoding='utf-8') as file:
-            entries = [entry.strip() for entry in file.readlines()]
-        for entry in entries:
-            pack_name, pack_ver = entry.rsplit('-', 1)
-            dir_operations.create_symlink(f'{source_path}/{entry}', f'{self.work_path}/{pack_name}')
-            pack_info = f'{pack_name.removesuffix(".py")}-{pack_ver}.dist-info'
-            dir_operations.create_symlink(f'{source_path}/{pack_info}', f'{self.work_path}/{pack_info}')
-        return importlib.import_module(package_name)
+        ver = packages.get(package_name)
+        if not ver:
+            return None
+        result = {package_name: ver}
+        dependencies = self.get_dependencies(package_name, ver)
+        for dependency in dependencies:
+            res = self.need_to_link(dependency.get('package_name'), dependency.get('version_spec'), packages)
+            if res is None:
+                return None
+            else:
+                result.update(res)
+        return result
 
+    def get_dependencies(self, package_name, package_ver):
+        path = f'{params.instance.get("source_path")}/{package_name}-{package_ver}'
+        for entry in os.listdir(path):
+            entry_path = f'{path}/{entry}'
+            if not (os.path.isdir(entry_path) and entry.endswith('.dist-info')):
+                continue
+            _, _, dependencies = dir_opers.get_metadata(entry_path)
+            return dependencies
+        return []
 
-def get_primary_class(module):
-    classes = inspect.getmembers(module, inspect.isclass)
-    if classes:
-        primary_class_name, primary_class = classes[0]
-        return primary_class
-    else:
-        return None
+    def link_packages(self, packages):
+        if packages is None:
+            return False
+        for package_name in packages:
+            src_path = f'{params.instance.get("source_path")}/{package_name}-{packages.get(package_name)}'
+            dst_path = f'{self.work_path}'
+            dir_opers.link_package(f'{src_path}', f'{dst_path}', shared_folders)
+        return True
+

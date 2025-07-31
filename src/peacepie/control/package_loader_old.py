@@ -8,7 +8,7 @@ import sys
 from functools import partial
 
 from peacepie import msg_factory, params, loglistener
-from peacepie.assist import dir_operations, json_util, log_util, version
+from peacepie.assist import dir_opers, json_util, log_util, version
 
 
 class PackageLoader:
@@ -20,8 +20,9 @@ class PackageLoader:
         self.queue = asyncio.Queue()
         self.source_path = params.instance.get('source_path')
         self.tmp_path = f'{params.instance.get("package_dir")}/tmp'
-        dir_operations.makedir(self.source_path)
-        dir_operations.makedir(self.tmp_path, False)
+        dir_opers.makedir(self.source_path)
+        dir_opers.makedir(self.tmp_path, False)
+        self.loadings = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
     async def run(self, queue):
@@ -47,53 +48,56 @@ class PackageLoader:
         recipient = msg.get('sender')
         body = msg.get('body')
         requires_dist = body.get('requires_dist')
-        bundle = []
-        ver = await self.acquire_package(requires_dist, body.get('url'), bundle)
+        ver, _ = await self.acquire_package(requires_dist, body.get('url'))
         if ver:
-            self.normalize(f'{requires_dist.get("package_name")}-{ver}')
-            self.shift()
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_loaded', {'ver': ver}, recipient), self)
         else:
-            dir_operations.cleardir(self.tmp_path)
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_not_loaded', None, recipient), self)
 
-    async def acquire_package(self, requires_dist, url, bundle):
+    async def acquire_package(self, requires_dist, url):
         package_name = requires_dist.get('package_name')
         version_spec = requires_dist.get('version_spec')
-        ver = find_version(self.source_path, package_name, version_spec)
+        ver, bundle = find_version(self.source_path, package_name, version_spec)
         if ver:
-            bundle.append(f'{package_name}-{ver}')
-            return ver
-        ver_package_name = package_name + version_spec if version_spec else package_name
-        host = url.split("//")[-1].split("/")[0]
-        args = ([sys.executable, '-m', 'pip', 'install', '--no-deps', '--disable-pip-version-check'])
-        if url:
-            args.append(f'--trusted-host={host}')
-            args.append(f'--extra-index-url={url}')
-        args.append(f'--target={self.tmp_path}')
-        args.append(ver_package_name)
-        logging.info(args)
-        res = await acquire_package(args)
-        if not res[0]:
-            logging.exception(self.parent.adaptor.res_squeeze(res[1]))
+            return ver, bundle
+        while True:
+            ver, bundle = find_version(self.tmp_path, package_name, version_spec)
+            if ver:
+                return ver, bundle
+            package_loading = self.loadings.get(package_name)
+            if package_loading is None:
+                break
+            else:
+                queue = asyncio.Queue()
+                package_loading.append(queue)
+                await queue.get()
+        self.loadings[package_name] = []
+        ver, dependencies, output = await acquire_package(self.source_path, package_name, version_spec, url)
+        if not ver:
+            logging.exception(self.parent.adaptor.res_squeeze(output))
             return None
-        logging.info(self.parent.adaptor.res_squeeze(res[1]))
-        ver = find_version(self.tmp_path, package_name, version_spec)
-        ver_package_name = f'{package_name}-{ver}'
-        bundle.append(ver_package_name)
-        with open(f'{self.tmp_path}/{ver_package_name}.dist-info/METADATA', 'r', encoding='utf-8') as f:
-            dependencies = [version.parse_requires_dist(line.split('Requires-Dist:')[1].strip())
-                            for line in f if line.startswith('Requires-Dist:')]
-        tasks = [asyncio.create_task(self.acquire_package(dependency, url, bundle))
+        logging.info(self.parent.adaptor.res_squeeze(output))
+        tasks = [asyncio.create_task(self.acquire_package(dependency, url))
                  for dependency in dependencies if 'extra' not in dependency]
         if len(tasks) > 0:
-            await asyncio.wait(tasks)
-        return ver
+            results = await asyncio.gather(*tasks)
+            for result in results:
+                bundle = bundle.union(result[1])
+        for queue in self.loadings.get(package_name):
+            await queue.put(None)
+        del self.loadings[package_name]
+        return ver, bundle
 
-    def normalize(self, package_name):
+    def normalize(self):
         for entry in os.listdir(self.tmp_path):
             if not (os.path.isdir(os.path.join(self.tmp_path, entry)) and entry.endswith('.dist-info')):
                 continue
+            folders = set()
+            with open(f'{self.tmp_path}/{entry}/RECORD', 'r', encoding='utf-8') as f:
+                for line in f:
+                    while line.startswith('../'):
+                        line = line[3:]
+                    folders.add(line[:re.search(r'[/,]', line).start()])
             ver_pack_name = entry.rsplit('.', 1)[0]
             ver_pack_path = os.path.join(self.tmp_path, ver_pack_name)
             pack_desc = ver_pack_name.split('-', 1)
@@ -117,11 +121,6 @@ class PackageLoader:
         entries = [entry for entry in entries if not self.is_correct_entry(entry)]
         for entry in entries:
             remove_entry(os.path.join(self.tmp_path, entry))
-        entries = os.listdir(self.tmp_path)
-        entries = [f'{entry}\n' for entry in entries if not entry.endswith('.dist-info')]
-        if len(entries) > 0:
-            with open(os.path.join(self.tmp_path, f'{package_name}.dist-info/BUNDLE'), 'w', encoding='utf-8') as f:
-                f.writelines(entries)
 
     def is_correct_entry(self, entry):
         if entry.endswith('.dist-info'):
@@ -155,31 +154,63 @@ class PackageLoader:
                             os.path.join(self.source_path, ver_module_name))
 
 
-async def acquire_package(args):
+async def acquire_package(path, package_name, version_spec, url):
+    ver_package_name = package_name + version_spec if version_spec else package_name
+    args = ([sys.executable, '-m', 'pip', 'install', '--no-deps', '--disable-pip-version-check'])
+    if url:
+        host = url.split("//")[-1].split("/")[0]
+        args.append(f'--trusted-host={host}')
+        args.append(f'--extra-index-url={url}')
+    args.append(f'--target={path}/{package_name}')
+    args.append(ver_package_name)
+    logging.info(args)
     loop = asyncio.get_running_loop()
     try:
         output = await loop.run_in_executor(
             None,
             partial(subprocess.check_output, args, stderr=subprocess.STDOUT, text=True))
-        return True, output
     except subprocess.CalledProcessError as e:
-        return False, e.output
+        return None, e.output
+    dist_info_entry = None
+    for entry in os.listdir(f'{path}/{package_name}'):
+        if entry.endswith('.dist-info'):
+            dist_info_entry = entry
+            break
+    if not dist_info_entry:
+        return None, None, f'No ".dist-info" directory found in {package_name}'
+    dist_info_path = f'{path}/{package_name}/{dist_info_entry}'
+    ver = None
+    requires_dist = []
+    with open(f'{dist_info_path}/METADATA', 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('Version:'):
+                ver = line.split(':', 1)[1].strip()
+                if line.startswith('Requires-Dist:'):
+                    requires_dist.append(version.parse_requires_dist(line.split('Requires-Dist:')[1].strip()))
+    if not ver:
+        return None, None, 'Version not found in METADATA file'
+    rename_entry(f'{path}/{package_name}', f'{path}/{package_name}-{ver}')
+    return ver, requires_dist, output
 
 
 def find_version(path, package_name, version_spec):
-    canonical_name = version.to_canonical(package_name)
-    pattern = rf'-(?P<version>\d+\.\d+\.\d+).dist-info$'
+    package_name = package_name.replace('-', '_')
+    pattern = re.compile(rf'^{re.escape(package_name)}-(?P<version>.+?)\.dist-info$')
     vers = []
     for entry in os.listdir(path):
-        if canonical_name != version.to_canonical(entry.split('-')[0]):
-            continue
-        match = re.search(pattern, entry)
+        match = pattern.match(entry)
         if match:
             vers.append(match.group('version'))
-    res = version.find_max_version(vers, version_spec)
-    if res:
-        res = version.version_to_string(res)
-    return res
+    ver = version.find_max_version(vers, version_spec)
+    bundle = set()
+    if ver:
+        bundle_path = f'{path}/{package_name}-{ver}.dist-info/BUNDLE'
+        if os.path.exists(bundle_path):
+            with open(bundle_path, 'r', encoding='utf-8') as file:
+                bundle.update([entry.strip() for entry in file.readlines()])
+        else:
+            bundle.add(f'{package_name}-{ver}')
+    return ver, bundle
 
 
 def rename_entry(old_path, new_path):
