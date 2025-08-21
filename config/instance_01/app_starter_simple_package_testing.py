@@ -1,3 +1,5 @@
+from datetime import datetime
+
 
 class AppStarter:
 
@@ -30,8 +32,8 @@ class AppStarter:
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
         body = {'params': [
-            {'name': 'group_count', 'value': 1},
-            {'name': 'group_size', 'value': 1},
-            {'name': 'timeout', 'value': 1200}]}
+            {'name': 'group_count', 'value': 10},
+            {'name': 'group_size', 'value': 10}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
-        await self.adaptor.send(self.adaptor.get_msg('start', None, name))
+        await self.adaptor.ask(self.adaptor.get_msg('start', None, name, timeout=1200))
+        print(datetime.now().strftime("%H:%M:%S.%f"))

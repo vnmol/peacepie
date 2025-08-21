@@ -2,15 +2,13 @@ import asyncio
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_opers
-from peacepie.control.actors import actor_admin, actor_mover, actor_seeker
+from peacepie.control.actors import actor_admin, actor_agent, actor_recreator, actor_seeker
 from peacepie.control.intra import intra_server, intra_client
 
 
 ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor',
                         'get_source_path', 'get_work_path',
-                        'clone_actor', 'move_actor'}
-
-SPY_COMMANDS = {'gather_info', 'get_info', 'info'}
+                        'recreate_actor', 'create_replica', 'set_replica_params', 'transit_message', 'replica_resume'}
 
 ACTOR_SEEKER_COMMANDS = {'seek_actor', 'find_actor'}
 
@@ -33,17 +31,16 @@ class Admin:
         self.cache = {}
         self.intralink = None
         self.actor_seeker = None
-        self.spy = None
-        self.not_log_commands = set()
-        self.cumulative_commands = {}
 
     def get_prefix(self):
         return f'{self.host_name}.{self.process_name}.'
 
     async def pre_run(self):
         self.actor_admin = actor_admin.ActorAdmin(self)
-        self.actor_admin.actor_mover = actor_mover.ActorMover(self.actor_admin)
-        asyncio.get_running_loop().create_task(self.actor_admin.actor_mover.run())
+        self.actor_admin.actor_recreator = actor_recreator.ActorRecreator(self.actor_admin)
+        asyncio.get_running_loop().create_task(self.actor_admin.actor_recreator.run())
+        self.actor_admin.actor_agent = actor_agent.ActorAgent(self.actor_admin)
+        asyncio.get_running_loop().create_task(self.actor_admin.actor_agent.run())
         if self.is_head:
             self.actor_seeker = actor_seeker.HeadActorSeeker(self)
             self.intralink = intra_server.IntraServer(self)
@@ -72,8 +69,6 @@ class Admin:
         sender = msg.get('sender')
         if command in ACTOR_ADMIN_COMMANDS:
             await self.actor_admin.handle(msg)
-        elif command in SPY_COMMANDS:
-            self.spy.handle(msg)
         elif command in ACTOR_SEEKER_COMMANDS:
             msg['recipient'] = self.actor_seeker.queue
             await self.adaptor.send(msg)

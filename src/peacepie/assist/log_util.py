@@ -10,7 +10,7 @@ def get_alias(obj):
     res = None
     while True:
         if hasattr(perf, 'adaptor') and perf.adaptor and type(perf.adaptor) is adaptor.Adaptor:
-            res = perf.__class__.__name__ + f' "{perf.adaptor.name}"' + (f' ({res})' if res else '')
+            res = f'{perf.__class__.__name__} "{perf.adaptor.name}"' + (f' ({res})' if res else '')
             break
         if hasattr(perf, 'parent') and perf.parent is not None:
             if hasattr(perf, 'name'):
@@ -55,7 +55,6 @@ def msg_format(msg):
     res = "{'mid': '" + msg.get('mid') + "', 'command': '" + str(msg.get('command'))
     res += "', 'body': " + body_format(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
     res += ", 'sender': " + addr_format(msg.get('sender')) + ", 'timeout': " + str(msg.get('timeout'))
-    res += ", 'is_control': " + str(msg.get('is_control'))
     res += "}"
     return res
 

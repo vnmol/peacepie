@@ -14,7 +14,7 @@ from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
-                    'is_cloned', 'update_running', 'empty'}
+                    'update_running', 'empty'}
 
 CACHE_COMMANDS = {'actor_is_created', 'actors_are_created', 'actor_found'}
 
@@ -27,68 +27,101 @@ class Adaptor:
         self.admin = parent if parent else performer
         self.sender = sender
         self.class_desc = class_desc
-        self.is_running = False
-        self.is_clone_prototype = False
-        self.is_clone_copy = False
         self.performer = performer
         if not hasattr(self.performer, 'adaptor'):
             txt = f'The performer "{name}" does not have the attribute "adaptor"'
             raise AttributeError(txt)
         self.performer.adaptor = self
-        self.control_queue = None
+        self.msg = None
+        self.pause_event = None
+        self.idle_event = None
+        self.is_idle = True
+        self.stop_event = None
         self.queue = None
         self.ticker_admin = None
         self.observers = {}
         self.not_log_commands = set()
         self.cumulative_commands = {}
         self.cumulative_period = 10
-        logging.info(f'{self.get_alias(self)} is created')
+        logging.info(f'{self.get_alias(self)}({id(self.performer)}) is created')
 
     def get_alias(self, obj=None):
         if not obj:
             obj = self
         return log_util.get_alias(obj)
 
+    def pause(self):
+        if self.pause_event is None:
+            self.pause_event = asyncio.Event()
+            if not self.is_idle:
+                self.idle_event = asyncio.Event()
+
+    def resume(self, is_stopping=False):
+        if self.pause_event:
+            self.pause_event.set()
+        if is_stopping and self.stop_event is None:
+            self.stop_event = asyncio.Event()
+
+    async def is_idling(self, timeout):
+        if self.is_idle:
+            return True
+        res, _ = await asyncio.wait([asyncio.create_task(self.idle_event.wait())], timeout=timeout)
+        self.idle_event = None
+        return res
+
+    async def is_stopped(self, timeout):
+        res, _ = await asyncio.wait([asyncio.create_task(self.stop_event.wait())], timeout=timeout)
+        return res
+
     async def run(self):
-        self.control_queue = asyncio.Queue()
-        self.queue = asyncio.Queue()
-        if hasattr(self.performer, 'pre_run'):
-            try:
-                await self.performer.pre_run()
-            except Exception as ex:
-                logging.exception(ex)
-        self.is_running = True
-        await self.is_running_notification()
+        if self.queue is None:
+            self.queue = asyncio.Queue()
+            if hasattr(self.performer, 'pre_run'):
+                try:
+                    await self.performer.pre_run()
+                except Exception as ex:
+                    logging.exception(ex)
+            await self.is_running_notification()
         while True:
+            self.is_idle = True
             try:
-                if self.control_queue.empty() and not self.is_clone_prototype and not self.is_clone_copy:
-                    msg = await self.queue.get()
-                else:
-                    msg = await self.control_queue.get()
-                if not msg:
+                if self.idle_event is not None:
+                    self.idle_event.set()
+                if self.pause_event is not None:
+                    await self.pause_event.wait()
+                    self.pause_event = None
+                if self.stop_event is not None:
+                    break
+                self.msg = await self.queue.get()
+                if not self.msg:
                     continue
-                command = msg.get('command')
+                self.is_idle = False
+                command = self.msg.get('command')
                 if command not in self.not_log_commands:
                     if command in self.cumulative_commands.keys():
                         self.cumulative_commands[command]['received'] += 1
                     else:
-                        logging.debug(log_util.async_received_log(self.performer, msg))
+                        logging.debug(log_util.async_received_log(self.performer, self.msg))
                 if command in ADAPTOR_COMMANDS:
-                    if not await self.handle(msg):
-                        logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
-                        if msg.get('sender'):
-                            await self.send(self.get_msg('is_not_handled', recipient=msg.get('sender')))
+                    if not await self.handle(self.msg):
+                        logging.warning(self.get_alias() + ' The message is not handled: ' + str(self.msg))
+                        if self.msg.get('sender'):
+                            ans = self.get_msg('is_not_handled', {'mid': self.msg.get('mid')},
+                                               recipient=self.msg.get('sender'))
+                            await self.send(ans)
                     if params.instance.get('exit'):
                         break
                     continue
-                if await self.performer.handle(msg):
+                if await self.performer.handle(self.msg):
                     if command in CACHE_COMMANDS:
-                        await self.add_to_cache(msg)
-                    await self.notify(msg)
+                        await self.add_to_cache(self.msg)
+                    await self.notify(self.msg)
                 else:
-                    logging.warning(self.get_alias() + ' The message is not handled: ' + str(msg))
-                    if msg.get('sender'):
-                        await self.send(self.get_msg('is_not_handled', recipient=msg.get('sender')))
+                    logging.warning(self.get_alias() + ' The message is not handled: ' + str(self.msg))
+                    if self.msg.get('sender'):
+                        ans = self.get_msg('is_not_handled', {'mid': self.msg.get('mid')},
+                                           recipient=self.msg.get('sender'))
+                        await self.send(ans)
             except asyncio.exceptions.CancelledError:
                 break
             except BaseException as ex:
@@ -97,8 +130,10 @@ class Adaptor:
             try:
                 await self.performer.exit()
             except Exception as ex:
-                print(ex)
                 logging.exception(ex)
+        if self.stop_event is not None:
+            self.stop_event.set()
+        logging.info(f'{self.get_alias(self)}({id(self.performer)}) is stopped')
 
     async def is_running_notification(self):
         if not self.sender:
@@ -130,10 +165,6 @@ class Adaptor:
             self.subscribe(body.get('command'), sender)
         elif command == 'unsubscribe':
             self.unsubscribe(body.get('command'), sender)
-        elif command == 'is_cloned':
-            await self.is_cloned()
-        elif command == 'update_running':
-            await self.update_running(body.get('value'), sender)
         elif command == 'empty':
             pass
         else:
@@ -210,14 +241,6 @@ class Adaptor:
         res = self.observers.get(command)
         if res:
             res.remove(sender)
-
-    async def is_cloned(self):
-        self.is_clone_copy = False
-
-    async def update_running(self, value, recipient):
-        self.is_running = value
-        if recipient:
-            await self.send(self.get_msg('running_flag_updated', recipient=recipient))
 
     async def notify(self, msg):
         res = self.observers.get(msg.get('command'))
@@ -416,12 +439,9 @@ class Adaptor:
         else:
             return self.name
 
-    async def clarify_recipient(self, recipient, is_control=False):
+    async def clarify_recipient(self, recipient):
         if recipient is None:
-            if is_control:
-                return self.admin.adaptor.control_queue
-            else:
-                return self.admin.adaptor.queue
+            return self.admin.adaptor.queue
         if type(recipient) is dict:
             system_name = recipient.get('system')
             if system_name and system_name != params.instance.get('system_name'):
@@ -432,7 +452,7 @@ class Adaptor:
                     return await self.admin.intralink.get_intra_queue(head)
             if recipient.get('node') == self.admin.adaptor.name:
                 if recipient.get('entity'):
-                    res = self.admin.actor_admin.get_actor_queue(recipient.get('entity'), is_control)
+                    res = self.admin.actor_admin.get_actor_queue(recipient.get('entity'))
                     if res:
                         return res
                     recipient = recipient.get('entity')
@@ -442,16 +462,13 @@ class Adaptor:
                 return await self.admin.intralink.get_intra_queue(recipient['node'])
         if type(recipient) is str:
             if recipient == self.admin.adaptor.name:
-                if is_control:
-                    return self.admin.adaptor.control_queue
-                else:
-                    return self.admin.adaptor.queue
+                return self.admin.adaptor.queue
             elif recipient.startswith('_'):
                 return self.admin.asks.get(recipient)
             else:
                 res = self.admin.cache.get(recipient)
                 if not res:
-                    res = self.admin.actor_admin.get_actor_queue(recipient, is_control)
+                    res = self.admin.actor_admin.get_actor_queue(recipient)
                 if not res:
                     res = await self.admin.intralink.get_intra_queue(recipient)
                 return res
@@ -462,9 +479,7 @@ class Adaptor:
         if not sender:
             sender = self
         recipient = msg.get('recipient')
-        if self.is_clone_prototype and isinstance(recipient, dict) and recipient.get('entity') == self.name:
-            msg['is_control'] = True
-        res = await self.clarify_recipient(recipient, msg.get('is_control'))
+        res = await self.clarify_recipient(recipient)
         if not res:
             res = await self.find(sender, recipient)
             if not res:
@@ -488,14 +503,16 @@ class Adaptor:
         if not questioner:
             questioner = self
         recipient = msg.get('recipient')
-        if self.is_clone_prototype and isinstance(recipient, dict) and recipient.get('entity') == self.name:
-            msg['is_control'] = True
-        res = await self.clarify_recipient(recipient, msg.get('is_control'))
+        res = await self.clarify_recipient(recipient)
         if not res:
             res = await self.find(questioner, recipient)
             if not res:
                 return
-        msg['timeout'] = timeout
+        to = msg.get('timeout')
+        if to and to > timeout:
+            timeout = to
+        else:
+            msg['timeout'] = timeout
         queue = asyncio.Queue()
         entity = f'_{self.admin.ask_index}'
         self.admin.ask_index += 1
@@ -576,16 +593,16 @@ class Adaptor:
         else:
             logging.debug(log_util.async_received_log(questioner, msg))
 
-    async def find(self, sender, name):
+    async def find(self, sender, entity):
         res = None
-        msg = msg_factory.get_msg('seek_actor', {'name': name}, self.admin.adaptor.get_head_addr())
+        msg = msg_factory.get_msg('seek_actor', {'entity': entity}, self.admin.adaptor.get_head_addr())
         ans = await self.ask(msg, 2, sender)
         if ans['command'] == 'actor_found':
             res = await self.admin.intralink.get_intra_queue(ans['body']['node'])
             if res:
-                self.admin.cache[name] = res
+                self.admin.cache[entity] = res
             else:
-                logging.warning(f'The actor "{name}" is not found')
+                logging.warning(f'The actor "{entity}" is not found')
         return res
 
     async def add_to_cache(self, msg):
@@ -627,3 +644,30 @@ class Adaptor:
 
     def get_current_time_string(self):
         return auxiliaries.get_current_time_string()
+
+    def get_attributes(self):
+        return [attr for attr in vars(self.performer)
+                if not callable(getattr(self.performer, attr)) and not attr.startswith('_') and attr != 'adaptor']
+
+    def get_params(self):
+        return [{'name': attr, 'value': value} for attr, value in vars(self.performer).items()
+                if not callable(getattr(self.performer, attr)) and not attr.startswith('_') and attr != 'adaptor']
+
+    def set_params(self, params):
+        names = self.get_attributes()
+        for param in params:
+            name = param.get('name')
+            if name in names:
+                setattr(self.performer, name, param.get('value'))
+
+    def has_attr(self, attr_name, is_callable=False, is_coroutine=False):
+        if not hasattr(self.performer, attr_name):
+            return False
+        if is_callable:
+            method = getattr(self.performer, attr_name)
+            if not callable(method):
+                return False
+            if is_coroutine:
+                if not inspect.iscoroutinefunction(method):
+                    return False
+        return True

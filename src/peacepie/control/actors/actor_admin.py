@@ -5,8 +5,9 @@ from peacepie import msg_factory
 from peacepie.assist import log_util
 from peacepie.control.actors import actor_loader, package_admin
 
-LOADER_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'clone_actor'}
-MOVER_COMMANDS = {'move_actor'}
+LOADER_COMMANDS = {'get_class', 'create_actor', 'create_replica', 'create_actors'}
+RECREATE_COMMANDS = {'recreate_actor'}
+AGENT_COMMANDS = {'set_replica_params', 'transit_message', 'replica_resume'}
 
 
 class ActorAdmin:
@@ -14,7 +15,8 @@ class ActorAdmin:
     def __init__(self, parent):
         self.parent = parent
         self.package_admin = package_admin.PackageAdmin(self)
-        self.actor_mover = None
+        self.actor_recreator = None
+        self.actor_agent = None
         self.actor_loaders = []
         self.actors = {}
         self.not_log_commands = set()
@@ -32,8 +34,11 @@ class ActorAdmin:
             loader = self.add_actor_loader()
             await loader.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
-        elif command in MOVER_COMMANDS:
-            await self.actor_mover.queue.put(msg)
+        elif command in RECREATE_COMMANDS:
+            await self.actor_recreator.queue.put(msg)
+            logging.debug(log_util.async_sent_log(self, msg))
+        elif command in AGENT_COMMANDS:
+            await self.actor_agent.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
         elif command == 'remove_actor':
             await self.remove_actor(msg)
@@ -55,17 +60,14 @@ class ActorAdmin:
         self.actor_loaders.append({'loader': loader, 'task': task})
         return loader
 
-    def get_actor_queue(self, name, is_control):
+    def get_actor_queue(self, name):
         actor = self.actors.get(name)
         if not actor:
             return None
         adaptor = actor.get('adaptor')
         if not adaptor:
             return None
-        if is_control:
-            return adaptor.control_queue
-        else:
-            return adaptor.queue
+        return adaptor.queue
 
     def get_members(self):
         res = [actor for actor in self.actors]

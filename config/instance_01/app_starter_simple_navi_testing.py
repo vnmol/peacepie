@@ -3,8 +3,6 @@ class AppStarter:
 
     def __init__(self):
         self.adaptor = None
-        self.tcp_server = None
-        self.tcp_client = None
 
     async def handle(self, msg):
         command = msg.get('command')

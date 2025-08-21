@@ -36,17 +36,21 @@ class ActorSeeker:
         return True
 
     async def seek_actor(self, msg):
+        if await self.find_actor(msg):
+            return
         msg['recipient'] = {'node': self.parent.intralink.head, 'entity': None}
         await self.parent.adaptor.send(msg, self)
 
     async def find_actor(self, msg):
-        name = msg['body']['name']
-        res = self.parent.actor_admin.actors.get(name)
-        if not res or res.get('adaptor').is_clone_prototype:
-            return
-        body = {'node': self.parent.adaptor.name, 'entity': name}
+        body = msg.get('body') if msg.get('body') else {}
+        entity = body.get('entity')
+        res = self.parent.actor_admin.actors.get(entity)
+        if not res:
+            return False
+        body = {'node': self.parent.adaptor.name, 'entity': entity}
         message = msg_factory.get_msg('actor_found', body, recipient=msg['sender'])
         await self.parent.adaptor.send(message, self)
+        return True
 
 
 class HeadActorSeeker:
@@ -100,11 +104,12 @@ class HeadActorSeeker:
         await self.parent.adaptor.send(res, self)
 
     async def find_actor(self, msg):
-        name = msg['body']['name']
-        res = self.parent.actor_admin.actors.get(name)
-        if not res or not res.get('adaptor').is_running:
+        body = msg.get('body') if msg.get('body') else {}
+        entity = body.get('entity')
+        res = self.parent.actor_admin.actors.get(entity)
+        if not res:
             return False
-        body = {'node': self.parent.adaptor.name, 'entity': name}
+        body = {'node': self.parent.adaptor.name, 'entity': entity}
         message = msg_factory.get_msg('actor_found', body, recipient=msg['sender'])
         await self.parent.adaptor.send(message, self)
         return True

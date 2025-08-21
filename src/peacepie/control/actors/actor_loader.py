@@ -1,10 +1,12 @@
 import asyncio
 import logging
+import multiprocessing
 
 from peacepie import adaptor, msg_factory
 from peacepie.assist import log_util, timer
 
 index = 0
+replica_index = 0
 
 
 class ActorLoader:
@@ -14,6 +16,7 @@ class ActorLoader:
         self.name = f'actor_loader_{index}'
         index += 1
         self.parent = parent
+        self.grandparent = parent.parent
         self.queue = asyncio.Queue()
         self.not_log_commands = set()
         self.cumulative_commands = {}
@@ -33,8 +36,10 @@ class ActorLoader:
         command = msg.get('command')
         if command == 'get_class':
             await self.get_class(msg)
-        elif command == 'create_actor' or command == 'clone_actor':
-            await self.create_actor(msg)
+        elif command == 'create_actor':
+            await self.create_actor(msg, False)
+        elif command == 'create_replica':
+            await self.create_actor(msg, True)
         elif command == 'create_actors':
             await self.create_actors(msg)
         else:
@@ -44,28 +49,34 @@ class ActorLoader:
     async def get_class(self, msg):
         clss = await self._get_class(msg)
         ans = msg_factory.get_msg('class', clss, recipient=msg.get('sender'))
-        await self.parent.parent.adaptor.send(ans, self)
+        await self.grandparent.adaptor.send(ans, self)
 
-    async def create_actor(self, msg):
+    async def create_actor(self, msg, is_replica):
+        global replica_index
         body = msg.get('body') if msg.get('body') else {}
         class_desc = body.get('class_desc')
         name = body.get('name')
-        if self.parent.actors.get(name):
+        if self.parent.actors.get(name) and not is_replica:
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
-            await self.parent.parent.adaptor.send(answer, self)
+            await self.grandparent.adaptor.send(answer, self)
             return
+        real_name = name
+        if is_replica and name is None:
+            real_name = (f'replica_{self.grandparent.adaptor.get_param("host_name")}_'
+                         f'{multiprocessing.current_process().name}_{replica_index}')
+            replica_index += 1
         try:
             clss = await self._get_class(msg)
-            adptr = adaptor.Adaptor(class_desc, name, self.parent.parent, clss(), msg.get('sender'))
-            if msg.get('command') == 'clone_actor':
-                adptr.is_clone_copy = True
+            adptr = adaptor.Adaptor(class_desc, real_name, self.grandparent, clss(), msg.get('sender'))
+            if is_replica:
+                adptr.pause_event = asyncio.Event()
         except Exception as e:
             logging.exception(e)
             answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
-            await self.parent.parent.adaptor.send(answer, self)
+            await self.grandparent.adaptor.send(answer, self)
             return
         task = asyncio.get_running_loop().create_task(adptr.run())
-        self.parent.actors[name] = {'adaptor': adptr, 'task': task}
+        self.parent.actors[real_name] = {'adaptor': adptr, 'task': task}
 
     async def create_actors(self, msg):
         clss = await self._get_class(msg)
@@ -80,7 +91,7 @@ class ActorLoader:
             return
         for name in names:
             try:
-                adptr = adaptor.Adaptor(class_desc, name, self.parent.parent, clss(), queue)
+                adptr = adaptor.adaptor(class_desc, name, self.grandparent, clss(), queue)
                 task = asyncio.get_running_loop().create_task(adptr.run())
                 actors[name] = {'adaptor': adptr, 'task': task}
             except Exception as e:
@@ -104,17 +115,17 @@ class ActorLoader:
             await self.clear(actors, msg.get('sender'))
             return
         self.parent.actors.update(actors)
-        system = self.parent.parent.adaptor.get_param('system_name')
-        node = self.parent.parent.adaptor.name
+        system = self.grandparent.adaptor.get_param('system_name')
+        node = self.grandparent.adaptor.name
         body = {'system': system, 'node': node, 'names': names}
         ans = msg_factory.get_msg('actors_are_created', body, msg.get('sender'))
-        await self.parent.parent.adaptor.send(ans, self)
+        await self.grandparent.adaptor.send(ans, self)
 
     async def clear(self, actors, recipient):
         for actor in actors:
             actor['task'].cancel()
         ans = msg_factory.get_msg('actors_are_not_created', recipient=recipient)
-        await self.parent.parent.adaptor.send(ans, self)
+        await self.grandparent.adaptor.send(ans, self)
 
     async def _get_class(self, msg):
         body = msg.get('body')

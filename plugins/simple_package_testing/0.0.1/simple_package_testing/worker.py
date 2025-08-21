@@ -4,7 +4,6 @@ class Worker:
         self.adaptor = None
         self.index = None
         self.group_size = None
-        self.timeout = None
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -12,7 +11,7 @@ class Worker:
         if command == 'set_params':
             await self.set_params(body.get('params'), msg.get('sender'))
         elif command == 'start':
-            await self.start()
+            await self.start(msg.get('timeout'), msg.get('sender'))
         else:
             return False
         return True
@@ -25,14 +24,19 @@ class Worker:
                 self.index = value
             elif name == 'group_size':
                 self.group_size = value
-            elif name == 'timeout':
-                self.timeout = value
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
-    async def start(self):
+    async def start(self, timeout, recipient):
+        names = [f'dummy_{self.index:02d}_{i:02d}' for i in range(self.group_size)]
+        await self.adaptor.group_ask(timeout, len(names), self.dummy_create_factory(names))
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('started', recipient=recipient))
+
+    def dummy_create_factory(self, names):
         class_desc = {'requires_dist': 'dummy_with_dependencies', 'class': 'Dummy'}
-        for i in range(self.group_size):
-            name = f'dummy_{self.index:02d}_{i:02d}'
-            msg = self.adaptor.get_msg('create_actor', {'class_desc': class_desc, 'name': name}, timeout=self.timeout)
-            await self.adaptor.send(msg)
+
+        def get_values(index):
+            return {'command': 'create_actor', 'body': {'class_desc': class_desc, 'name': names[index]}}
+
+        return get_values

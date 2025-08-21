@@ -14,10 +14,7 @@ def init_msg_factory(host_name, process_name, name, queue):
 
 
 def get_msg(command, body=None, recipient=None, sender=None, timeout=None, group_mid=None):
-    return instance.get_msg(command, body, recipient, sender, timeout, group_mid, False)
-
-def get_control_msg(command, body=None, recipient=None, sender=None, timeout=None, group_mid=None):
-    return instance.get_msg(command, body, recipient, sender, timeout, group_mid, True)
+    return instance.get_msg(command, body, recipient, sender, timeout, group_mid)
 
 
 def get_group_mid():
@@ -49,33 +46,7 @@ class MsgFactory:
         mid_gen += 1
         return res
 
-    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None, group_mid=None, is_control=False):
+    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None, group_mid=None):
         res = {'mid': self.get_mid(group_mid), 'command': command, 'body': body, 'recipient': recipient,
-               'sender': sender, 'timeout': timeout, 'is_control': is_control}
+               'sender': sender, 'timeout': timeout}
         return res
-
-
-class Message:
-
-    def __init__(self, mid, command, body=None, recipient=None, sender=None):
-        self.mid = mid
-        self.command = command
-        self.body = body
-        self.recipient = recipient
-        self.sender = sender
-
-    def __repr__(self):
-        res = f'{self.__class__.__name__}({self.mid})(command={self.command}, '
-        res += f'body={"bytes" if type(self.body) is bytes else self.body}, '
-        res += f'recipient={get_addressee_name(self.recipient)}, sender={get_addressee_name(self.sender)})'
-        return res
-
-
-def get_addressee_name(addressee):
-    if addressee:
-        if isinstance(addressee, str) or isinstance(addressee, dict):
-            return addressee
-        else:
-            return f'{addressee.__class__.__module__}.{addressee.__class__.__name__}({id(addressee)})'
-    else:
-        return None

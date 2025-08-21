@@ -1,0 +1,5 @@
+from simple_actor_recreate_testing.generator import Generator
+from simple_actor_recreate_testing.consumer import Consumer
+from simple_actor_recreate_testing.major import Major
+from simple_actor_recreate_testing.junior import Junior
+

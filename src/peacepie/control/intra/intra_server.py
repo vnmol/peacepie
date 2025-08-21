@@ -75,7 +75,7 @@ class IntraServer(intra_link.IntraLink):
             elif command == 'find_link':
                 await self.find_link(msg, writer)
             else:
-                recipient = self.clarify_recipient(msg.get('recipient'), msg.get('is_control'))
+                recipient = self.clarify_recipient(msg.get('recipient'))
                 if isinstance(recipient, asyncio.Queue):
                     await recipient.put(msg)
                     if command not in self.parent.adaptor.not_log_commands:
