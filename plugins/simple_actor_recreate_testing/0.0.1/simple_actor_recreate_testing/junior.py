@@ -39,6 +39,8 @@ class Junior:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
     async def start(self):
+        msg = self.adaptor.get_msg('not_log_commands_set', {'commands': ['tick', 'beat', 'beaten']})
+        await self.adaptor.send(msg)
         self.consumer = f'consumer_{self.index}'
         class_desc = {'requires_dist': 'simple_actor_recreate_testing', 'class': 'Consumer'}
         body = {'class_desc': class_desc, 'name': self.consumer}
@@ -72,7 +74,7 @@ class Junior:
         for generator in self.generators:
             await self.adaptor.send(self.adaptor.get_msg('start', None, generator))
         delay = self.junior_period * (1 + self.index / self.junior_count)
-        self.adaptor.add_ticker(self.junior_period, delay, 2)
+        self.adaptor.add_ticker(self.junior_period, delay)
 
     async def tick(self):
         entity = random.choice(self.generators)

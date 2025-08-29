@@ -13,7 +13,7 @@ class AppStarter:
         return True
 
     async def start(self):
-        await self.web_face()
+        # await self.web_face()
         await self.major()
 
     async def web_face(self):
@@ -29,20 +29,20 @@ class AppStarter:
         body = {'class_desc': {'requires_dist': 'simple_actor_recreate_testing', 'class': 'Major'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), timeout=30)
         body = {'params': [
-            {'name': 'major_timeout', 'value': 30},
-            {'name': 'junior_count', 'value': 2},
+            {'name': 'major_timeout', 'value': 60},
+            {'name': 'junior_count', 'value': 4},
             {'name': 'junior_period', 'value': 1},
             {
                 'name': 'junior_flags',
                 'value':
                     {
-                        'is_local': False, 'is_remote': True,
-                        'is_consumer': True, 'are_generators': False, 'is_shared_heap': False
+                        'is_local': True, 'is_remote': True,
+                        'is_consumer': True, 'are_generators': True, 'is_shared_heap': False
                     }
              },
-            {'name': 'gen_count', 'value': 1},
-            {'name': 'gen_period', 'value': 1},
-            {'name': 'gen_limit', 'value': 10},
+            {'name': 'gen_count', 'value': 100},
+            {'name': 'gen_period', 'value': 0.1},
+            {'name': 'gen_limit', 'value': 100},
             {'name': 'does_gen_ask', 'value': True},
             {'name': 'skip_some_logging', 'value': True}
         ]}

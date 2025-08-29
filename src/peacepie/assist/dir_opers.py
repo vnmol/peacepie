@@ -63,6 +63,8 @@ def copy_dir(src, dst):
 
 
 def rem_dir(src):
+    if not os.path.exists(src):
+        return
     try:
         shutil.rmtree(src)
         logging.info(f'The directory "{src}" is deleted"')

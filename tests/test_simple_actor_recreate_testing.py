@@ -13,10 +13,10 @@ import peacepie
 multiprocessing.set_start_method('spawn', force=True)
 
 
-class TestSimpleActorMove(unittest.TestCase):
+class TestSimpleActorRecreating(unittest.TestCase):
 
-    async def simple_actor_move(self):
-        pp = peacepie.PeaceSystem('./config/test_simple_actor_move_testing.cfg')
+    async def simple_actor_recreating(self):
+        pp = peacepie.PeaceSystem('./config/test_simple_actor_recreate_testing.cfg')
         await pp.start()
         try:
             await pp.task
@@ -24,8 +24,8 @@ class TestSimpleActorMove(unittest.TestCase):
             pass
         return pp
 
-    def test_simple_actor_move(self):
-        pp = asyncio.run(self.simple_actor_move())
+    def test_simple_actor_recreating(self):
+        pp = asyncio.run(self.simple_actor_recreating())
         for res in pp.test_errors:
             self.assertTrue(False, res.get('msg'))
 

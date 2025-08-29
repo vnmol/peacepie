@@ -10,7 +10,7 @@ def get_alias(obj):
     res = None
     while True:
         if hasattr(perf, 'adaptor') and perf.adaptor and type(perf.adaptor) is adaptor.Adaptor:
-            res = f'{perf.__class__.__name__} "{perf.adaptor.name}"' + (f' ({res})' if res else '')
+            res = f'{perf.__class__.__name__} "{perf.adaptor.name}"' + (f' ({res})' if res else f'({id(perf)})')
             break
         if hasattr(perf, 'parent') and perf.parent is not None:
             if hasattr(perf, 'name'):

@@ -91,7 +91,7 @@ class ActorLoader:
             return
         for name in names:
             try:
-                adptr = adaptor.adaptor(class_desc, name, self.grandparent, clss(), queue)
+                adptr = adaptor.Adaptor(class_desc, name, self.grandparent, clss(), queue)
                 task = asyncio.get_running_loop().create_task(adptr.run())
                 actors[name] = {'adaptor': adptr, 'task': task}
             except Exception as e:

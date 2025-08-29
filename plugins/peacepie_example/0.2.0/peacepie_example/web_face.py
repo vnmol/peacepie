@@ -1,5 +1,6 @@
 import logging
 import os
+
 from aiohttp import web, WSMsgType
 
 from peacepie_example import html_addons
@@ -10,46 +11,43 @@ class SimpleWebFace:
     def __init__(self):
         self.adaptor = None
         self.page_size = 5
-        self.http_host = None
         self.http_port = None
-        self.runner = None
-        self.sockets = []
+        self._http_host = None
+        self._runner = None
+        self._sockets = []
+        self._is_exiting = False
 
     async def exit(self):
-        for ws in self.sockets:
+        self._is_exiting = True
+        for ws in self._sockets:
             await ws.close()
             logging.info(f'Websocket({id(ws)}) closed')
-        await self.runner.cleanup()
-        logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+        if self._runner:
+            await self._runner.cleanup()
+            self._runner = None
+            logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
 
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
-        if command == 'start':
-            await self.start(msg)
-        elif command == 'is_ready_to_move':
-            await self.is_ready_to_move(sender)
-        elif command == 'move':
-            await self.move(body, sender)
+        if command == 'set_params':
+            await self.set_params(body.get('params'), sender)
+        elif command == 'start':
+            await self.start(sender)
         else:
             return False
         return True
 
-    async def is_ready_to_move(self, recipient):
+    async def set_params(self, params, recipient):
+        self.adaptor.set_params(params)
         if recipient:
-            await self.adaptor.send(self.adaptor.get_msg('ready', None, recipient))
+            await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
-    async def move(self, clone_addr, recipient):
-        await self.adaptor.ask(self.adaptor.get_control_msg('start', {'port': self.http_port}, clone_addr), 10)
-        if recipient:
-            await self.adaptor.send(self.adaptor.get_msg('moved', None, recipient))
-
-    async def start(self, msg):
-        self.http_host = self.adaptor.get_param('ip')
-        self.http_port = msg.get('body').get('port') if msg.get('body') else None
-        self.runner = await self.initialize_http_server()
-        recipient = msg.get('sender')
+    async def start(self, recipient):
+        self._http_host = '127.0.0.1'
+        #self._http_host = self.adaptor.get_param('ip')
+        self._runner = await self.initialize_http_server()
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))
 
@@ -62,12 +60,12 @@ class SimpleWebFace:
         app.add_routes([web.get('/logs/{path:.*}', logs_handler)])
         app.add_routes([web.get('/log_view', log_view_handler)])
         app.add_routes([web.get('/log_view/{path:.*}', log_view_handler)])
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', self.http_port)
+        _runner = web.AppRunner(app)
+        await _runner.setup()
+        site = web.TCPSite(_runner, f'{self._http_host}', self.http_port)
         await site.start()
-        logging.info(f'HTTP server started at http://localhost:{self.http_port}')
-        return runner
+        logging.info(f'HTTP server started at http://{self._http_host}:{self.http_port}')
+        return _runner
 
     async def root_handler(self, request):
         param_level = request.query.get('level')
@@ -90,31 +88,35 @@ class SimpleWebFace:
         text += '<script>\n'
         text += html_addons.script_common
         if body.get('level') == 'actor':
-            text += script_command(self.http_host, self.http_port)
+            text += script_command(self._http_host, self.http_port)
         text += '</script>\n</body>\n</html>'
         return web.Response(text=text, content_type='text/html')
 
     async def websocket_handler(self, request):
         logging.info('Websocket connection starting')
         ws = web.WebSocketResponse()
-        self.sockets.append(ws)
+        self._sockets.append(ws)
         await ws.prepare(request)
         logging.info(f'Websocket({id(ws)}) ready')
         async for msg in ws:
             if msg.type == WSMsgType.TEXT:
                 logging.debug(f'Received from websocket({id(ws)}): {msg.data}')
-                res = await self.websocket_handle(msg.data)
-                await ws.send_str(res)
-                logging.debug(f'Sent to websocket({id(ws)}): {res}')
-        self.sockets.remove(ws)
-        logging.info(f'Websocket({id(ws)}) closed')
+                try:
+                    res = await self.websocket_handle(msg.data)
+                    await ws.send_str(res)
+                    logging.debug(f'Sent to websocket({id(ws)}): {res}')
+                except Exception as e:
+                    logging.exception(e)
+        self._sockets.remove(ws)
+        if not self._is_exiting:
+            logging.info(f'Websocket({id(ws)}) closed')
         return ws
 
     async def websocket_handle(self, data):
         datum = self.adaptor.json_loads(data)
         tp = datum.get('type')
         command = datum.get('command')
-        body = datum.get('body')
+        body = datum.get('body') if isinstance(datum.get('body'), dict) else {}
         timeout = 4
         try:
             timeout = int(datum.get('timeout'))
@@ -182,14 +184,12 @@ def comm(body):
 
 def script_command(host, port):
     res = f'webSocket = new WebSocket("ws://{host}:{port}/ws");'
-    res += 'window.addEventListener("beforeunload", function() { socket.close(); });'
     res += html_addons.script_websocket
     return res
 
 
 async def logs_handler(request):
     path = request.match_info.get('path', '')
-    print('logs', path)
     logs_path = os.path.join('/logs/', path)
     if logs_path.endswith('/'):
         logs_path = logs_path[:-1]

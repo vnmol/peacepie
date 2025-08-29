@@ -69,13 +69,10 @@ class Major:
         return get_values
 
     async def timer(self):
-        pass
-        # await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}))
-        # await self.adaptor.send(self.adaptor.get_msg('exit', None))
+        await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}))
+        await self.adaptor.send(self.adaptor.get_msg('exit', None))
 
     async def extra_beat(self):
         self.beat_count += 1
-        print('EXTRA_BEAT', self.beat_count, self.junior_count, self.adaptor.get_caller_info())
         if self.beat_count == self.junior_count:
-            print(self.adaptor.get_current_time_string(), self.adaptor.get_caller_info())
-            # await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
+            await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))

@@ -5,6 +5,8 @@ GET_KEYS_FOR_HOST:  sudo ssh-keyscan -t rsa,dsa -p 8022 localhost 2>&1 >> /home/
 INSTALL_BUILD: python3 -m pip install --upgrade build
 BUILD_WHEEL_PACKAGE: python3 -m build
 RUN_PYTHON_HTTP_SERVER: python3 -m http.server 9000
+INSTALL_PYPI_HTTP_SERVER: pip install pypiserver
+RUN_PYPI_HTTP_SERVER: pypi-server run -p 9000 /home/vmol/upload
 
 ZIPAPP
 python3 -m pip install --index-url https://test.pypi.org/simple/ peacepie --target peacepie_service/

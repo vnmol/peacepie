@@ -15,9 +15,12 @@ class AppStarter:
         return True
 
     async def start(self):
-        body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
+        name = 'web_face'
+        body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': name}
         ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
-        await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
+        body = {'params': [{'name': 'http_port', 'value': 9090}]}
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
+        await self.adaptor.ask(self.adaptor.get_msg('start', None, ans.get('body')))
         self.adaptor.add_ticker(100, 100, 1)
 
     async def tick(self):

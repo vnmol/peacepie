@@ -14,7 +14,8 @@ class AppStarter:
 
     async def start(self):
         name = 'initiator'
-        class_desc = {'requires_dist': 'peacepie_example', 'class': 'Initiator'}
-        body = {'class_desc': class_desc, 'name': name}
+        body = {'class_desc': {'requires_dist': 'peacepie_example', 'class': 'Initiator'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 120)
-        await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, name), 10)
+        body = {'params': [{'name': 'http_port', 'value': 9090}]}
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
+        await self.adaptor.send(self.adaptor.get_msg('start', None, name))

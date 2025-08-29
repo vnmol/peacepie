@@ -43,7 +43,7 @@ class Adaptor:
         self.not_log_commands = set()
         self.cumulative_commands = {}
         self.cumulative_period = 10
-        logging.info(f'{self.get_alias(self)}({id(self.performer)}) is created')
+        logging.info(f'{self.get_alias(self)} is created')
 
     def get_alias(self, obj=None):
         if not obj:
@@ -53,14 +53,18 @@ class Adaptor:
     def pause(self):
         if self.pause_event is None:
             self.pause_event = asyncio.Event()
-            if not self.is_idle:
-                self.idle_event = asyncio.Event()
+        if not self.is_idle:
+            self.idle_event = asyncio.Event()
+        if self.queue.empty():
+            self.queue.put_nowait(msg_factory.get_msg('empty'))
+        logging.info(f'{self.get_alias(self)} is paused')
 
     def resume(self, is_stopping=False):
-        if self.pause_event:
-            self.pause_event.set()
         if is_stopping and self.stop_event is None:
             self.stop_event = asyncio.Event()
+        if self.pause_event is not None:
+            self.pause_event.set()
+        logging.info(f'{self.get_alias(self)}(is_stopping={is_stopping}) is resumed')
 
     async def is_idling(self, timeout):
         if self.is_idle:
@@ -92,10 +96,10 @@ class Adaptor:
                     self.pause_event = None
                 if self.stop_event is not None:
                     break
+                self.is_idle = False
                 self.msg = await self.queue.get()
                 if not self.msg:
                     continue
-                self.is_idle = False
                 command = self.msg.get('command')
                 if command not in self.not_log_commands:
                     if command in self.cumulative_commands.keys():
@@ -133,7 +137,7 @@ class Adaptor:
                 logging.exception(ex)
         if self.stop_event is not None:
             self.stop_event.set()
-        logging.info(f'{self.get_alias(self)}({id(self.performer)}) is stopped')
+        logging.info(f'{self.get_alias(self)} is stopped')
 
     async def is_running_notification(self):
         if not self.sender:
