@@ -28,7 +28,6 @@ class Major:
             return False
         return True
 
-
     async def set_params(self, params, recipient):
         self.adaptor.set_params(params)
         if recipient:
