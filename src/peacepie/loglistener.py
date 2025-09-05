@@ -26,12 +26,16 @@ class LogListener:
         self.log_desc = LogDesc(queue, handler.level)
         self.logger_listener = logging.handlers.QueueListener(queue, handler)
         self.logger_listener.start()
+        self.is_working = True
         self.logger.info(f'{log_util.get_alias(self)} is created')
 
     def get_log_desc(self):
         return self.log_desc
 
     def stop(self):
+        if not self.is_working:
+            return
+        self.is_working = False
         self.logger_listener.stop()
         self.logger.info(f'{log_util.get_alias(self)} is stopped')
 

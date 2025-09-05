@@ -1,1 +1,0 @@
-from simple_cpu_heavy_load.cpu_burner import CpuBurner

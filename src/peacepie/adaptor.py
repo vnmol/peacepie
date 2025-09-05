@@ -12,7 +12,7 @@ from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 
-ADAPTOR_COMMANDS = {'exit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
+ADAPTOR_COMMANDS = {'quit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
                     'update_running', 'empty'}
 
@@ -58,6 +58,9 @@ class Adaptor:
         if self.queue.empty():
             self.queue.put_nowait(msg_factory.get_msg('empty'))
         logging.info(f'{self.get_alias(self)} is paused')
+
+    def is_paused(self):
+        return self.pause_event is not None
 
     def resume(self, is_stopping=False):
         if is_stopping and self.stop_event is None:
@@ -113,8 +116,6 @@ class Adaptor:
                             ans = self.get_msg('is_not_handled', {'mid': self.msg.get('mid')},
                                                recipient=self.msg.get('sender'))
                             await self.send(ans)
-                    if params.instance.get('exit'):
-                        break
                     continue
                 if await self.performer.handle(self.msg):
                     if command in CACHE_COMMANDS:
@@ -153,8 +154,8 @@ class Adaptor:
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
-        if command == 'exit':
-            return await self.exit(msg)
+        if command == 'quit':
+            await self.quit(msg)
         elif command == 'cumulative_tick':
             self.cumulative_tick()
         elif command == 'cumulative_commands_set':
@@ -175,13 +176,12 @@ class Adaptor:
             return False
         return True
 
-    async def exit(self, msg):
+    async def quit(self, msg):
         if isinstance(self.performer, HeadPrimeAdmin):
-            params.instance['exit'] = True
+            await self.performer.quit(True)
         else:
             msg['recipient'] = self.get_head_addr()
             await self.send(msg)
-        return True
 
     def cumulative_tick(self):
         for command in self.cumulative_commands.keys():
@@ -511,7 +511,7 @@ class Adaptor:
         if not res:
             res = await self.find(questioner, recipient)
             if not res:
-                return
+                return None
         to = msg.get('timeout')
         if to and to > timeout:
             timeout = to

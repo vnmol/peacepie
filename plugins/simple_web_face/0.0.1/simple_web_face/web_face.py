@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -19,13 +20,22 @@ class SimpleWebFace:
 
     async def exit(self):
         self._is_exiting = True
-        for ws in self._sockets:
-            await ws.close()
-            logging.info(f'Websocket({id(ws)}) closed')
+        await self.close_websockets()
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
             logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+
+    async def close_websockets(self, timeout=1):
+        for ws in self._sockets:
+            ws_id = id(ws)
+            try:
+               await asyncio.wait_for(ws.close(), timeout=timeout)
+               logging.info(f'Websocket({ws_id}) is closed')
+            except asyncio.TimeoutError:
+                if not ws.closed:
+                    ws._writer.transport.close()
+                    logging.info(f'Websocket({ws_id}) is force closed')
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -109,7 +119,7 @@ class SimpleWebFace:
                     logging.exception(e)
         self._sockets.remove(ws)
         if not self._is_exiting:
-            logging.info(f'Websocket({id(ws)}) closed')
+            logging.info(f'Websocket({id(ws)}) is closed')
         return ws
 
     async def websocket_handle(self, data):

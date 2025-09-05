@@ -33,11 +33,19 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         self.signals_check()
         await self.adaptor.send(msg)
 
+    async def quit(self, is_command):
+        if self.adaptor.stop_event is not None:
+            return
+        if is_command:
+            await self.process_admin.exit()
+        self.adaptor.pause()
+        self.adaptor.resume(True)
+
     async def exit(self):
-        await super().exit()
+        await self.finalize()
+        await self.intralink.exit()
         await self.interlink.exit()
         loglistener.instance.stop()
-        logging.info(log_util.get_alias(self.parent) + ' is stopped')
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -73,7 +81,7 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             handler = signal.getsignal(sig)
             if self.registered_handlers.get(sig) == handler:
                 continue
-            handler = lambda signum, frame: asyncio.create_task(self.finalize())
+            handler = lambda signum, frame: asyncio.create_task(self.quit(False))
             signal.signal(sig, handler)
             handler = signal.getsignal(sig)
             self.registered_handlers[sig] = handler

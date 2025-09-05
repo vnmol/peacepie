@@ -2,8 +2,8 @@ import asyncio
 import logging
 import signal
 
-from peacepie import loglistener
-from peacepie.assist import log_util
+from peacepie import loglistener, msg_factory
+from peacepie.assist import log_util, misc
 from peacepie.control import admin, delivery, package_loader, process_admin
 
 PACKAGE_LOADER_COMMANDS = {'load_package'}
@@ -14,7 +14,7 @@ DELIVERY_COMMANDS = {'deliver_package', 'transfer'}
 class PrimeAdmin(admin.Admin):
 
     def __init__(self, host_name, process_name):
-        super().__init__(None, host_name, process_name, loglistener.instance.get_log_desc())
+        super().__init__(None, host_name, process_name, None, loglistener.instance.get_log_desc())
         self.process_admin = None
         self.package_loader = None
         self.delivery = None
@@ -32,12 +32,17 @@ class PrimeAdmin(admin.Admin):
         for signal_name in {'SIGINT', 'SIGTERM'}:
             loop.add_signal_handler(
                 getattr(signal, signal_name),
-                lambda: asyncio.create_task(self.finalize())
+                lambda: asyncio.create_task(self.quit())
             )
 
-    async def exit(self):
-        await super().exit()
+    async def quit(self):
         await self.process_admin.exit()
+        self.adaptor.pause()
+        self.adaptor.resume(True)
+
+    async def exit(self):
+        await self.finalize()
+        await self.intralink.exit()
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -62,10 +67,15 @@ class PrimeAdmin(admin.Admin):
         asyncio.get_running_loop().create_task(self.process_admin.create_process(recipient))
 
     async def remove_process(self, msg):
-        asyncio.get_running_loop().create_task(self.process_admin.remove_process(msg))
+        body = msg.get('body') if msg.get('body') else {}
+        complex_name = misc.ComplexName.parse_name(body.get('node'))
+        recipient = msg.get('sender')
+        asyncio.get_running_loop().create_task(self.process_admin.remove_process(complex_name))
+        if recipient:
+            await self.adaptor.send(msg_factory.get_msg('process_is_removed', None, recipient))
 
     async def get_members(self, msg):
-        body = msg.get('body')
+        body = msg.get('body') if msg.get('body') else {}
         page_size = body.get('page_size')
         level = body.get('level') if body.get('level') else 'prime'
         xid = body.get('id') if body.get('id') else ''

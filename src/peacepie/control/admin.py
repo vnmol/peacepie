@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import signal
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_opers
@@ -17,12 +19,12 @@ LIBS_PATH = 'libs_path'
 
 class Admin:
 
-    def __init__(self, lord, host_name, process_name, log_desc):
+    def __init__(self, lord, host_name, process_name, event, log_desc):
         self.is_head = False
-        self.is_finalizing = False
         self.lord = lord
         self.host_name = host_name
         self.process_name = process_name
+        self.event = event
         self.log_desc = log_desc
         self.adaptor = None
         self.actor_admin = None
@@ -30,6 +32,7 @@ class Admin:
         self.ask_index = 0
         self.cache = {}
         self.intralink = None
+        self.intra_task = None
         self.actor_seeker = None
 
     def get_prefix(self):
@@ -49,19 +52,29 @@ class Admin:
             self.intralink = intra_client.IntraClient(self)
         asyncio.get_running_loop().create_task(self.actor_seeker.run())
         queue = asyncio.Queue()
-        asyncio.get_running_loop().create_task(self.intralink.run(queue))
+        self.intra_task = asyncio.get_running_loop().create_task(self.intralink.run(queue))
         await queue.get()
 
     async def finalize(self):
-        if self.is_finalizing:
-            return
-        self.is_finalizing = True
-        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task() and t is not self.intra_task]
         [task.cancel() for task in tasks]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        res = False
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=1)
+        except asyncio.CancelledError:
+            res = True
+        except Exception as e:
+            logging.exception(e)
+        return res
+
+    async def quit(self):
+        self.adaptor.pause()
+        self.adaptor.resume(True)
 
     async def exit(self):
+        await self.finalize()
         await self.intralink.exit()
+        self.event.set()
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -72,6 +85,8 @@ class Admin:
         elif command in ACTOR_SEEKER_COMMANDS:
             msg['recipient'] = self.actor_seeker.queue
             await self.adaptor.send(msg)
+        elif command == 'remove_process':
+            await self.remove_process()
         elif command == 'get_log_desc':
             ans = msg_factory.get_msg('log_desc', self.log_desc, sender)
             await self.adaptor.send(ans)
@@ -84,6 +99,9 @@ class Admin:
         else:
             return False
         return True
+
+    async def remove_process(self):
+        await self.quit()
 
     async def change_cache(self, body, recipient):
         await self.add_to_cache(body.get('node'), [body.get('entity')], True)
