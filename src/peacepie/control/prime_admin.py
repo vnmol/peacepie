@@ -43,6 +43,7 @@ class PrimeAdmin(admin.Admin):
     async def exit(self):
         await self.finalize()
         await self.intralink.exit()
+        loglistener.instance.stop()
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -51,6 +52,8 @@ class PrimeAdmin(admin.Admin):
             await self.create_process(sender)
         elif command == 'remove_process':
             await self.remove_process(msg)
+        elif command == 'quiting':
+            await self.quit()
         elif command in PACKAGE_LOADER_COMMANDS:
             await self.package_loader.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))

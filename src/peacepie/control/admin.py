@@ -164,7 +164,9 @@ def format_members(level, recipient, page_size, page, members):
 
 
 def get_prev(level):
-    if level == 'process':
+    if level == 'prime':
+        return 'head'
+    elif level == 'process':
         return 'prime'
     elif level == 'actors':
         return 'process'

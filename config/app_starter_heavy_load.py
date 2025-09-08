@@ -31,7 +31,7 @@ class AppStarter:
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), timeout=10)
         body = {'params':
                     [
-                        {'name': 'remaining_time', 'value': 60}
+                        {'name': 'remaining_time', 'value': 6}
                     ]
                 }
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))

@@ -113,10 +113,12 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
     async def get_members(self, msg):
         body = msg.get('body')
         page_size = body.get('page_size')
-        level = body.get('level') if body.get('level') else 'prime'
+        level = body.get('level') if body.get('level') else 'head'
         xid = body.get('id') if body.get('id') else ''
         page = int(xid.split('_')[2]) if xid.startswith('_page_') else 0
         members = []
+        if level == 'head':
+            members = [{'next_level': 'prime', 'recipient': self.adaptor.name, 'id': self.adaptor.name}]
         if level == 'prime':
             members = self.intralink.get_members()
             members = [{'next_level': 'process', 'recipient': member, 'id': member} for member in members]
@@ -129,7 +131,7 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         elif level == 'actor':
             members = [{'next_level': None, 'recipient': None, 'id': body.get('id')}]
         body = admin.format_members(level, self.adaptor.name, page_size, page, members)
-        if level != 'prime':
+        if level != 'head':
             body['_back'] = {'next_level': admin.get_prev(level), 'recipient': self.adaptor.name, 'id': '_back'}
         body['level'] = level
         ans = self.adaptor.get_msg('members', body, msg.get('sender'))

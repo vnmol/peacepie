@@ -34,6 +34,8 @@ class IntraServer(intra_link.IntraLink):
 
     async def exit(self):
         for conn in self.connections:
+            conn.write(Serializer.serialize(msg_factory.get_msg('quiting')))
+            await conn.drain()
             conn.close()
             await conn.wait_closed()
         self.server.close()

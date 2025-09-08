@@ -88,6 +88,7 @@ class SimpleWebFace:
         head = f'<head>\n<meta charset="UTF-8">\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n'
         text = f'<!DOCTYPE html>\n<html>\n{head}<body>\n\n'
         body = ans.get('body')
+        text += level(body)
         if body.get('_back'):
             text += back(body)
         text += members(body)
@@ -147,6 +148,10 @@ class SimpleWebFace:
 async def favicon(request):
     return web.FileResponse(f'{os.path.dirname(__file__)}/resources/favicon.ico')
 
+def level(body):
+    lvl = body.get('level').upper()
+    res = f'<button class="last_entity">{lvl}</button>\n<br><br>\n'
+    return res
 
 def back(body):
     bck = body.get('_back')
