@@ -26,4 +26,4 @@ class AppStarter:
     async def tick(self):
         head = self.adaptor.get_head_addr()
         await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}, head))
-        await self.adaptor.send(self.adaptor.get_msg('exit', None, head))
+        await self.adaptor.send(self.adaptor.get_msg('quit', None, head))

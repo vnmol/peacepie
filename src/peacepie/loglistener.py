@@ -32,7 +32,7 @@ class LogListener:
     def get_log_desc(self):
         return self.log_desc
 
-    def stop(self):
+    def exit(self):
         if not self.is_working:
             return
         self.is_working = False

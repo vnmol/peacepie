@@ -9,6 +9,7 @@ class TcpServer:
 
     def __init__(self):
         self.adaptor = None
+        self.shield_timeout = 10
         self.is_client = False
         self.host = None
         self.port = None
@@ -21,9 +22,12 @@ class TcpServer:
         self.server = None
 
     async def exit(self):
-        for channel in self.channels:
-            await channel.exit()
-        self.channels.clear()
+        channels = [channel for channel in self.channels]
+        for channel in channels:
+            try:
+                await channel.exit()
+            except Exception as e:
+                logging.exception(e)
         if self.server:
             self.server.close()
             await self.server.wait_closed()

@@ -18,11 +18,12 @@ class AppStarter:
         await self.networking(url)
 
     async def web_face(self, url):
-        class_desc = {'requires_dist': 'simple_web_face >0.0.0, <1.0.0, !=0.2.0',
-                      'class': 'SimpleWebFace', 'extra-index-url': url}
-        body = {'class_desc': class_desc, 'name': 'web_face'}
-        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 60)
-        await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
+        name = 'web_face'
+        body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': name}
+        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
+        body = {'params': [{'name': 'http_port', 'value': 9090}]}
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
+        await self.adaptor.ask(self.adaptor.get_msg('start', None, ans.get('body')))
 
     async def networking(self, url):
         name = 'main_initiator'
@@ -36,10 +37,10 @@ class AppStarter:
             {'name': 'convertor_desc', 'value': class_desc},
             {'name': 'inet_addr', 'value': {'host': '0.0.0.0', 'port': 4802}},
             {'name': 'is_single_channel', 'value': False},
-            {'name': 'is_embedded_channel', 'value': False},
+            {'name': 'is_embedded_channel', 'value': True},
             {'name': 'is_on_demand', 'value': False},
-            {'name': 'count', 'value': 1},
-            {'name': 'size', 'value': 1},
+            {'name': 'count', 'value': 2},
+            {'name': 'size', 'value': 2},
             {'name': 'period', 'value': 1},
             {'name': 'limit', 'value': None},
             {'name': 'timeout', 'value': None},

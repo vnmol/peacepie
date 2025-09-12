@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import signal
 
 from peacepie import loglistener, msg_factory
 from peacepie.assist import log_util, misc
@@ -14,7 +13,7 @@ DELIVERY_COMMANDS = {'deliver_package', 'transfer'}
 class PrimeAdmin(admin.Admin):
 
     def __init__(self, host_name, process_name):
-        super().__init__(None, host_name, process_name, None, loglistener.instance.get_log_desc())
+        super().__init__(None, host_name, process_name, loglistener.instance.get_log_desc())
         self.process_admin = None
         self.package_loader = None
         self.delivery = None
@@ -28,22 +27,15 @@ class PrimeAdmin(admin.Admin):
         await queue.get()
         self.delivery = delivery.Delivery(self)
         asyncio.get_running_loop().create_task(self.delivery.run())
-        loop = asyncio.get_running_loop()
-        for signal_name in {'SIGINT', 'SIGTERM'}:
-            loop.add_signal_handler(
-                getattr(signal, signal_name),
-                lambda: asyncio.create_task(self.quit())
-            )
 
     async def quit(self):
         await self.process_admin.exit()
-        self.adaptor.pause()
-        self.adaptor.resume(True)
+        self.adaptor.stop()
 
     async def exit(self):
-        await self.finalize()
+        await self.actor_admin.exit()
         await self.intralink.exit()
-        loglistener.instance.stop()
+        loglistener.instance.exit()
 
     async def handle(self, msg):
         command = msg.get('command')

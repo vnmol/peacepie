@@ -37,7 +37,7 @@ class MainOverlooker:
         self.received += received
         self.received_for_the_period += received
         if self.received == self.limit:
-            await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
+            await self.adaptor.send(self.adaptor.get_msg('quit', None, self.adaptor.get_head_addr()))
 
     async def tick(self):
         # max_name = None
@@ -54,7 +54,7 @@ class MainOverlooker:
     async def timer(self):
         head = self.adaptor.get_head_addr()
         await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}, head))
-        await self.adaptor.send(self.adaptor.get_msg('exit', None, head))
+        await self.adaptor.send(self.adaptor.get_msg('quit', None, head))
 
     async def set_params(self, params, recipient):
         for param in params:

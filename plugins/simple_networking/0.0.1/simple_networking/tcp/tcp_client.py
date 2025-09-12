@@ -9,6 +9,7 @@ class TcpClient:
 
     def __init__(self):
         self.adaptor = None
+        self.must_be_shielded = True
         self.is_client = True
         self.host = None
         self.port = None

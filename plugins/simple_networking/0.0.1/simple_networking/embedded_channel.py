@@ -19,15 +19,17 @@ class EmbeddedChannel:
     async def exit(self):
         log = f'{self.parent.adaptor.get_alias(self)} disconnected '
         log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
-        self.writer.close()
-        await self.writer.wait_closed()
+        await self.close()
         if hasattr(self.convertor, 'exit'):
             await self.convertor.exit()
         logging.info(log)
 
     async def close(self):
-        self.writer.close()
-        await self.writer.wait_closed()
+        try:
+            self.writer.close()
+            await self.writer.wait_closed()
+        except Exception as e:
+            logging.exception(e)
 
     async def handle(self, queue):
         self.start_queue = queue
@@ -44,9 +46,11 @@ class EmbeddedChannel:
                 await self.convertor.handle(msg)
             except Exception as ex:
                 logging.exception(ex)
-        log = f'{self.parent.adaptor.get_alias(self)} disconnected '
-        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
-        logging.info(log)
+        if self.parent.adaptor.stop_event is None:
+            log = f'{self.parent.adaptor.get_alias(self)} disconnected '
+            log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+            await self.close()
+            logging.info(log)
 
     async def create_convertor(self):
         name = f'{self.parent.adaptor.name}.convertor_{self.ch_id}'

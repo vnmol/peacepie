@@ -16,15 +16,13 @@ class SimpleWebFace:
         self._http_host = None
         self._runner = None
         self._sockets = []
-        self._is_exiting = False
 
     async def exit(self):
-        self._is_exiting = True
         await self.close_websockets()
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
-            logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+        logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
 
     async def close_websockets(self, timeout=1):
         for ws in self._sockets:
@@ -111,19 +109,16 @@ class SimpleWebFace:
         logging.info(f'Websocket({id(ws)}) ready')
         async for msg in ws:
             if msg.type == WSMsgType.TEXT:
-                logging.debug(f'Received from websocket({id(ws)}): {msg.data}')
+                logging.debug(f"Received from websocket({id(ws)}): '{msg.data}'")
                 try:
-                    res = await self.websocket_handle(msg.data)
-                    await ws.send_str(res)
-                    logging.debug(f'Sent to websocket({id(ws)}): {res}')
+                    await self.websocket_handle(ws, msg.data)
                 except Exception as e:
                     logging.exception(e)
         self._sockets.remove(ws)
-        if not self._is_exiting:
-            logging.info(f'Websocket({id(ws)}) is closed')
+        logging.info(f'Websocket({id(ws)}) is closed')
         return ws
 
-    async def websocket_handle(self, data):
+    async def websocket_handle(self, ws, data):
         datum = self.adaptor.json_loads(data)
         tp = datum.get('type')
         command = datum.get('command')
@@ -142,7 +137,8 @@ class SimpleWebFace:
         else:
             await self.adaptor.send(query)
             res = 'The message is sent'
-        return res
+        await ws.send_str(res)
+        logging.info(f"Sent to websocket({id(ws)}): '{res}'")
 
 
 async def favicon(request):

@@ -28,6 +28,8 @@ class IntraServer(intra_link.IntraLink):
                 params.instance['intra_port'] = port
             await queue.put(msg_factory.get_msg('ready'))
             logging.info(f'{log_util.get_alias(self)} is started on port {self.port}')
+        except asyncio.CancelledError:
+            pass
         except Exception as ex:
             print(ex)
             logging.exception(ex)

@@ -23,6 +23,33 @@ class ActorAdmin:
         self.cumulative_commands = {}
         logging.info(log_util.get_alias(self) + ' is created')
 
+    async def exit(self):
+        tasks = []
+        stop_events = []
+        for actor in self.actors.values():
+            adaptor = actor.get('adaptor')
+            adaptor.stop()
+            stop_events.append(adaptor.stop_event.wait())
+            tasks.append(actor.get('task'))
+        try:
+            await asyncio.wait_for(asyncio.gather(*stop_events), timeout=0.4)
+        except asyncio.TimeoutError:
+            pass
+        await self.exiting(tasks)
+        tasks = [t for t in asyncio.all_tasks()
+                 if t is not asyncio.current_task() and t not in self.parent.intra_tasks]
+        if tasks:
+            await self.exiting(tasks)
+
+    async def exiting(self, tasks):
+        [task.cancel() for task in tasks]
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=0.4)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logging.exception(e)
+
     async def handle(self, msg):
         command = msg.get('command')
         if command in LOADER_COMMANDS:

@@ -21,8 +21,7 @@ class Channel:
     async def exit(self):
         log = f'{self.parent.adaptor.get_alias(self)} disconnected '
         log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
-        self.writer.close()
-        await self.writer.wait_closed()
+        await self.close()
         logging.info(log)
 
     async def close(self):
@@ -48,11 +47,13 @@ class Channel:
                 await self.parent.adaptor.send(msg, self)
             except Exception as ex:
                 logging.exception(ex)
-        await self.parent.adaptor.ask(self.parent.adaptor.get_msg('remove_actor', {'name': self.mediator}))
-        await self.parent.adaptor.ask(self.parent.adaptor.get_msg('remove_actor', {'name': self.convertor}))
-        log = f'{self.parent.adaptor.get_alias(self)} disconnected '
-        log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
-        logging.info(log)
+        if self.parent.adaptor.stop_event is None:
+            await self.parent.adaptor.ask(self.parent.adaptor.get_msg('remove_actor', {'name': self.mediator}))
+            await self.parent.adaptor.ask(self.parent.adaptor.get_msg('remove_actor', {'name': self.convertor}))
+            log = f'{self.parent.adaptor.get_alias(self)} disconnected '
+            log += f'{self.writer.get_extra_info("sockname")}<=>{self.writer.get_extra_info("peername")}'
+            await self.close()
+            logging.info(log)
 
     async def create_mediator(self):
         name = f'{self.parent.adaptor.name}.mediator_{self.ch_id}'

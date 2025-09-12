@@ -69,9 +69,9 @@ class Major:
 
     async def timer(self):
         await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}))
-        await self.adaptor.send(self.adaptor.get_msg('exit', None))
+        await self.adaptor.send(self.adaptor.get_msg('quit', None))
 
     async def extra_beat(self):
         self.beat_count += 1
         if self.beat_count == self.junior_count:
-            await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
+            await self.adaptor.send(self.adaptor.get_msg('quit', None, self.adaptor.get_head_addr()))

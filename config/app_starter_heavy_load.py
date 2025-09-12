@@ -29,10 +29,10 @@ class AppStarter:
         name = 'initiator'
         body = {'class_desc': {'requires_dist': 'simple_heavy_load', 'class': 'Initiator'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), timeout=10)
-        body = {'params':
-                    [
-                        {'name': 'remaining_time', 'value': 6}
-                    ]
-                }
+        body = {'params': [
+            {'name': 'count', 'value': 3},
+            {'name': 'does_remove', 'value': False},
+            {'name': 'remaining_time', 'value': 60}
+        ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.send(self.adaptor.get_msg('start', None, name))

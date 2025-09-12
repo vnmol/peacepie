@@ -10,12 +10,14 @@ class IntraClient(intra_link.IntraLink):
 
     def __init__(self, parent):
         super().__init__(parent)
+        self.client_task = None
         self.writer = None
 
     async def run(self, queue):
         await self.start_server()
-        asyncio.get_running_loop().create_task(
+        self.client_task = asyncio.get_running_loop().create_task(
             self.start_client(params.instance['intra_host'], params.instance['intra_port'], queue, True))
+        self.parent.intra_tasks.append(self.client_task)
 
     async def start_server(self):
         try:
@@ -41,6 +43,8 @@ class IntraClient(intra_link.IntraLink):
                 res = serializer.deserialize(data)
                 if res:
                     await self.handle(res, writer, None)
+            except asyncio.CancelledError:
+                pass
             except Exception as ex:
                 logging.exception(ex)
                 reader = None
@@ -51,14 +55,24 @@ class IntraClient(intra_link.IntraLink):
                 reader, self.writer = await asyncio.open_connection(host, port)
                 logging.info(log_util.get_alias(self) + f' Channel to ({host}, {port}) is opened')
                 await self.client_handle(reader, self.writer, queue, is_to_head)
+            except asyncio.CancelledError:
+                return
             except Exception as ex:
                 logging.exception(ex)
-            await asyncio.sleep(10)
+            try:
+               await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                return
 
     async def exit(self):
         if self.writer:
             self.writer.close()
             await self.writer.wait_closed()
+        self.client_task.cancel()
+        try:
+            await asyncio.wait_for(self.client_task, timeout=0.1)
+        except Exception as e:
+            logging.exception(e)
         self.server.close()
         await self.server.wait_closed()
         logging.info(f'IntraClient on port {self.port} is closed')
@@ -73,6 +87,8 @@ class IntraClient(intra_link.IntraLink):
                 res = serializer.deserialize(data)
                 if res:
                     await self.handle(res, writer, queue, is_to_head)
+            except asyncio.CancelledError:
+                pass
             except Exception as ex:
                 logging.exception(ex)
                 reader = None

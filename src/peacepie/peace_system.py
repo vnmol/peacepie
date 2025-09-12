@@ -34,10 +34,5 @@ class PeaceSystem:
         actr = adaptor.Adaptor(None, self.prefix + 'admin', None, performer)
         self.task = asyncio.get_running_loop().create_task(actr.run())
 
-    def create_signal_handler(self):
-        def signal_handler(signum, frame):
-            self.task.cancel()
-        return signal_handler
-
     def set_test_error(self, res):
         self.test_errors.append(res)

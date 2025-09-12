@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 
-from peacepie import loglistener
+from peacepie import loglistener, msg_factory
 from peacepie.assist import log_util
 from peacepie.control import prime_admin, admin, safe_admin
 from peacepie.control.inter import inter_server
@@ -27,25 +27,28 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self.interlink.run(queue))
         await queue.get()
+        loop = asyncio.get_running_loop()
+        for signal_name in {'SIGINT', 'SIGTERM'}:
+            loop.add_signal_handler(
+                getattr(signal, signal_name),
+                lambda: asyncio.create_task(self.adaptor.send(msg_factory.get_msg('quit')))
+            )
         class_desc = {'requires_dist': 'peacepie.control.internal_starter'}
         body = {'class_desc': class_desc, 'name': 'internal_starter'}
         msg = self.adaptor.get_msg('create_actor', body, sender=self.adaptor.get_self_addr())
-        self.signals_check()
         await self.adaptor.send(msg)
 
-    async def quit(self, is_command):
+    async def quit(self):
         if self.adaptor.stop_event is not None:
             return
-        if is_command:
-            await self.process_admin.exit()
-        self.adaptor.pause()
-        self.adaptor.resume(True)
+        await self.process_admin.exit()
+        self.adaptor.stop()
 
     async def exit(self):
-        await self.finalize()
+        await self.actor_admin.exit()
         await self.intralink.exit()
         await self.interlink.exit()
-        loglistener.instance.stop()
+        loglistener.instance.exit()
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -74,17 +77,6 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         else:
             return await super().handle(msg)
         return True
-
-    def signals_check(self):
-        for signal_name in {'SIGINT', 'SIGTERM'}:
-            sig = getattr(signal, signal_name)
-            handler = signal.getsignal(sig)
-            if self.registered_handlers.get(sig) == handler:
-                continue
-            handler = lambda signum, frame: asyncio.create_task(self.quit(False))
-            signal.signal(sig, handler)
-            handler = signal.getsignal(sig)
-            self.registered_handlers[sig] = handler
 
     async def change_caches(self, msg):
         recipient = msg.get('sender')

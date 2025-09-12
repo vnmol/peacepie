@@ -19,12 +19,11 @@ LIBS_PATH = 'libs_path'
 
 class Admin:
 
-    def __init__(self, lord, host_name, process_name, event, log_desc):
+    def __init__(self, lord, host_name, process_name, log_desc):
         self.is_head = False
         self.lord = lord
         self.host_name = host_name
         self.process_name = process_name
-        self.event = event
         self.log_desc = log_desc
         self.adaptor = None
         self.actor_admin = None
@@ -32,7 +31,7 @@ class Admin:
         self.ask_index = 0
         self.cache = {}
         self.intralink = None
-        self.intra_task = None
+        self.intra_tasks = []
         self.actor_seeker = None
 
     def get_prefix(self):
@@ -52,29 +51,17 @@ class Admin:
             self.intralink = intra_client.IntraClient(self)
         asyncio.get_running_loop().create_task(self.actor_seeker.run())
         queue = asyncio.Queue()
-        self.intra_task = asyncio.get_running_loop().create_task(self.intralink.run(queue))
+        self.intra_tasks.append(asyncio.get_running_loop().create_task(self.intralink.run(queue)))
         await queue.get()
 
-    async def finalize(self):
-        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task() and t is not self.intra_task]
-        [task.cancel() for task in tasks]
-        res = False
-        try:
-            await asyncio.wait_for(asyncio.gather(*tasks), timeout=1)
-        except asyncio.CancelledError:
-            res = True
-        except Exception as e:
-            logging.exception(e)
-        return res
-
     async def quit(self):
-        self.adaptor.pause()
-        self.adaptor.resume(True)
+        if self.adaptor.stop_event is not None:
+            return
+        self.adaptor.stop()
 
     async def exit(self):
-        await self.finalize()
+        await self.actor_admin.exit()
         await self.intralink.exit()
-        self.event.set()
 
     async def handle(self, msg):
         command = msg.get('command')

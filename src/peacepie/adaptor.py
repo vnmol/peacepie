@@ -10,6 +10,7 @@ from peacepie.assist import (auxiliaries, log_util, json_util, serialization, di
 from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
 from peacepie.control.head_prime_admin import HeadPrimeAdmin
+from peacepie.control.admin import Admin
 
 
 ADAPTOR_COMMANDS = {'quit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
@@ -68,6 +69,14 @@ class Adaptor:
         if self.pause_event is not None:
             self.pause_event.set()
         logging.info(f'{self.get_alias(self)}(is_stopping={is_stopping}) is resumed')
+
+    def stop(self):
+        if self.pause_event is not None:
+            self.pause_event.set()
+        if self.stop_event is None:
+            self.stop_event = asyncio.Event()
+        if self.queue.empty():
+            self.queue.put_nowait(msg_factory.get_msg('empty'))
 
     async def is_idling(self, timeout):
         if self.is_idle:
@@ -128,17 +137,27 @@ class Adaptor:
                                            recipient=self.msg.get('sender'))
                         await self.send(ans)
             except asyncio.exceptions.CancelledError:
-                break
+                pass
             except BaseException as ex:
                 logging.exception(ex)
         if hasattr(self.performer, 'exit'):
-            try:
-                await self.performer.exit()
-            except Exception as ex:
-                logging.exception(ex)
+            if hasattr(self.performer, 'shield_timeout') and self.performer.shield_timeout > 0:
+                await self.shield_exit()
+            else:
+                try:
+                    await self.performer.exit()
+                except Exception as ex:
+                    logging.exception(ex)
         if self.stop_event is not None:
             self.stop_event.set()
         logging.info(f'{self.get_alias(self)} is stopped')
+
+    async def shield_exit(self):
+        protected_task = asyncio.shield(self.performer.exit())
+        try:
+            await asyncio.wait_for(protected_task, timeout=self.performer.shield_timeout)
+        except asyncio.TimeoutError:
+            protected_task.cancel()
 
     async def is_running_notification(self):
         if not self.sender:
@@ -178,7 +197,10 @@ class Adaptor:
 
     async def quit(self, msg):
         if isinstance(self.performer, HeadPrimeAdmin):
-            await self.performer.quit(True)
+            if msg.get('sender'):
+                await self.send(self.get_msg('is_quiting', None, msg.get('sender')))
+            await asyncio.sleep(0.4)
+            asyncio.create_task(self.performer.quit())
         else:
             msg['recipient'] = self.get_head_addr()
             await self.send(msg)

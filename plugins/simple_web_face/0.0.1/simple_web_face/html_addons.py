@@ -1,5 +1,6 @@
 import logging
 
+
 entity_style = '''.entity {
   width: 60%;
   background-color: #EC5800;

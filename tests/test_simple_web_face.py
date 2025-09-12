@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import sys
 import unittest
@@ -40,16 +41,16 @@ async def run(playwright) -> None:
     browser = await playwright.chromium.launch(headless=True)
     context = await browser.new_context()
     page = await context.new_page()
-    page.set_default_timeout(10000)
+    page.set_default_timeout(1000)
     await page.goto("http://localhost:9090/")
-    await page.get_by_role("button", name="first.main.admin").click()
-    await page.get_by_role("button", name="first.main.admin").click()
-    await page.get_by_role("button", name="first.main.admin").click()
+    for _ in range(4):
+        await page.get_by_role("button", name="first.main.admin").click()
     await page.get_by_label("Команда").click()
-    await page.get_by_label("Команда").fill("exit")
+    await page.get_by_label("Команда").fill("quit")
     await page.get_by_role("button", name="SEND").click()
     await context.close()
     await browser.close()
+
 
 if __name__ == '__main__':
     unittest.main()

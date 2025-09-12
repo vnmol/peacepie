@@ -29,7 +29,7 @@ class Retransmitter:
 
     async def test(self, msg):
         if self.first:
-            await self.adaptor.send(self.adaptor.get_msg('exit', None, self.adaptor.get_head_addr()))
+            await self.adaptor.send(self.adaptor.get_msg('quit', None, self.adaptor.get_head_addr()))
         else:
             msg['recipient'] = self.consumer
             await self.adaptor.send(msg)

@@ -100,23 +100,20 @@ class SimpleWebFace:
         logging.info(f'Websocket({id(ws)}) ready')
         async for msg in ws:
             if msg.type == WSMsgType.TEXT:
-                logging.debug(f'Received from websocket({id(ws)}): {msg.data}')
+                logging.debug(f"Received from websocket({id(ws)}): '{msg.data}'")
                 try:
-                    res = await self.websocket_handle(msg.data)
-                    await ws.send_str(res)
-                    logging.debug(f'Sent to websocket({id(ws)}): {res}')
+                    await self.websocket_handle(ws, msg.data)
                 except Exception as e:
                     logging.exception(e)
         self._sockets.remove(ws)
-        if not self._is_exiting:
-            logging.info(f'Websocket({id(ws)}) closed')
+        logging.info(f'Websocket({id(ws)}) is closed')
         return ws
 
-    async def websocket_handle(self, data):
+    async def websocket_handle(self, ws, data):
         datum = self.adaptor.json_loads(data)
         tp = datum.get('type')
         command = datum.get('command')
-        body = datum.get('body') if isinstance(datum.get('body'), dict) else {}
+        body = datum.get('body')
         timeout = 4
         try:
             timeout = int(datum.get('timeout'))
@@ -131,7 +128,8 @@ class SimpleWebFace:
         else:
             await self.adaptor.send(query)
             res = 'The message is sent'
-        return res
+        await ws.send_str(res)
+        logging.info(f"Sent to websocket({id(ws)}): '{res}'")
 
 
 async def favicon(request):
