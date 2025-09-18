@@ -140,24 +140,29 @@ class Adaptor:
                 pass
             except BaseException as ex:
                 logging.exception(ex)
-        if hasattr(self.performer, 'exit'):
-            if hasattr(self.performer, 'shield_timeout') and self.performer.shield_timeout > 0:
-                await self.shield_exit()
-            else:
-                try:
-                    await self.performer.exit()
-                except Exception as ex:
-                    logging.exception(ex)
+        await self.exit()
         if self.stop_event is not None:
             self.stop_event.set()
         logging.info(f'{self.get_alias(self)} is stopped')
 
-    async def shield_exit(self):
-        protected_task = asyncio.shield(self.performer.exit())
+    async def exit(self):
+        if not hasattr(self.performer, 'exit'):
+            return
+        if isinstance(self.performer, Admin):
+            await self.performer.exit()
+            return
+        timeout = 4
+        if hasattr(self.performer, 'shield_timeout') and self.performer.shield_timeout > 0:
+            timeout =self.performer.shield_timeout
+            task = asyncio.shield(self.performer.exit())
+        else:
+            task = asyncio.create_task(self.performer.exit())
         try:
-            await asyncio.wait_for(protected_task, timeout=self.performer.shield_timeout)
+            await asyncio.wait_for(task, timeout=timeout)
         except asyncio.TimeoutError:
-            protected_task.cancel()
+            task.cancel()
+        except Exception as e:
+            logging.exception(e)
 
     async def is_running_notification(self):
         if not self.sender:

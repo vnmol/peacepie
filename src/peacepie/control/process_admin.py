@@ -25,7 +25,7 @@ class ProcessAdmin:
         await asyncio.gather(*[self.remove_process(complex_name) for complex_name in self.processes])
 
     def join_process(self, process):
-        return process.join(timeout=0.4)
+        return process.join(timeout=4)
 
     async def remove_process(self, complex_name):
         process = self.processes.get(complex_name)
@@ -37,18 +37,18 @@ class ProcessAdmin:
         await self.parent.adaptor.send(msg_factory.get_msg('remove_process', None, node))
         await asyncio.wait_for(
             asyncio.to_thread(self.join_process, process),
-            timeout=0.5
+            timeout=5
         )
         if not process.is_alive():
             logging.info(f'The process for "{node}" is successfully completed')
         if process.is_alive():
             process.terminate()
             try:
-                await asyncio.to_thread(process.join, timeout=0.4)
+                await asyncio.to_thread(process.join, timeout=1)
                 logging.info(f'The process for "{node}" is terminated')
             except asyncio.TimeoutError:
                 process.kill()
-                await asyncio.to_thread(process.join, timeout=0.4)
+                await asyncio.to_thread(process.join, timeout=1)
                 logging.info(f'The process for "{node}" is killed')
 
     def get_members(self):

@@ -32,7 +32,7 @@ class AppStarter:
         body = {'params': [
             {'name': 'count', 'value': 3},
             {'name': 'does_remove', 'value': False},
-            {'name': 'remaining_time', 'value': 60}
+            {'name': 'remaining_time', 'value': 600}
         ]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.send(self.adaptor.get_msg('start', None, name))

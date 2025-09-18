@@ -77,6 +77,7 @@ class ActorRecreator:
     async def redirect(self, entity, recipient, msg):
         queue = self.grandparent.cache.get(entity)
         if queue:
+            msg['recipient'] = None
             await queue.put(msg)
             logging.debug(log_util.sync_sent_log(self, msg))
             return

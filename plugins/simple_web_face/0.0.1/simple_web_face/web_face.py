@@ -26,14 +26,16 @@ class SimpleWebFace:
 
     async def close_websockets(self, timeout=1):
         for ws in self._sockets:
+            if ws.closed:
+                continue
             ws_id = id(ws)
             try:
                await asyncio.wait_for(ws.close(), timeout=timeout)
-               logging.info(f'Websocket({ws_id}) is closed')
             except asyncio.TimeoutError:
                 if not ws.closed:
                     ws._writer.transport.close()
                     logging.info(f'Websocket({ws_id}) is force closed')
+        self._sockets.clear()
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -116,7 +118,6 @@ class SimpleWebFace:
                     logging.exception(e)
         self._sockets.remove(ws)
         logging.info(f'Websocket({id(ws)}) is closed')
-        return ws
 
     async def websocket_handle(self, ws, data):
         datum = self.adaptor.json_loads(data)
