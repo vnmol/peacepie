@@ -37,7 +37,7 @@ class ActorAdmin:
             pass
         await self.exiting(tasks)
         tasks = [t for t in asyncio.all_tasks()
-                 if t is not asyncio.current_task() and t not in self.parent.intra_tasks]
+                 if t is not asyncio.current_task() and t not in self.parent.intralink.tasks]
         if tasks:
             await self.exiting(tasks)
 

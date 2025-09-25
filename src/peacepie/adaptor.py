@@ -470,6 +470,14 @@ class Adaptor:
         else:
             return self.name
 
+    async def get_all_nodes(self):
+        if hasattr(self.performer, 'get_all_nodes'):
+            return self.performer.get_all_nodes()
+        ans = await self.ask(self.get_msg('get_all_nodes', None, self.get_head_name()))
+        if ans.get('command') == 'all_nodes':
+            return ans.get('body')
+        return None
+
     async def clarify_recipient(self, recipient):
         if recipient is None:
             return self.admin.adaptor.queue

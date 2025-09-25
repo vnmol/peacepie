@@ -52,6 +52,7 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
 
     async def handle(self, msg):
         command = msg.get('command')
+        sender = msg.get('sender')
         if command == 'actor_is_created':
             body = msg.get('body')
             if not body:
@@ -72,6 +73,8 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             await self.remove_from_caches(msg)
         elif command == 'get_members':
             await self.get_members(msg)
+        elif command == 'get_all_nodes':
+            await self.get_all_nodes(sender, is_local=False)
         elif command == 'test_error':
             self.parent.set_test_error(msg.get('body'))
         else:
@@ -128,3 +131,11 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         body['level'] = level
         ans = self.adaptor.get_msg('members', body, msg.get('sender'))
         await self.adaptor.send(ans)
+
+    async def get_all_nodes(self, recipient, is_local=True):
+        res = self.intralink.get_all_nodes()
+        if is_local:
+            return res
+        else:
+            await self.adaptor.send(self.adaptor.get_msg('all_nodes', res, recipient))
+        return None

@@ -5,7 +5,7 @@ import signal
 from peacepie import params, msg_factory
 from peacepie.assist import dir_opers
 from peacepie.control.actors import actor_admin, actor_agent, actor_recreator, actor_seeker
-from peacepie.control.intra import intra_server, intra_client
+from peacepie.control.intra import intra_link
 
 
 ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor',
@@ -31,7 +31,6 @@ class Admin:
         self.ask_index = 0
         self.cache = {}
         self.intralink = None
-        self.intra_tasks = []
         self.actor_seeker = None
 
     def get_prefix(self):
@@ -45,13 +44,12 @@ class Admin:
         asyncio.get_running_loop().create_task(self.actor_admin.actor_agent.run())
         if self.is_head:
             self.actor_seeker = actor_seeker.HeadActorSeeker(self)
-            self.intralink = intra_server.IntraServer(self)
         else:
             self.actor_seeker = actor_seeker.ActorSeeker(self)
-            self.intralink = intra_client.IntraClient(self)
         asyncio.get_running_loop().create_task(self.actor_seeker.run())
+        self.intralink = intra_link.IntraLink(self)
         queue = asyncio.Queue()
-        self.intra_tasks.append(asyncio.get_running_loop().create_task(self.intralink.run(queue)))
+        asyncio.get_running_loop().create_task(self.intralink.run(queue))
         await queue.get()
 
     async def quit(self):

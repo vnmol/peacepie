@@ -40,9 +40,16 @@ class Initiator:
             await self.adaptor.ask(self.adaptor.get_msg('create_actor', body, node), 10)
             body = {'params': [{'name': 'remaining_time', 'value': self.remaining_time}]}
             await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
+        await self.ball(nodes)
         timeout = self.remaining_time + 20
         await self.adaptor.group_ask(timeout, len(names), lambda index: {'command': 'start', 'recipient': names[index]})
         if self.does_remove:
             for i in range(len(nodes)):
                 await self.adaptor.ask(self.adaptor.get_msg('remove_process', {'node': nodes[i]}), 10)
         print('FINISH', datetime.now().strftime("%H:%M:%S.%f"), self.adaptor.get_caller_info())
+
+    async def ball(self, nodes):
+        name = 'ball'
+        body = {'class_desc': {'requires_dist': 'simple_heavy_load', 'class': 'Ball'}, 'name': name}
+        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
+        await self.adaptor.send(self.adaptor.get_msg('start', None, name))

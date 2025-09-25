@@ -31,7 +31,7 @@ class AppStarter:
         body = {'params': [
             {'name': 'major_timeout', 'value': 60},
             {'name': 'junior_count', 'value': 4},
-            {'name': 'junior_period', 'value': 1},
+            {'name': 'junior_period', 'value': 2},
             {
                 'name': 'junior_flags',
                 'value':
@@ -40,9 +40,9 @@ class AppStarter:
                         'is_consumer': True, 'are_generators': True, 'is_shared_heap': False
                     }
              },
-            {'name': 'gen_count', 'value': 100},
-            {'name': 'gen_period', 'value': 0.1},
-            {'name': 'gen_limit', 'value': 100},
+            {'name': 'gen_count', 'value': 10},
+            {'name': 'gen_period', 'value': 0.01},
+            {'name': 'gen_limit', 'value': 1000},
             {'name': 'does_gen_ask', 'value': True},
             {'name': 'skip_some_logging', 'value': True}
         ]}

@@ -18,16 +18,20 @@ class Junior:
         self.nodes = None
         self.consumer = None
         self.generators = None
+        self.ticker = None
 
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
+        sender = msg.get('sender')
         if command == 'set_params':
-            await self.set_params(body.get('params'), msg.get('sender'))
+            await self.set_params(body.get('params'), sender)
         elif command == 'start':
             await self.start()
         elif command == 'tick':
             await self.tick()
+        elif command == 'stop':
+            await self.stop(sender)
         else:
             return False
         return True
@@ -74,7 +78,7 @@ class Junior:
         for generator in self.generators:
             await self.adaptor.send(self.adaptor.get_msg('start', None, generator))
         delay = self.junior_period * (1 + self.index / self.junior_count)
-        self.adaptor.add_ticker(self.junior_period, delay)
+        self.ticker = self.adaptor.add_ticker(self.junior_period, delay)
 
     async def tick(self):
         entity = random.choice(self.generators)
@@ -100,3 +104,8 @@ class Junior:
             node = random.choice(self.nodes)
         msg = self.adaptor.get_msg('recreate_actor', {'node': node, 'entity': entity})
         await self.adaptor.ask(msg, 8)
+
+    async def stop(self, recipient):
+        self.adaptor.remove_ticker(self.ticker)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('stopped', recipient=recipient))

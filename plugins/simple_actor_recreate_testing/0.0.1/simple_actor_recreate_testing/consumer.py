@@ -30,7 +30,6 @@ class Consumer:
         gen = body.get('gen')
         limit = body.get('limit')
         if self.limits.get(gen) - limit != 1:
-            print(self.adaptor.name, self.adaptor.get_node(), msg, self.limits, self.adaptor.get_caller_info())
             head = self.adaptor.get_head_addr()
             await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}, head))
             await self.adaptor.send(self.adaptor.get_msg('quit', None, head))

@@ -41,15 +41,15 @@ class ProcessAdmin:
         )
         if not process.is_alive():
             logging.info(f'The process for "{node}" is successfully completed')
-        if process.is_alive():
-            process.terminate()
-            try:
-                await asyncio.to_thread(process.join, timeout=1)
-                logging.info(f'The process for "{node}" is terminated')
-            except asyncio.TimeoutError:
-                process.kill()
-                await asyncio.to_thread(process.join, timeout=1)
-                logging.info(f'The process for "{node}" is killed')
+            return
+        process.terminate()
+        try:
+            await asyncio.to_thread(process.join, timeout=1)
+            logging.info(f'The process for "{node}" is terminated')
+        except asyncio.TimeoutError:
+            process.kill()
+            await asyncio.to_thread(process.join, timeout=1)
+            logging.info(f'The process for "{node}" is killed')
 
     def get_members(self):
         res = [process.get_actor_name() for process in self.processes]
@@ -68,6 +68,14 @@ class ProcessAdmin:
         self.processes[name] = p
 
 
+async def run_wrapper(actor):
+    await actor.run()
+    tasks = [t for t in asyncio.all_tasks() if not t.done()]
+    for t in tasks:
+        if t != asyncio.current_task():
+            logging.warning(f'There is a pending task: {t}')
+
+
 def create(lord, name, prms, msg_queue, log_desc, recipient):
     params.instance = prms
     if params.instance.get('separate_log_per_process'):
@@ -83,8 +91,8 @@ def create(lord, name, prms, msg_queue, log_desc, recipient):
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
     performer = admin.Admin(lord, name.host_name, name.process_name, log_desc)
     try:
-        actr = adaptor.Adaptor(None, name.get_actor_name(), None, performer, recipient)
-        asyncio.run(actr.run())
+        actor = adaptor.Adaptor(None, name.get_actor_name(), None, performer, recipient)
+        asyncio.run(run_wrapper(actor))
     except KeyboardInterrupt:
         pass
     except asyncio.CancelledError:

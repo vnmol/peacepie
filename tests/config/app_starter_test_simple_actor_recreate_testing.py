@@ -19,7 +19,7 @@ class AppStarter:
         body = {'params': [
             {'name': 'major_timeout', 'value': 60},
             {'name': 'junior_count', 'value': 4},
-            {'name': 'junior_period', 'value': 1},
+            {'name': 'junior_period', 'value': 2},
             {
                 'name': 'junior_flags',
                 'value':

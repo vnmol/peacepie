@@ -1,3 +1,4 @@
+
 class Major:
 
     def __init__(self):
@@ -12,6 +13,7 @@ class Major:
         self.does_gen_ask = False
         self.skip_some_logging = False
         self.beat_count = 0
+        self.juniors = None
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -38,15 +40,15 @@ class Major:
         nodes = [(await self.adaptor.ask(query, timeout=4)).get('body').get('node')
                  for _ in range(self.junior_count - 1)]
         nodes.insert(0, self.adaptor.get_node())
-        names = [f'junior_{i}' for i in range(len(nodes))]
+        self.juniors = [f'junior_{i}' for i in range(len(nodes))]
         class_desc = {'requires_dist': 'simple_actor_recreate_testing', 'class': 'Junior'}
         await self.adaptor.group_ask(
-            10, len(names), lambda index: {'command': 'create_actor',
-                                           'body': {'class_desc': class_desc, 'name': names[index]},
+            10, len(self.juniors), lambda index: {'command': 'create_actor',
+                                           'body': {'class_desc': class_desc, 'name': self.juniors[index]},
                                            'recipient': nodes[index]})
-        await self.adaptor.group_ask(10, len(names), self.junior_params_factory(names, nodes))
-        for name in names:
-            await self.adaptor.send(self.adaptor.get_msg('start', None, name))
+        await self.adaptor.group_ask(10, len(self.juniors), self.junior_params_factory(self.juniors, nodes))
+        for junior in self.juniors:
+            await self.adaptor.send(self.adaptor.get_msg('start', None, junior))
         self.adaptor.start_timer(self.major_timeout)
 
     def junior_params_factory(self, names, nodes):
@@ -68,10 +70,17 @@ class Major:
         return get_values
 
     async def timer(self):
+        await self.stop()
         await self.adaptor.send(self.adaptor.get_msg('test_error', {'msg': self.adaptor.get_caller_info()}))
         await self.adaptor.send(self.adaptor.get_msg('quit', None))
 
     async def extra_beat(self):
         self.beat_count += 1
         if self.beat_count == self.junior_count:
-            await self.adaptor.send(self.adaptor.get_msg('quit', None, self.adaptor.get_head_addr()))
+            await self.stop()
+            await self.adaptor.send(self.adaptor.get_msg('quit', None))
+
+    async def stop(self):
+        await self.adaptor.group_ask(
+            10, len(self.juniors), lambda index: {'command': 'stop', 'body': None, 'recipient': self.juniors[index]}
+        )
