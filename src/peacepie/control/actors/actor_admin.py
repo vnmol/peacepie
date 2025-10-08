@@ -5,6 +5,7 @@ from peacepie import msg_factory
 from peacepie.assist import log_util
 from peacepie.control.actors import actor_loader, package_admin
 
+
 LOADER_COMMANDS = {'get_class', 'create_actor', 'create_replica', 'create_actors'}
 RECREATE_COMMANDS = {'recreate_actor'}
 AGENT_COMMANDS = {'set_replica_params', 'transit_message', 'replica_resume'}
@@ -110,9 +111,9 @@ class ActorAdmin:
             if recipient:
                 await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', body, recipient))
             return
-        if await self.removing_actor(name):
+        if await self.removing_actor(name) and recipient:
             await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_removed', body, recipient))
-        else:
+        elif recipient:
             await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', {'name': name}, recipient))
 
     async def removing_actor(self, name):
@@ -123,12 +124,17 @@ class ActorAdmin:
             logging.exception(e)
         if not actor:
             return False
-        alias = log_util.get_alias(actor.get('adaptor'))
-        task = actor.get('task')
-        task.cancel()
-        await task
+        adaptor = actor.get('adaptor')
+        alias = log_util.get_alias(adaptor)
+        adaptor.stop()
+        if not await adaptor.is_stopped(5):
+            return False
+        new_addr = {'node': None, 'entity': name}
+        msg = msg_factory.get_msg('change_caches', new_addr, self.parent.adaptor.get_head_addr())
+        if self.parent.is_head:
+            await self.parent.change_caches(msg)
+        else:
+            await self.parent.adaptor.ask(msg, 10, self)
         del self.actors[name]
-        if self.parent.cache.get(name):
-            del self.parent.cache[name]
         logging.info(f'{alias} is removed')
         return True

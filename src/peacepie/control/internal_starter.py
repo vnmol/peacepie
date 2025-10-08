@@ -38,6 +38,7 @@ class InternalStarter:
         body = {'internal_starter': self.adaptor.get_self_addr()}
         msg = msg_factory.get_msg('start', body, recipient=ans.get('body'))
         await self.adaptor.send(msg)
+        await self.adaptor.send(self.adaptor.get_msg('remove_actor', {'name': self.adaptor.name}))
 
     async def app_starter(self, msg):
         body = msg.get('body')

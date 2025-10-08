@@ -3,11 +3,17 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = 'peacepie_example'
-version = '0.2.0'
-description = 'Примеры для пакета "peacepie"'
-authors = [{name = 'Владимир Молодцов', email = 'vmol@mail.ru'},]
-dependencies = ["aiohttp>=3.12.0",]
+name = "simple_fastapi_dashboard"
+version = "0.0.1"
+authors = [
+    {name = 'Владимир Молодцов', email = 'vmol@mail.ru'},
+]
+description = "Simple management console"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.118.0",
+    "uvicorn>=0.37.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

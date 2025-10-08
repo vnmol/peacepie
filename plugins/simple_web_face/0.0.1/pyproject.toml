@@ -1,13 +1,26 @@
 [build-system]
-requires = ['setuptools', 'setuptools-scm']
-build-backend = 'setuptools.build_meta'
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = 'simple_web_face'
-version = '0.0.1'
+name = "simple_web_face"
+version = "0.0.1"
 authors = [
-    {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
+    {name = 'Владимир Молодцов', email = 'vmol@mail.ru'},
 ]
+description = "Simple management console"
+requires-python = ">=3.9"
 dependencies = [
-        'aiohttp >=3.12',
+    "aiohttp>=3.12.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["resources/*", "resources/**/*"]

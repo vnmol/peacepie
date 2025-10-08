@@ -1,5 +1,6 @@
 import logging
 
+
 entity_style = '''.entity {
   width: 60%;
   background-color: #EC5800;
@@ -143,7 +144,7 @@ script_command_begin = '''
     </div>
     <div class="input_container">
       <label for="timeout">Таймаут</label>
-      <input type="text" id="timeout" name="timeout" value="30">
+      <input type="text" id="timeout" name="timeout" value="10">
     </div>
     <div class="input_container">
       <label for="recipient">Получатель</label>

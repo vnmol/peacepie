@@ -49,7 +49,7 @@ class PackageAdmin:
             else:
                 return None
         if params.instance.get('developing_mode'):
-            res = self.developing_symlink(package_name, version_spec)
+            res = await self.developing_symlink(package_name, version_spec)
             if res:
                 return res
         res = await self.retrieve_package(requires_dist, class_desc.get('extra-index-url'), timeout)
@@ -65,12 +65,16 @@ class PackageAdmin:
                 return version.check_version(ver, version_spec)
         return None
 
-    def developing_symlink(self, package_name, version_spec):
+    async def developing_symlink(self, package_name, version_spec):
         path = f'{params.instance.get("plugin_dir")}/{package_name}'
         vers = [name for name in os.listdir(path) if version.version_from_string(name)]
         ver = version.find_max_version(vers, version_spec)
-        src = f'{path}/{ver}/{package_name}'
-        if dir_opers.create_symlink(src, f'{self.work_path}/{package_name}'):
+        src = f'{path}/{ver}'
+        if dir_opers.is_dir_exist(f'{src}/src'):
+            src = f'{src}/src/{package_name}'
+        else:
+            src = f'{src}/{package_name}'
+        if await dir_opers.create_symlink(src, f'{self.work_path}/{package_name}'):
             self.create_package_info(package_name, ver)
             return importlib.import_module(package_name)
         return None

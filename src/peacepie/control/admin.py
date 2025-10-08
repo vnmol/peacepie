@@ -94,7 +94,7 @@ class Admin:
             await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
 
     async def add_to_cache(self, node, names, is_exists = False):
-        if self.adaptor.name == node:
+        if node is None or self.adaptor.name == node:
             for name in names:
                 if self.cache.get(name):
                     del self.cache[name]

@@ -29,8 +29,8 @@ class AppStarter:
                     }
              },
             {'name': 'gen_count', 'value': 10},
-            {'name': 'gen_period', 'value': 0.01},
-            {'name': 'gen_limit', 'value': 1000},
+            {'name': 'gen_period', 'value': 0.05},
+            {'name': 'gen_limit', 'value': 200},
             {'name': 'does_gen_ask', 'value': True},
             {'name': 'skip_some_logging', 'value': True}
         ]}

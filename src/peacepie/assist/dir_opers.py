@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import os
 import platform
 import shutil
 import sys
+from pathlib import Path
 
 from peacepie.assist import json_util, version
 
@@ -79,12 +81,23 @@ def move_dir(src, dst):
     except Exception as e:
         logging.exception(e)
 
+async def is_symlink_created(dest, timeout):
+    step = 0.1
+    total = 0.0
+    while total < timeout:
+        if os.path.islink(dest):
+            return True
+        total += step
+        await asyncio.sleep(step)
+    return False
 
-def create_symlink(orig, dest):
+
+async def create_symlink(orig, dest, timeout=1):
     try:
         os.symlink(os.path.abspath(orig), os.path.abspath(dest), target_is_directory=os.path.isdir(orig))
+        res = await is_symlink_created(dest, timeout)
         logging.info(f'Symlink is created "{orig}" --> "{dest}"')
-        return True
+        return res
     except Exception as e:
         logging.exception(e)
     return False
@@ -108,6 +121,11 @@ def is_symlink_exist(path):
     except Exception as e:
         logging.exception(e)
     return False
+
+
+def is_dir_exist(path):
+    pth = Path(path)
+    return pth.exists() and pth.is_dir()
 
 
 def copy_file(orig, dest):

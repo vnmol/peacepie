@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import os
 
 from aiohttp import web, WSMsgType
 
-from peacepie_example import html_addons
+from . import html_addons
 
 
 class SimpleWebFace:
@@ -15,17 +16,26 @@ class SimpleWebFace:
         self._http_host = None
         self._runner = None
         self._sockets = []
-        self._is_exiting = False
 
     async def exit(self):
-        self._is_exiting = True
-        for ws in self._sockets:
-            await ws.close()
-            logging.info(f'Websocket({id(ws)}) closed')
+        await self.close_websockets()
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
-            logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+        logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+
+    async def close_websockets(self, timeout=1):
+        for ws in self._sockets:
+            if ws.closed:
+                continue
+            ws_id = id(ws)
+            try:
+               await asyncio.wait_for(ws.close(), timeout=timeout)
+            except asyncio.TimeoutError:
+                if not ws.closed:
+                    ws._writer.transport.close()
+                    logging.info(f'Websocket({ws_id}) is force closed')
+        self._sockets.clear()
 
     async def handle(self, msg):
         command = msg.get('command')
@@ -78,6 +88,7 @@ class SimpleWebFace:
         head = f'<head>\n<meta charset="UTF-8">\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n'
         text = f'<!DOCTYPE html>\n<html>\n{head}<body>\n\n'
         body = ans.get('body')
+        text += level(body)
         if body.get('_back'):
             text += back(body)
         text += members(body)
@@ -107,7 +118,6 @@ class SimpleWebFace:
                     logging.exception(e)
         self._sockets.remove(ws)
         logging.info(f'Websocket({id(ws)}) is closed')
-        return ws
 
     async def websocket_handle(self, ws, data):
         datum = self.adaptor.json_loads(data)
@@ -135,6 +145,10 @@ class SimpleWebFace:
 async def favicon(request):
     return web.FileResponse(f'{os.path.dirname(__file__)}/resources/favicon.ico')
 
+def level(body):
+    lvl = body.get('level').upper()
+    res = f'<button class="last_entity">{lvl}</button>\n<br><br>\n'
+    return res
 
 def back(body):
     bck = body.get('_back')

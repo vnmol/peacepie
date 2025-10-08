@@ -316,6 +316,10 @@ class Adaptor:
     def get_serializer_desc(self):
         return f"'{serialization.__name__}|{serialization.Serializer.__name__}'"
 
+    def get_serializer_spec(self):
+        path, module = os.path.split(inspect.getmodule(serialization).__file__)
+        return {'path': path, 'module': os.path.splitext(module)[0], 'class': serialization.Serializer.__name__}
+
     def get_package_path(self, path_only:bool=True):
         res = None
         spec = importlib.util.find_spec(__package__)
