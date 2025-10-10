@@ -13,6 +13,9 @@ requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.118.0",
     "uvicorn>=0.37.0",
+    "pyzmq",
+    "pyjwt",
+    "argon2-cffi"
 ]
 
 [tool.setuptools.packages.find]

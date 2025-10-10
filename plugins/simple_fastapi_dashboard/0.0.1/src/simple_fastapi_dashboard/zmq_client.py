@@ -1,4 +1,3 @@
-import atexit
 import importlib
 import logging
 import sys

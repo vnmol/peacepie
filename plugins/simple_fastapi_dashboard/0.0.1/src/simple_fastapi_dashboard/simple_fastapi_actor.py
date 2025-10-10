@@ -1,5 +1,7 @@
 import asyncio
 import multiprocessing
+import os
+
 from . import fastapi_server, zmq_server
 
 
@@ -38,9 +40,14 @@ class SimpleFastapiActor:
 
     async def start(self, recipient):
         await self.start_zmq_server()
+        log_config = {
+            'config_filename': os.path.abspath(self.adaptor.get_param('log_config')),
+            'log_dir': os.path.abspath(self.adaptor.get_log_path()),
+            'developing_mode': self.adaptor.get_param('developing_mode')
+        }
         self.server_process = multiprocessing.Process(
             target=fastapi_server.run_server,
-            args=(self.port, self.zmq_server.port, self.adaptor.get_serializer_spec())
+            args=(log_config, self.port, self.zmq_server.port, self.adaptor.get_serializer_spec())
         )
         self.server_process.start()
         if recipient:

@@ -130,4 +130,3 @@ def check_paths(config):
                 os.remove(filename)
             except FileNotFoundError:
                 pass
-
