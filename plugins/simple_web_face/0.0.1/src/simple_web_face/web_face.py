@@ -118,6 +118,7 @@ class SimpleWebFace:
                     logging.exception(e)
         self._sockets.remove(ws)
         logging.info(f'Websocket({id(ws)}) is closed')
+        return ws
 
     async def websocket_handle(self, ws, data):
         datum = self.adaptor.json_loads(data)

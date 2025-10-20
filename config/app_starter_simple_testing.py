@@ -17,13 +17,16 @@ class AppStarter:
         await self.tester()
 
     async def web_face(self):
-        body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': 'web_face'}
-        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
-        await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, ans.get('body')))
+        name = 'web_face'
+        body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': name}
+        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
+        body = {'params': [{'name': 'http_port', 'value': 9090}]}
+        await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
+        await self.adaptor.ask(self.adaptor.get_msg('start', None, name))
 
     async def tester(self):
         name = 'initiator'
-        body = {'class_desc': {'requires_dist': 'simple_tester', 'class': 'Initiator'}, 'name': name}
+        body = {'class_desc': {'requires_dist': 'simple_testing', 'class': 'Initiator'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
         body = {'params': [{'name': 'group_count', 'value': 10}, {'name': 'group_size', 'value': 10},
                            {'name': 'is_loop', 'value': False},
