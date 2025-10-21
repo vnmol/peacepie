@@ -22,7 +22,7 @@ class SimpleWebFace:
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
-        logging.info(f'HTTP server stopped at http://localhost:{self.http_port}')
+        logging.info(f'HTTP server stopped at http://{self._http_host}:{self.http_port}')
 
     async def close_websockets(self, timeout=1):
         for ws in self._sockets:
@@ -55,13 +55,13 @@ class SimpleWebFace:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
     async def start(self, recipient):
-        self._http_host = '127.0.0.1'
-        #self._http_host = self.adaptor.get_param('ip')
+        self._http_host = '0.0.0.0'
         self._runner = await self.initialize_http_server()
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))
 
     async def initialize_http_server(self):
+        self.http_port = int(os.environ.get('PORT', self.http_port))
         app = web.Application()
         app.add_routes([web.get('/', self.root_handler)])
         app.add_routes([web.get('/ws', self.websocket_handler)])

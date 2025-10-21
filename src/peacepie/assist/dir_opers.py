@@ -103,15 +103,15 @@ async def create_symlink(orig, dest, timeout=1):
     return False
 
 
-def link_package(src, dst, shared_folders):
+async def link_package(src, dst, shared_folders):
     for entry in os.listdir(src):
         if entry in shared_folders:
             for entrance in os.listdir(os.path.join(src, entry)):
                 symlink = f'{dst}/{entry}/{entrance}'
                 if not is_symlink_exist(symlink):
-                    create_symlink(f'{src}/{entry}/{entrance}', symlink)
+                    await create_symlink(f'{src}/{entry}/{entrance}', symlink)
         else:
-            create_symlink(os.path.join(src, entry), os.path.join(dst, entry))
+            await create_symlink(os.path.join(src, entry), os.path.join(dst, entry))
 
 
 def is_symlink_exist(path):

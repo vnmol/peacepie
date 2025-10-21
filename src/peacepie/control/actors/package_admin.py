@@ -139,7 +139,7 @@ class PackageAdmin:
                     name, ver = member.rsplit('-', 1)
                     packages[name] = ver
                 need_to_link = self.need_to_link(package_name, version_spec, packages)
-                if self.link_packages(need_to_link):
+                if await self.link_packages(need_to_link):
                         return importlib.import_module(package_name)
             except Exception as e:
                 logging.exception(e)
@@ -175,12 +175,12 @@ class PackageAdmin:
             return dependencies
         return []
 
-    def link_packages(self, packages):
+    async def link_packages(self, packages):
         if packages is None:
             return False
         for package_name in packages:
             src_path = f'{params.instance.get("source_path")}/{package_name}-{packages.get(package_name)}'
             dst_path = f'{self.work_path}'
-            dir_opers.link_package(f'{src_path}', f'{dst_path}', shared_folders)
+            await dir_opers.link_package(f'{src_path}', f'{dst_path}', shared_folders)
         return True
 
