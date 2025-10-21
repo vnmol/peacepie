@@ -22,3 +22,4 @@ class AppStarter:
         body = {'params': [{'name': 'http_port', 'value': 9090}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.ask(self.adaptor.get_msg('start', None, name))
+        await self.adaptor.send(self.adaptor.get_msg('remove_actor', {'name': self.adaptor.name}))

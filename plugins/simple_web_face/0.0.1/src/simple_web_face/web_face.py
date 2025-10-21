@@ -14,6 +14,7 @@ class SimpleWebFace:
         self.page_size = 5
         self.http_port = None
         self._http_host = None
+        self._domain = None
         self._runner = None
         self._sockets = []
 
@@ -78,6 +79,10 @@ class SimpleWebFace:
         return _runner
 
     async def root_handler(self, request):
+        if self._domain is None:
+            self._domain = request.headers.get('Host')
+            if self._domain is None:
+                self._domain = os.environ.get('DOMAIN', f'{self._http_host}:{self.http_port}')
         param_level = request.query.get('level')
         param_recipient = request.query.get('recipient')
         if not param_recipient:
@@ -99,7 +104,7 @@ class SimpleWebFace:
         text += '<script>\n'
         text += html_addons.script_common
         if body.get('level') == 'actor':
-            text += script_command(self._http_host, self.http_port)
+            text += script_command(self._domain)
         text += '</script>\n</body>\n</html>'
         return web.Response(text=text, content_type='text/html')
 
@@ -195,8 +200,11 @@ def comm(body):
     return res
 
 
-def script_command(host, port):
-    res = f'webSocket = new WebSocket("ws://{host}:{port}/ws");'
+def script_command(domain):
+    res = 'const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";\n'
+    res += f'const domain = "{domain}";\n'
+    res += 'const route = "/ws";\n'
+    res += 'webSocket = new WebSocket(protocol + domain + route);'
     res += html_addons.script_websocket
     return res
 
