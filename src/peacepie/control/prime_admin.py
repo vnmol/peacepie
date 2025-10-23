@@ -1,8 +1,8 @@
 import asyncio
 import logging
 
-from peacepie import loglistener, msg_factory
-from peacepie.assist import log_util, misc
+from peacepie import loglistener, msg_factory, params
+from peacepie.assist import dir_opers, log_util, misc
 from peacepie.control import admin, delivery, package_loader, process_admin
 
 PACKAGE_LOADER_COMMANDS = {'load_package'}
@@ -17,6 +17,7 @@ class PrimeAdmin(admin.Admin):
         self.process_admin = None
         self.package_loader = None
         self.delivery = None
+        dir_opers.makedir(f'{params.instance["package_dir"]}/work', clear=True)
 
     async def pre_run(self):
         await super().pre_run()

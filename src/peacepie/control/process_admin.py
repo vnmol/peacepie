@@ -58,13 +58,16 @@ class ProcessAdmin:
         return res
 
     async def create_process(self, recipient):
-        name = misc.ComplexName(self.parent.host_name, f'process_{self.process_index}', 'admin')
-        self.process_index += 1
+        # name = misc.ComplexName(self.parent.host_name, f'process_{self.process_index}', 'admin')
+        # self.process_index += 1
+        name = misc.ComplexName(self.parent.host_name, None, 'admin')
         p = multiprocessing.Process(
             target=create,
             args=(self.parent.adaptor.name, name, params.instance,
                   msg_factory.instance.get_queue(), loglistener.instance.get_log_desc(), recipient))
         p.start()
+        if name.process_name is None:
+            name.process_name = p.name
         self.processes[name] = p
 
 
@@ -77,6 +80,8 @@ async def run_wrapper(actor):
 
 
 def create(lord, name, prms, msg_queue, log_desc, recipient):
+    if name.process_name is None:
+        name.process_name = multiprocessing.current_process().name
     params.instance = prms
     if params.instance.get('separate_log_per_process'):
         log_config()

@@ -4,7 +4,7 @@ import os
 
 from aiohttp import web, WSMsgType
 
-from simple_web_face import html_addons
+from simple_web_face import file_browser_handler, html_addons
 
 
 class SimpleWebFace:
@@ -17,6 +17,11 @@ class SimpleWebFace:
         self._domain = None
         self._runner = None
         self._sockets = []
+        self.file_browser = None
+
+    async def pre_run(self):
+        browser_base_dir = self.adaptor.get_param('browser_base_dir')
+        self.file_browser = file_browser_handler.FileBrowserHandler(browser_base_dir=browser_base_dir)
 
     async def exit(self):
         await self.close_websockets()
@@ -67,10 +72,7 @@ class SimpleWebFace:
         app.add_routes([web.get('/', self.root_handler)])
         app.add_routes([web.get('/ws', self.websocket_handler)])
         app.add_routes([web.get('/favicon.ico', favicon)])
-        app.add_routes([web.get('/logs', logs_handler)])
-        app.add_routes([web.get('/logs/{path:.*}', logs_handler)])
-        app.add_routes([web.get('/log_view', log_view_handler)])
-        app.add_routes([web.get('/log_view/{path:.*}', log_view_handler)])
+        app.add_routes([web.get('/browse', self.file_browser.handle_browse)])
         _runner = web.AppRunner(app)
         await _runner.setup()
         site = web.TCPSite(_runner, f'{self._http_host}', self.http_port)
@@ -207,62 +209,3 @@ def script_command(domain):
     res += 'webSocket = new WebSocket(protocol + domain + route);'
     res += html_addons.script_websocket
     return res
-
-
-async def logs_handler(request):
-    path = request.match_info.get('path', '')
-    logs_path = os.path.join('/logs/', path)
-    if logs_path.endswith('/'):
-        logs_path = logs_path[:-1]
-    logs_dir = '.' + logs_path
-    if not os.path.exists(logs_dir):
-        return web.Response(text=f'Путь "{logs_dir}" не найден', status=404)
-    if os.path.isfile(logs_dir):
-        with open(logs_dir, 'rb') as f:
-            content = f.read()
-        return web.Response(body=content)
-    content = ''
-    if path:
-        parent_path = os.path.dirname(logs_path)
-        content += f"<a href='{parent_path}'>..</a><br>"
-    items = [(item, os.path.isdir(os.path.join(logs_dir, item))) for item in os.listdir(logs_dir)]
-    foldernames = [item[0] for item in items if item[1]]
-    foldernames.sort()
-    filenames = [item[0] for item in items if not item[1]]
-    filenames.sort()
-    for foldername in foldernames:
-        content += f"<a href='{logs_path}/{foldername}/'>{foldername}/</a><br>"
-    for filename in filenames:
-        content += f"<a href='{logs_path}/{filename}'>{filename}</a><br>"
-    return web.Response(text=content, content_type='text/html')
-
-
-async def log_view_handler(request):
-    path = request.match_info.get('path', '')
-    if not path.startswith('/'):
-        path = '/' + path
-    if path.endswith('/'):
-        path = path[:-1]
-    view_path = f'/log_view{path}'
-    logs_path = f'/logs{path}'
-    logs_dir = '.' + logs_path
-    if not os.path.exists(logs_dir):
-        return web.Response(text=f'Путь "{logs_dir}" не найден', status=404)
-    if os.path.isfile(logs_dir):
-        with open(logs_dir, 'rb') as f:
-            content = f.read()
-        return web.Response(body=content, content_type='text/plain', headers={'Content-Disposition': 'inline'})
-    content = ''
-    if path:
-        parent_path = os.path.dirname(logs_path).replace('/logs', '/log_view')
-        content += f"<a href='{parent_path}'>..</a><br>"
-    items = [(item, os.path.isdir(os.path.join(logs_dir, item))) for item in os.listdir(logs_dir)]
-    foldernames = [item[0] for item in items if item[1]]
-    foldernames.sort()
-    filenames = [item[0] for item in items if not item[1]]
-    filenames.sort()
-    for foldername in foldernames:
-        content += f"<a href='{view_path}/{foldername}/'>{foldername}/</a><br>"
-    for filename in filenames:
-        content += f"<a href='{view_path}/{filename}'>{filename}</a><br>"
-    return web.Response(text=content, content_type='text/html')

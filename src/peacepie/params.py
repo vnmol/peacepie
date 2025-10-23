@@ -1,6 +1,7 @@
+import multiprocessing
 import os
-import socket
 import sys
+import socket
 
 from peacepie.assist import dir_opers, version
 from peacepie.assist.auxiliaries import is_testing
@@ -52,6 +53,8 @@ def init_params(path, test_params):
     res['ip'] = get_ip()
     ver = version.version_from_string(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
     res['python_version'] = ver
+    if res.get('process_name') is None:
+        res['process_name'] = multiprocessing.current_process().name
     instance = res
 
 

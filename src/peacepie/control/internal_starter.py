@@ -43,7 +43,7 @@ class InternalStarter:
     async def app_starter(self, msg):
         body = msg.get('body')
         name = body.get('name')
-        pattern = f'async\s+def\s+{name}\(self,\s*msg\s*\):'
+        pattern = rf'async\s+def\s+{name}\(self,\s*msg\s*\):'
         with open(params.instance.get('starter'), 'r') as file:
             lines = file.readlines()
         beg = None
@@ -56,7 +56,7 @@ class InternalStarter:
             else:
                 if re.search(pattern, line):
                     beg = i
-                    pattern = 'def\s+\w+\(.*\):'
+                    pattern = r'def\s+\w+\(.*\):'
         if beg:
             lines[beg+1:end] = change_leading_spaces(lines[beg], body.get('txt'))
             with open(params.instance.get('starter'), 'w') as file:
