@@ -1,5 +1,7 @@
 import asyncio
 import hashlib
+import logging
+import os
 
 from aiogram import Dispatcher, Bot, F
 from aiogram.filters import CommandStart, Command
@@ -14,34 +16,51 @@ class SimpleTelegramActor:
 
     def __init__(self):
         self.adaptor = None
-        self.dispatcher = dispatcher
-        self.dispatcher['actor'] = self
-        self.bot = None
-        self.telegram = None
         self.page_size = 5
-        self.chats = {}
+        self._chats = {}
+        self._dispatcher = dispatcher
+        self._dispatcher['actor'] = self
+        self._bot = None
+        self._telegram = None
 
     async def exit(self):
-        if self.telegram:
-            self.telegram.cancel()
+        for chat_id in self._chats:
+            try:
+                await self._bot.send_message(chat_id, "⚠️ Bot is stopped!")
+            except Exception as e:
+                logging.exception(e)
+        if self._telegram:
+            await self._dispatcher.stop_polling()
+        if self._telegram:
+            self._telegram.cancel()
+            await asyncio.wait_for(self._telegram, 2)
 
     async def handle(self, msg):
         command = msg.get('command')
-        body = msg.get('body') if msg.get('body') else None
+        body = msg.get('body') if msg.get('body') else {}
         sender = msg.get('sender')
-        if command == 'start':
+        if command == 'set_params':
+            await self.set_params(body.get('params'), sender)
+        elif command == 'start':
             await self.start(sender)
         else:
             return False
         return True
 
+    async def set_params(self, params, recipient):
+        self.adaptor.set_params(params)
+        if recipient:
+            await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
+
     async def start(self, recipient):
         credentials = await self.adaptor.get_credentials('telegram')
-        self.bot = Bot(token=credentials.get('password'))
-        self.telegram = asyncio.get_running_loop().create_task(self.dispatcher.start_polling(self.bot))
+        token = os.environ.get('TELEGRAM', credentials.get('password'))
+        self._bot = Bot(token=token)
+        self._telegram = asyncio.get_running_loop().create_task(
+            self._dispatcher.start_polling(self._bot, handle_signals=False)
+        )
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('telegram_is_started', None, recipient))
-        await self.adaptor.send(self.adaptor.get_msg('signals_check', None, self.adaptor.get_head_addr()))
 
     async def process(self, param):
         request = await self.get_request(param)
@@ -63,11 +82,11 @@ class SimpleTelegramActor:
         elif isinstance(param, int):
             if not self.are_buttons_equal(param, buttons):
                 chat_id = param
-                message_id = list(self.chats.get(chat_id))[0]
-                await self.bot.edit_message_text(chat_id=chat_id, message_id=message_id,
+                message_id = list(self._chats.get(chat_id))[0]
+                await self._bot.edit_message_text(chat_id=chat_id, message_id=message_id,
                                                  text=level, reply_markup=builder.as_markup())
         if chat_id and message_id:
-            self.chats[chat_id] = {message_id: {'buttons': buttons, 'request': request.get('body')}}
+            self._chats[chat_id] = {message_id: {'buttons': buttons, 'request': request.get('body')}}
 
     async def get_request(self, param):
         body = None
@@ -80,29 +99,29 @@ class SimpleTelegramActor:
         elif isinstance(param, int):
             body = self.get_request_for_refresh(param)
         if not body:
-            return
+            return None
         return self.adaptor.get_msg('get_members', body, body.get('recipient'))
 
     def get_request_for_query(self, query):
-        chat = self.chats.get(query.message.chat.id)
+        chat = self._chats.get(query.message.chat.id)
         if not chat:
-            return
+            return None
         buttons = chat.get(query.message.message_id).get('buttons')
         if not buttons:
-            return
+            return None
         button = buttons.get(query.data)
         level = button.get('next_level')
         if not level:
-            return
+            return None
         return {'page_size': self.page_size, 'level': level, 'id': button.get('id'), 'recipient': button.get('recipient')}
 
     def get_request_for_refresh(self, chat_id):
-        chat = self.chats.get(chat_id)
+        chat = self._chats.get(chat_id)
         if not chat:
-            return
+            return None
         message_id = list(chat)[0]
         if not message_id:
-            return
+            return None
         return chat.get(message_id).get('request')
 
     async def make_menu(self, builder, buttons, request):
@@ -149,12 +168,12 @@ class SimpleTelegramActor:
         buttons[hsh] = mbr
 
     def are_buttons_equal(self, chat_id, new_buttons):
-        chat = self.chats.get(chat_id)
+        chat = self._chats.get(chat_id)
         if not chat:
-            return
+            return None
         message_id = list(chat)[0]
         if not message_id:
-            return
+            return None
         old_buttons = chat.get(message_id).get('buttons')
         return new_buttons.keys() == old_buttons.keys()
 
@@ -168,7 +187,7 @@ class SimpleTelegramActor:
         recipient = res.get('recipient') if res.get('recipient') else self.adaptor.get_head_addr()
         msg = self.adaptor.get_msg(res.get('command'), res.get('body'), recipient)
         if is_ask:
-            ans = await self.adaptor.ask(msg, 4)
+            ans = await self.adaptor.ask(msg, 20)
             await message.answer(self.adaptor.json_dumps(ans))
         else:
             await self.adaptor.send(msg)

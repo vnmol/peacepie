@@ -26,16 +26,17 @@ class AppStarter:
         await self.adaptor.ask(self.adaptor.get_msg('start', {'port': 9090}, name), 10)
 
     async def telegram(self):
-        for i in range(3):
-            ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'))
-            recipient = ans.get('body')
-            process = re.search(r'_(\d+)', recipient.get('node')).group(1)
-            names = [f'dummy_{process}_{i:02d}' for i in range(random.randint(15, 25))]
-            class_desc = {'requires_dist': 'simple_telegram_bot', 'class': 'Dummy'}
-            body = {'class_desc': class_desc, 'names': names}
-            await self.adaptor.ask(self.adaptor.get_msg('create_actors', body, recipient), 8)
+        # for i in range(3):
+        #     ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'), 2)
+        #     recipient = ans.get('body')
+        #     process = re.search(r'-(\d+)', recipient.get('node')).group(1)
+        #     names = [f'dummy_{process}_{i:02d}' for i in range(random.randint(15, 25))]
+        #     class_desc = {'requires_dist': 'simple_telegram_bot', 'class': 'Dummy'}
+        #     body = {'class_desc': class_desc, 'names': names}
+        #     await self.adaptor.ask(self.adaptor.get_msg('create_actors', body, recipient), 8)
         name = 'telegram'
         class_desc = {'requires_dist': 'simple_telegram_bot', 'class': 'SimpleTelegramActor'}
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
         await self.adaptor.ask(self.adaptor.get_msg('start', None, name), 300)
+        await self.adaptor.send(self.adaptor.get_msg('remove_actor', {'name': self.adaptor.name}))

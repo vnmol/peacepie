@@ -39,7 +39,7 @@ class ActorRecreator:
         node = body.get('node')
         old_entity = body.get('entity')
         recipient = msg.get('sender')
-        timeout = (msg.get('timeout') if msg.get('timeout') else 10) / 2
+        timeout = (msg.get('timeout') if msg.get('timeout') else 20) / 2
         is_locally = node == self.grandparent.adaptor.get_node()
         actor = self.parent.actors.get(old_entity)
         if not actor:

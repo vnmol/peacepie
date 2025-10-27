@@ -65,8 +65,6 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
             logging.debug(log_util.async_sent_log(self, msg))
         elif command == 'get_credentials':
             await self.safe_admin.handle(msg)
-        elif command == 'signals_check':
-            self.signals_check()
         elif command == 'change_caches':
             await self.change_caches(msg)
         elif command == 'remove_from_caches':
