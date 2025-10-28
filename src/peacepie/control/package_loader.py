@@ -47,6 +47,7 @@ class PackageLoader:
         timeout = msg.get('timeout')
         body = msg.get('body')
         requires_dist = body.get('requires_dist')
+        dir_opers.makedir(self.tmp_path, clear=True)
         bundle = await self.acquire_package(requires_dist, body.get('url'), timeout)
         if bundle:
             self.move_packages()
@@ -75,6 +76,7 @@ class PackageLoader:
         self.loadings[package_name] = []
         await self.install_package(package_name, version_spec, url, timeout)
         ver, dependencies = self.find_version_with_dependencies(package_name, version_spec)
+        logging.info(f'For package "{package_name}-{ver}" dependencies are found: {dependencies}')
         if not ver:
             return None
         bundle = {f'{package_name}-{ver}'}
