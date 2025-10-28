@@ -3,7 +3,7 @@ requires = ['setuptools']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'simple_telegram_dashboard'
+name = 'simple_telegram_bot'
 version = '0.0.1'
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
