@@ -209,7 +209,7 @@ def get_metadata(path):
 def is_right_dependency(dependency):
     if 'extra' in dependency:
         return False
-    if not version.check_version(sys.version, dependency.get('python_version')):
+    if not version.check_version(version.get_python_version(), dependency.get('python_version')):
         return False
     if dependency.get('platform_system') and platform.system() != dependency.get('platform_system'):
         return False

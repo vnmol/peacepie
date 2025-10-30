@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import platform
 
 from peacepie import adaptor, params, multimanager, loglistener, msg_factory, log_conf
 from peacepie.assist import log_util, json_util, version
@@ -12,7 +13,9 @@ class PeaceSystem:
         json_util.init(json_package)
         params.init_params(path, test_params)
         log_conf.logger_start(params.instance.get('log_config'))
-        logging.info(f'Python-Version: {version.version_to_string(params.instance.get("python_version"))}')
+        logging.info(f'System-Version: {platform.system()} {platform.version()}')
+        logging.info(f'Python-Version: {version.version_to_string(version.get_python_version())}')
+        logging.info(f'Peacepie-Version: {params.instance.get("peacepie_version")}')
         self.is_head = params.instance.get('intra_role') == 'master'
         self.host_name = params.instance.get('host_name')
         self.process_name = params.instance.get('process_name')

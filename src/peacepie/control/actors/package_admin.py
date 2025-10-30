@@ -61,7 +61,7 @@ class PackageAdmin:
             if not (os.path.isdir(entry_path) and entry.endswith('.dist-info')):
                 continue
             name, ver, _ = dir_opers.get_metadata(entry_path)
-            if name == package_name:
+            if name.lower().replace('-', '_') == package_name.lower().replace('-', '_'):
                 return version.check_version(ver, version_spec)
         return None
 
@@ -140,7 +140,7 @@ class PackageAdmin:
                     packages[name] = ver
                 need_to_link = self.need_to_link(package_name, version_spec, packages)
                 if await self.link_packages(need_to_link):
-                        return importlib.import_module(package_name)
+                    return importlib.import_module(package_name)
             except Exception as e:
                 logging.exception(e)
         return None

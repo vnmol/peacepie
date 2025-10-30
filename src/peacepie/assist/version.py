@@ -1,7 +1,7 @@
 import logging
 import re
 import html
-
+import sys
 
 VERSION = 'version'
 MAJOR_LEVEL = 'major'
@@ -12,6 +12,11 @@ VERSION_LEVELS = (MAJOR_LEVEL, MINOR_LEVEL, MICRO_LEVEL)
 
 def version_to_string(val):
     return f'{val[MAJOR_LEVEL]}.{val[MINOR_LEVEL]}.{val[MICRO_LEVEL]}'
+
+
+def get_python_version():
+    ver = version_from_string(sys.version)
+    return ver
 
 
 def version_from_string(val):
@@ -104,44 +109,46 @@ def _check_version(version, conditions):
             for level in VERSION_LEVELS:
                 if version[level] != value[level]:
                     return False
+            return True
         elif key == '>':
             for level in VERSION_LEVELS:
                 if version[level] > value[level]:
-                    break
+                    return True
                 elif version[level] < value[level]:
                     return False
+            return False
         elif key == '<':
             for level in VERSION_LEVELS:
                 if version[level] < value[level]:
-                    break
+                    return True
                 elif version[level] > value[level]:
                     return False
+            return False
         elif key == '>=':
             for level in VERSION_LEVELS:
                 if version[level] > value[level]:
-                    break
+                    return True
                 elif version[level] < value[level]:
                     return False
+            return True
         elif key == '<=':
             for level in VERSION_LEVELS:
                 if version[level] < value[level]:
-                    break
+                    return True
                 elif version[level] > value[level]:
                     return False
+            return True
         elif key == '!=':
-            res = False
             for level in VERSION_LEVELS:
                 if version[level] != value[level]:
-                    res = True
-                    break
-            return res
+                    return True
+            return False
         elif key == '~=':
             for level in (MAJOR_LEVEL, MINOR_LEVEL):
                 if version[level] != value[level]:
                     return False
-        else:
-            return False
-    return True
+            return True
+    return False
 
 
 pattern = r"""

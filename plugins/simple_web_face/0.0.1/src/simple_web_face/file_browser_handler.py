@@ -21,6 +21,7 @@ class FileBrowserHandler:
         mimetypes.add_type('application/javascript', '.js')
         mimetypes.add_type('text/xml', '.xml')
         mimetypes.add_type('text/csv', '.csv')
+        mimetypes.add_type('text/plain', '')
 
     async def handle_browse(self, request):
         """Хендлер для просмотра содержимого директорий"""
@@ -58,30 +59,33 @@ class FileBrowserHandler:
             return False
 
     async def _serve_file(self, file_path, request):
-        """Отдает содержимое файла"""
-        # Определяем MIME-тип
-        mime_type, encoding = mimetypes.guess_type(str(file_path))
-
-        # Если MIME-тип не определен, проверяем расширение
-        if mime_type is None:
-            mime_type = self._get_mime_type_by_extension(file_path.suffix)
-
-        # Проверяем, является ли файл текстовым
+        mime_type = self._get_mime_type_by_extension(file_path, file_path.suffix)
         is_text_file = self._is_text_file(file_path, mime_type)
-
-        # Если запрос содержит параметр 'download', принудительно скачиваем
         download = request.query.get('download')
         if download is not None:
             return await self._download_file(file_path, mime_type)
-
-        # Если файл текстовый и небольшого размера - показываем содержимое
         if is_text_file and file_path.stat().st_size <= 5 * 1024 * 1024:  # 5MB
             return await self._serve_text_file(file_path, mime_type)
         else:
-            # Для бинарных или больших файлов - скачиваем
             return await self._download_file(file_path, mime_type)
 
-    def _get_mime_type_by_extension(self, extension):
+    def _is_text_by_content(self, item_path):
+        try:
+            with open(item_path, 'rb') as f:
+                sample = f.read(1024)
+            if not sample:
+                return True
+            if b'\x00' in sample:
+                return False
+            try:
+                sample.decode('utf-8')
+                return True
+            except UnicodeDecodeError:
+                return False
+        except IOError:
+            return False
+
+    def _get_mime_type_by_extension(self, item_path, extension):
         """Определяет MIME-тип по расширению файла"""
         text_extensions = {
             '.log': 'text/plain',
@@ -101,7 +105,14 @@ class FileBrowserHandler:
             '.bat': 'text/plain',
             '.ps1': 'text/plain',
         }
-        return text_extensions.get(extension.lower(), 'application/octet-stream')
+        text_extension = text_extensions.get(extension.lower())
+        if text_extension:
+            return text_extension
+        else:
+            if self._is_text_by_content(item_path):
+                return 'text/plain'
+            else:
+                return 'application/octet-stream'
 
     def _is_text_file(self, file_path, mime_type):
         """Проверяет, является ли файл текстовым"""
@@ -238,7 +249,8 @@ class FileBrowserHandler:
                     item_info['size'] = item.stat().st_size
                     item_info['modified'] = item.stat().st_mtime
                     # Добавляем информацию о типе файла
-                    item_info['is_text'] = self._is_text_file(item, self._get_mime_type_by_extension(item.suffix))
+                    item_info['is_text'] = (
+                        self._is_text_file(item, self._get_mime_type_by_extension(item.absolute(), item.suffix)))
                 else:
                     item_info['size'] = None
                     item_info['modified'] = item.stat().st_mtime

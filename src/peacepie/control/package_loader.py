@@ -17,7 +17,7 @@ class PackageLoader:
         self.cumulative_commands = {}
         self.queue = asyncio.Queue()
         self.source_path = params.instance.get('source_path')
-        dir_opers.makedir(self.source_path)
+        dir_opers.makedir(self.source_path, params.instance.get('clear_source_on_restart'))
         self.tmp_path = f'{params.instance["package_dir"]}/tmp'
         dir_opers.makedir(self.tmp_path, clear=True)
         self.loadings = {}

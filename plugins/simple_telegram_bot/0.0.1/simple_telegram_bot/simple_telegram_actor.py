@@ -194,6 +194,12 @@ class SimpleTelegramActor:
             await message.answer('The message is sent')
         await self.process(message.chat.id)
 
+    async def quit(self, message):
+        msg = self.adaptor.get_msg('quit', None, self.adaptor.get_head_addr())
+        ans = await self.adaptor.ask(msg, 20)
+        await message.answer(self.adaptor.json_dumps(ans))
+        await self.process(message.chat.id)
+
 
 @dispatcher.message(CommandStart())
 async def command_start_handler(message: Message):
@@ -213,6 +219,11 @@ async def handle_ask(message: Message):
 @dispatcher.message(Command('send'))
 async def handle_ask(message: Message):
     await dispatcher.get('actor').handle_command(message, False)
+
+
+@dispatcher.message(Command('quit'))
+async def handle_ask(message: Message):
+    await dispatcher.get('actor').quit(message)
 
 
 @dispatcher.message(F.text.startswith('/'))
