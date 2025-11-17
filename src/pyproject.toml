@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "peacepie"
-version = "0.2.4"
+version = "0.2.5"
 description = "Простая система акторов"
 authors = [{ name = "Vladimir Molodtsov", email = "vmol@mail.ru" }]
 readme = "README.md"

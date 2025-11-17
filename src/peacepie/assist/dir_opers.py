@@ -4,6 +4,7 @@ import os
 import platform
 import shutil
 import sys
+import time
 from pathlib import Path
 
 from peacepie.assist import json_util, version
@@ -204,6 +205,7 @@ def get_metadata(path):
         return name, ver, dependencies
     except Exception as e:
         logging.exception(e)
+    return None, None, None
 
 
 def is_right_dependency(dependency):
@@ -215,3 +217,95 @@ def is_right_dependency(dependency):
         return False
     return True
 
+
+def get_metadata_ext(path):
+    _, _, deps = get_metadata(path)
+    if deps is None:
+        return None
+    requires = {}
+    for dep in deps:
+        package_name_key = dep.get('package_name').lower().replace('-', '_')
+        requires[package_name_key] = dep
+    packs = {}
+    try:
+        with open(f'{path}/BUNDLE', 'r', encoding='utf-8') as f:
+            entries = f.read().splitlines()
+        for entry in entries:
+            tokens = entry.strip().rsplit('-', 1)
+            if len(tokens) != 2:
+                return None
+            packs[tokens[0].lower().replace('-', '_')] = entry
+    except Exception as e:
+        logging.exception(e)
+    dependencies = []
+    for key in requires:
+        dependencies.append((requires[key], packs[key]))
+    return dependencies
+
+
+def get_package_entries(path):
+    p = Path(path)
+    if not p.is_dir():
+        return None
+    res = []
+    for package_path in p.iterdir():
+        if not package_path.is_dir():
+            continue
+        for entry_path in package_path.iterdir():
+            if entry_path.is_dir() and entry_path.suffix == '.dist-info':
+                res.append((str(package_path), str(entry_path)))
+    return res
+
+
+def get_package_entry(path, entry):
+    p = Path(path) / entry
+    if not p.is_dir():
+        return None
+    for entry_path in p.iterdir():
+        if entry_path.is_dir() and entry_path.suffix == '.dist-info':
+            return entry_path
+    return None
+
+
+def get_work_package_entries(path):
+    p = Path(path)
+    if not p.is_dir():
+        return None
+    res = []
+    for entry_path in p.iterdir():
+        if entry_path.is_dir() and entry_path.suffix == '.dist-info':
+            res.append(str(entry_path))
+    return res
+
+
+def sync_link_package(src, dst, shared_folders):
+    for entry in os.listdir(src):
+        if entry in shared_folders:
+            for entrance in os.listdir(os.path.join(src, entry)):
+                symlink = f'{dst}/{entry}/{entrance}'
+                if not is_symlink_exist(symlink):
+                    sync_create_symlink(f'{src}/{entry}/{entrance}', symlink)
+        else:
+            sync_create_symlink(os.path.join(src, entry), os.path.join(dst, entry))
+
+
+def sync_create_symlink(orig, dest, timeout=1):
+    try:
+        os.symlink(os.path.abspath(orig), os.path.abspath(dest), target_is_directory=os.path.isdir(orig))
+        res = is_sync_symlink_created(dest, timeout)
+        logging.info(f'Symlink is created "{orig}" --> "{dest}"')
+        return res
+    except Exception as e:
+        logging.exception(e)
+    return False
+
+
+def is_sync_symlink_created(dest, timeout):
+    step = 0.1
+    total = 0.0
+    while total < timeout:
+        if os.path.islink(dest):
+            return True
+        total += step
+        time.sleep(step)
+    return False

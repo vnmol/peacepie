@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simple_web_face"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
 description = "Simple management console"
 dependencies = [
-    "aiohttp<3.13",
+    "aiohttp",
 ]
 
 [tool.setuptools.packages.find]

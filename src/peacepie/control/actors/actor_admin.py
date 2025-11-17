@@ -1,25 +1,30 @@
 import asyncio
 import logging
 
-from peacepie import msg_factory
-from peacepie.assist import log_util
-from peacepie.control.actors import actor_loader, package_admin
+from peacepie import msg_factory, params
+from peacepie.assist import dir_opers, log_util
+from peacepie.control.actors import actor_creator   # , actor_loader, package_admin
 
-
-LOADER_COMMANDS = {'get_class', 'create_actor', 'create_replica', 'create_actors'}
+LOADER_COMMANDS = {}
+CREATE_COMMANDS = {'create_actor', 'create_replica', 'create_actors'}
 RECREATE_COMMANDS = {'recreate_actor'}
 AGENT_COMMANDS = {'set_replica_params', 'transit_message', 'replica_resume'}
+
+shared_folders = {'__pycache__', 'bin'}
 
 
 class ActorAdmin:
 
     def __init__(self, parent):
         self.parent = parent
-        self.package_admin = package_admin.PackageAdmin(self)
+        # self.package_admin = package_admin.PackageAdmin(self)
         self.actor_recreator = None
         self.actor_agent = None
-        self.actor_loaders = []
+        # self.actor_loaders = []
+        self.actor_creators = []
         self.actors = {}
+        self.work_path = f'{params.instance["package_dir"]}/work/{self.parent.process_name}'
+        dir_opers.adjust_path(params.instance['package_dir'], self.parent.process_name, shared_folders)
         self.not_log_commands = set()
         self.cumulative_commands = {}
         logging.info(log_util.get_alias(self) + ' is created')
@@ -53,7 +58,16 @@ class ActorAdmin:
 
     async def handle(self, msg):
         command = msg.get('command')
-        if command in LOADER_COMMANDS:
+        if command in CREATE_COMMANDS:
+            for creator in self.actor_creators:
+                if creator['creator'].queue.qsize() < 10:
+                    await creator['creator'].queue.put(msg)
+                    logging.debug(log_util.async_sent_log(self, msg))
+                    return True
+            creator = self.add_actor_creator()
+            await creator.queue.put(msg)
+            logging.debug(log_util.async_sent_log(self, msg))
+        elif command in LOADER_COMMANDS:
             for loader in self.actor_loaders:
                 if loader['loader'].queue.qsize() < 10:
                     await loader['loader'].queue.put(msg)
@@ -71,16 +85,22 @@ class ActorAdmin:
         elif command == 'remove_actor':
             await self.remove_actor(msg)
         elif command == 'get_source_path':
-            body = {'path': self.package_admin.source_path}
+            body = {'path': params.instance.get('source_path')}
             ans = self.parent.adaptor.get_msg('source_path', body, recipient=msg.get('sender'))
             await self.parent.adaptor.send(ans)
         elif command == 'get_work_path':
-            body = {'path': self.package_admin.work_path}
+            body = {'path': self.work_path}
             ans = self.parent.adaptor.get_msg('work_path', body, recipient=msg.get('sender'))
             await self.parent.adaptor.send(ans)
         else:
             return False
         return True
+
+    def add_actor_creator(self):
+        creator = actor_creator.ActorCreator(self)
+        task = asyncio.get_running_loop().create_task(creator.run())
+        self.actor_creators.append({'creator': creator, 'task': task})
+        return creator
 
     def add_actor_loader(self):
         loader = actor_loader.ActorLoader(self)

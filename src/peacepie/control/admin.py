@@ -8,7 +8,7 @@ from peacepie.control.actors import actor_admin, actor_agent, actor_recreator, a
 from peacepie.control.intra import intra_link
 
 
-ACTOR_ADMIN_COMMANDS = {'get_class', 'create_actor', 'create_actors', 'remove_actor',
+ACTOR_ADMIN_COMMANDS = {'create_actor', 'create_actors', 'remove_actor',
                         'get_source_path', 'get_work_path',
                         'recreate_actor', 'create_replica', 'set_replica_params', 'transit_message', 'replica_resume'}
 

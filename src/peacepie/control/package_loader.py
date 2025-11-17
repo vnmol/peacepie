@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 from functools import partial
+from typing import Optional
 
 from peacepie import msg_factory, params, loglistener
 from peacepie.assist import dir_opers, json_util, log_util, version
@@ -46,12 +47,14 @@ class PackageLoader:
         recipient = msg.get('sender')
         timeout = msg.get('timeout')
         body = msg.get('body')
-        requires_dist = body.get('requires_dist')
+        requires_dist = version.parse_requires_dist(body.get('requires_dist'))
         dir_opers.makedir(self.tmp_path, clear=True)
-        bundle = await self.acquire_package(requires_dist, body.get('url'), timeout)
-        if bundle:
+        url_key = 'extra-index-url'
+        extra_index_url = body.get(url_key) if body.get(url_key) else params.instance.get(url_key)
+        entry = await self.acquire_package(requires_dist, extra_index_url, timeout)
+        if entry:
             self.move_packages()
-            body = {'bundle': list(bundle)}
+            body = {'entry': entry}
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_loaded', body, recipient), self)
         else:
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_not_loaded', None, recipient), self)
@@ -60,80 +63,58 @@ class PackageLoader:
         for package in os.listdir(self.tmp_path):
             dir_opers.move_dir(f'{self.tmp_path}/{package}', f'{self.source_path}/{package}')
 
-    async def acquire_package(self, requires_dist, url, timeout):
+    async def acquire_package(self, requires_dist, extra_index_url, timeout) -> Optional[str]:
         package_name = requires_dist.get('package_name')
         version_spec = requires_dist.get('version_spec')
         package_loading = self.loadings.get(package_name)
         if package_loading is None:
-            bundle = self.find_bundle(package_name, version_spec)
-            if bundle:
-                return bundle
+            entry = self.find_entry(package_name, version_spec)
+            if entry:
+                return entry
         else:
             queue = asyncio.Queue()
             package_loading.append(queue)
             await queue.get()
-            return self.find_bundle(package_name, version_spec)
+            return self.find_entry(package_name, version_spec)
         self.loadings[package_name] = []
-        await self.install_package(package_name, version_spec, url, timeout)
+        await self.install_package(package_name, version_spec, extra_index_url, timeout)
         ver, dependencies = self.find_version_with_dependencies(package_name, version_spec)
         logging.info(f'For package "{package_name}-{ver}" dependencies are found: {dependencies}')
         if not ver:
             return None
-        bundle = {f'{package_name}-{ver}'}
-        tasks = [asyncio.create_task(self.acquire_package(dependency, url, timeout))
+        bundle = []
+        tasks = [asyncio.create_task(self.acquire_package(dependency, extra_index_url, timeout))
                  for dependency in dependencies]
-        if len(tasks) > 0:
+        if tasks:
             results = await asyncio.gather(*tasks)
             for result in results:
                 if result is None:
                     return None
-                bundle = bundle.union(result)
+                bundle.append(result)
         self.save_bundle(package_name, ver, bundle)
         for queue in self.loadings.get(package_name):
             await queue.put(None)
         del self.loadings[package_name]
-        return bundle
+        return f'{package_name}-{ver}'
 
-    def find_bundle(self, package_name, version_spec):
-        res = self._find_bundle(self.source_path, package_name, version_spec)
+    def find_entry(self, package_name, version_spec):
+        res = find_entry(self.source_path, package_name, version_spec)
         if res:
             return res
-        return self._find_bundle(self.tmp_path, package_name, version_spec)
-
-    def _find_bundle(self, path, package_name, version_spec):
-        ver = None
-        bundle = None
-        for pack in os.listdir(path):
-            pack_path = f'{path}/{pack}'
-            for entry in os.listdir(pack_path):
-                entry_path = f'{pack_path}/{entry}'
-                if not (os.path.isdir(entry_path) and entry.endswith('.dist-info')):
-                    continue
-                name, v, _ = dir_opers.get_metadata(entry_path)
-                if name.lower().replace('-', '_') == package_name.lower().replace('-', '_'):
-                    if version.check_version(v, version_spec):
-                        if ver is None or version.check_version(v, f'>{ver}'):
-                            ver = v
-                            bundle = get_bundle(entry_path)
-        return bundle
+        return find_entry(self.tmp_path, package_name, version_spec)
 
     def find_version_with_dependencies(self, package_name, version_spec):
         ver = None
         dependencies = None
-        for pack in os.listdir(self.tmp_path):
-            pack_path = f'{self.tmp_path}/{pack}'
-            for entry in os.listdir(pack_path):
-                entry_path = f'{pack_path}/{entry}'
-                if not (os.path.isdir(entry_path) and entry.endswith('.dist-info')):
-                    continue
-                name, v, ds = dir_opers.get_metadata(entry_path)
-                if name.lower().replace('-', '_') == package_name.lower().replace('-', '_'):
-                    if version.check_version(v, version_spec):
-                        if ver is None or version.check_version(v, f'>{ver}'):
-                            ver = v
-                            dependencies = ds
-                    if not pack_path.endswith(f'-{v}'):
-                        dir_opers.rename_dir(pack_path, f'{pack_path}-{v}')
+        for pack_path, entry_path in dir_opers.get_package_entries(self.tmp_path):
+            name, v, ds = dir_opers.get_metadata(entry_path)
+            if name.lower().replace('-', '_') == package_name.lower().replace('-', '_'):
+                if version.check_version(v, version_spec):
+                    if ver is None or version.check_version(v, f'>{ver}'):
+                        ver = v
+                        dependencies = ds
+                if not pack_path.endswith(f'-{v}'):
+                    dir_opers.rename_dir(pack_path, f'{pack_path}-{v}')
         return ver, dependencies
 
     async def install_package(self, package_name, version_spec, url, timeout):
@@ -157,21 +138,15 @@ class PackageLoader:
         except Exception as e:
             logging.exception(e)
 
-    def save_bundle(self, package_name, package_ver, bundle):
-        for package in os.listdir(self.tmp_path):
-            package_path = f'{self.tmp_path}/{package}'
-            for entry in os.listdir(package_path):
-                entry_path = f'{package_path}/{entry}'
-                if not (os.path.isdir(entry_path) and entry.endswith('.dist-info')):
-                    continue
-                name, ver, _ = dir_opers.get_metadata(entry_path)
-                if name.lower().replace('-', '_') == package_name.lower().replace('-', '_') and ver == package_ver:
-                    lines = list(bundle)
-                    lines.sort()
-                    with open(f'{entry_path}/BUNDLE', 'w', encoding='utf-8') as f:
-                        f.writelines(line + '\n' for line in lines)
-                    logging.info(f'BUNDLE is saved to {entry_path}')
-                    return
+    def save_bundle(self, package_name, package_ver, lines):
+        for _, entry_path in dir_opers.get_package_entries(self.tmp_path):
+            name, ver, _ = dir_opers.get_metadata(entry_path)
+            if name.lower().replace('-', '_') == package_name.lower().replace('-', '_') and ver == package_ver:
+                lines.sort()
+                with open(f'{entry_path}/BUNDLE', 'w', encoding='utf-8') as f:
+                    f.writelines(line + '\n' for line in lines)
+                logging.info(f'BUNDLE is saved to {entry_path}')
+                return
 
 
 def get_bundle(path):
@@ -181,3 +156,16 @@ def get_bundle(path):
         return bundle
     except Exception as e:
         logging.exception(e)
+
+
+def find_entry(path, package_name, version_spec):
+    ver = None
+    for _, entry_path in dir_opers.get_package_entries(path):
+        name, v, _ = dir_opers.get_metadata(entry_path)
+        if name.lower().replace('-', '_') == package_name.lower().replace('-', '_'):
+            if version.check_version(v, version_spec):
+                if ver is None or version.check_version(v, f'>{ver}'):
+                    ver = v
+    if ver:
+        return f'{package_name}-{ver}'
+    return None

@@ -18,3 +18,6 @@ sudo systemctl restart NetworkManager
 
 command = f'echo "{password}" | su -c "echo {password} | sudo -S apt update" - {username}'
 res = await self.adaptor.command_execute(command)
+
+
+{"class_desc": {"requires_dist": "simple_telegram_bot", "class": "SimpleTelegramActor"}, "name": "telegram"}

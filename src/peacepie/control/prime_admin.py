@@ -55,6 +55,8 @@ class PrimeAdmin(admin.Admin):
             await self.adaptor.send(self, msg)
         elif command == 'get_members':
             await self.get_members(msg)
+        elif command == 'get_local_nodes':
+            await self.get_local_nodes(sender, is_local=False)
         else:
             return await super().handle(msg)
         return True
@@ -92,3 +94,11 @@ class PrimeAdmin(admin.Admin):
         body['level'] = level
         ans = self.adaptor.get_msg('members', body, msg.get('sender'))
         await self.adaptor.send(ans)
+
+    async def get_local_nodes(self, recipient=None, is_local=True):
+        res = self.process_admin.get_local_nodes()
+        if is_local:
+            return res
+        else:
+            await self.adaptor.send(self.adaptor.get_msg('local_nodes', res, recipient))
+        return None

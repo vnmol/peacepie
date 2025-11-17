@@ -70,6 +70,11 @@ class ProcessAdmin:
             name.process_name = p.name
         self.processes[name] = p
 
+    def get_local_nodes(self):
+        res = [name for name in self.processes]
+        res.append(self.parent.adaptor.name)
+        return res
+
 
 async def run_wrapper(actor):
     await actor.run()

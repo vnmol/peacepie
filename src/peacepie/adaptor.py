@@ -474,6 +474,18 @@ class Adaptor:
         else:
             return self.name
 
+    async def get_local_nodes(self, exclude_current=False):
+        res = None
+        if hasattr(self.admin, 'get_local_nodes'):
+            res = await self.admin.get_local_nodes()
+        else:
+            ans = await self.ask(self.get_msg('get_local_nodes', None, self.get_head_name()))
+            if ans.get('command') == 'local_nodes':
+                res = ans.get('body')
+        if exclude_current:
+            res.remove(self.admin.adaptor.name)
+        return res
+
     async def get_all_nodes(self):
         if hasattr(self.performer, 'get_all_nodes'):
             return self.performer.get_all_nodes()
