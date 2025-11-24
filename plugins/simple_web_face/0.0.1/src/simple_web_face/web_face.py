@@ -17,11 +17,11 @@ class SimpleWebFace:
         self._domain = None
         self._runner = None
         self._sockets = []
-        self.file_browser = None
+        self._file_browser = None
 
     async def pre_run(self):
         browser_base_dir = self.adaptor.get_param('browser_base_dir')
-        self.file_browser = file_browser_handler.FileBrowserHandler(browser_base_dir=browser_base_dir)
+        self._file_browser = file_browser_handler.FileBrowserHandler(browser_base_dir=browser_base_dir)
 
     async def exit(self):
         await self.close_websockets()
@@ -72,7 +72,7 @@ class SimpleWebFace:
         app.add_routes([web.get('/', self.root_handler)])
         app.add_routes([web.get('/ws', self.websocket_handler)])
         app.add_routes([web.get('/favicon.ico', favicon)])
-        app.add_routes([web.get('/browse', self.file_browser.handle_browse)])
+        app.add_routes([web.get('/browse', self._file_browser.handle_browse)])
         _runner = web.AppRunner(app)
         await _runner.setup()
         site = web.TCPSite(_runner, f'{self._http_host}', self.http_port)
