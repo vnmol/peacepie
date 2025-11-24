@@ -8,6 +8,7 @@ version = '0.0.3'
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
+keywords = ["peacepie"]
 dependencies = [
     'aiogram',
 ]

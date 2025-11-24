@@ -608,7 +608,7 @@ class Adaptor:
                 if not res:
                     waiting_count -= 1
                     continue
-            recipient = recipient if isinstance(recipient, str) or isinstance(recipient, dict) else None
+            recipient = recipient if isinstance(recipient, (dict, str)) else None
             command = values.get('command')
             body = values.get('body')
             msg = msg_factory.get_msg(command, body, recipient=recipient, sender=sender, timeout=timeout,
