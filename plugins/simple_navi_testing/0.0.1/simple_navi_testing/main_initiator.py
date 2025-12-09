@@ -88,7 +88,7 @@ class MainInitiator:
     async def create_processes(self):
         res = [None]
         for i in range(self.count - 1):
-            ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'))
+            ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'), timeout=2)
             res.append(ans.get('body'))
         return res
 

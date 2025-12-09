@@ -40,7 +40,7 @@ class Initiator:
         await self.adaptor.ask(self.adaptor.get_msg('create_actors', body))
         all_names.extend(names)
         for i in range(self.group_count-1):
-            ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'))
+            ans = await self.adaptor.ask(self.adaptor.get_msg('create_process'), timeout=2)
             names = [f'retransmitter_{i:02d}_{j:02d}' for j in range(self.group_size)]
             body = {'class_desc': {'requires_dist': 'simple_testing', 'class': 'Retransmitter'}, 'names': names}
             ans = await self.adaptor.ask(self.adaptor.get_msg('create_actors', body, ans.get('body')))

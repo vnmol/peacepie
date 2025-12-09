@@ -5,12 +5,13 @@ import inspect
 import logging
 import os
 
+from peacepie import msg_factory, params
 from peacepie.assist import (auxiliaries, log_util, json_util, serialization, dir_opers, terminal_util,
                              thread_util, timer)
-from peacepie import msg_factory, params
 from peacepie.control import ticker_admin, series_admin
-from peacepie.control.head_prime_admin import HeadPrimeAdmin
+from peacepie.control.actors import class_extractor
 from peacepie.control.admin import Admin
+from peacepie.control.head_prime_admin import HeadPrimeAdmin
 
 
 ADAPTOR_COMMANDS = {'quit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 'not_log_commands_remove',
@@ -514,7 +515,7 @@ class Adaptor:
                 else:
                     return self.admin.adaptor.queue
             else:
-                return await self.admin.intralink.get_intra_queue(recipient['node'])
+                return await self.admin.intralink.get_intra_queue(recipient.get('node'))
         if type(recipient) is str:
             if recipient == self.admin.adaptor.name:
                 return self.admin.adaptor.queue
@@ -726,3 +727,7 @@ class Adaptor:
                 if not inspect.iscoroutinefunction(method):
                     return False
         return True
+
+
+    async def get_class(self, class_desc):
+        return await class_extractor.get_class(self, class_desc)

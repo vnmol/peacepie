@@ -68,13 +68,13 @@ class ActorAdmin:
             await creator.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
         elif command in LOADER_COMMANDS:
-            for loader in self.actor_loaders:
-                if loader['loader'].queue.qsize() < 10:
-                    await loader['loader'].queue.put(msg)
+            for creator in self.actor_creators:
+                if creator['creator'].queue.qsize() < 10:
+                    await creator['creator'].queue.put(msg)
                     logging.debug(log_util.async_sent_log(self, msg))
                     return True
-            loader = self.add_actor_loader()
-            await loader.queue.put(msg)
+            creator = self.add_actor_creator()
+            await creator.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
         elif command in RECREATE_COMMANDS:
             await self.actor_recreator.queue.put(msg)
@@ -101,12 +101,6 @@ class ActorAdmin:
         task = asyncio.get_running_loop().create_task(creator.run())
         self.actor_creators.append({'creator': creator, 'task': task})
         return creator
-
-    def add_actor_loader(self):
-        loader = actor_loader.ActorLoader(self)
-        task = asyncio.get_running_loop().create_task(loader.run())
-        self.actor_loaders.append({'loader': loader, 'task': task})
-        return loader
 
     def get_actor_queue(self, name):
         actor = self.actors.get(name)

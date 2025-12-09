@@ -83,8 +83,7 @@ class TcpClient:
 
     async def start(self, recipient):
         if self.is_embedded_channel:
-            ans = await self.adaptor.ask(self.adaptor.get_msg('get_class', {'class_desc': self.convertor_desc}))
-            self.convertor_class = ans.get('body')
+            self.convertor_class = await self.adaptor.get_class(self.convertor_desc)
         if not self.is_on_demand:
             self.channel_queue = asyncio.Queue()
             asyncio.get_running_loop().create_task(self.handle_connection())
