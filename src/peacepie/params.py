@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import multiprocessing
 import os
@@ -6,7 +7,7 @@ import sys
 import socket
 from pathlib import Path
 
-from peacepie.assist import dir_opers, version
+from peacepie.assist import dir_opers, log_util, version
 from peacepie.assist.auxiliaries import is_testing
 
 

@@ -291,7 +291,7 @@ class IntraLink:
 
     def get_all_nodes(self):
         res = [key for key in self.links]
-        res.append(self.parent.adaptor.name)
+        res.insert(0, self.parent.adaptor.name)
         return res
 
 

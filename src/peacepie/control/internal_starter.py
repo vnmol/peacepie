@@ -1,5 +1,4 @@
 import os
-import re
 
 from peacepie import msg_factory, params
 from peacepie.assist import dir_opers
@@ -14,13 +13,12 @@ class InternalStarter:
         command = msg.get('command')
         if command == 'start':
             await self.start()
-        elif command == 'app_starter':
-            await self.app_starter(msg)
         else:
             return False
         return True
 
     async def start(self):
+        await self.account_admin()
         src = os.path.abspath(params.instance.get('starter'))
         package_name = os.path.basename(src)
         ans = await self.adaptor.ask(self.adaptor.get_msg('get_work_path'))
@@ -40,37 +38,9 @@ class InternalStarter:
         await self.adaptor.send(msg)
         await self.adaptor.send(self.adaptor.get_msg('remove_actor', {'name': self.adaptor.name}))
 
-    async def app_starter(self, msg):
-        body = msg.get('body')
-        name = body.get('name')
-        pattern = rf'async\s+def\s+{name}\(self,\s*msg\s*\):'
-        with open(params.instance.get('starter'), 'r') as file:
-            lines = file.readlines()
-        beg = None
-        end = len(lines)
-        for i, line in enumerate(lines):
-            if beg:
-                if re.search(pattern, line):
-                    end = i
-                    break
-            else:
-                if re.search(pattern, line):
-                    beg = i
-                    pattern = r'def\s+\w+\(.*\):'
-        if beg:
-            lines[beg+1:end] = change_leading_spaces(lines[beg], body.get('txt'))
-            with open(params.instance.get('starter'), 'w') as file:
-                file.writelines(lines)
-            await self.adaptor.send(self.adaptor.get_msg('app_starter_is_ready', recipient=msg.get('sender')))
-        else:
-            await self.adaptor.send(self.adaptor.get_msg('app_starter_is_not_ready', recipient=msg.get('sender')))
-
-
-def change_leading_spaces(anchor, txt):
-    res = txt.split('\n')
-    res = [line + '\n' for line in res if line.strip()]
-    dx = len(anchor) - len(anchor.lstrip()) + 4
-    dx -= len(res[0]) - len(res[0].lstrip())
-    res = [' ' * (len(line) - len(line.lstrip()) + dx) + line.lstrip() for line in res]
-    res.append('\n')
-    return res
+    async def account_admin(self):
+        name = 'account_admin'
+        body = {'class_desc': {'requires_dist': 'peacepie.control.accounts.account_admin'}, 'name': name}
+        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
+        if ans.get('command') == 'actor_is_created':
+            await self.adaptor.ask(self.adaptor.get_msg('start', None, name))

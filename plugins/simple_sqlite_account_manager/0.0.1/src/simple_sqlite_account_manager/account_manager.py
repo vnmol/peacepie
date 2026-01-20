@@ -1,7 +1,12 @@
-class SimpleSqliteDb:
+from simple_sqlite_account_manager.database_manager import DatabaseManager
+
+
+class SimpleSqliteAccountManager:
 
     def __init__(self):
         self.adaptor = None
+        self.database_path = None
+        self._database_manager = None
 
     async def pre_run(self):
         pass
@@ -27,5 +32,6 @@ class SimpleSqliteDb:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
     async def start(self, recipient):
+        self._database_manager = DatabaseManager(self.database_path)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))

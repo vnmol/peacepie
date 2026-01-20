@@ -1,6 +1,4 @@
 import asyncio
-import logging
-import signal
 
 from peacepie import params, msg_factory
 from peacepie.assist import dir_opers
@@ -77,8 +75,6 @@ class Admin:
             await self.adaptor.send(ans)
         elif command == 'change_cache':
             await self.change_cache(body, sender)
-        elif command == 'remove_from_cache':
-            await self.remove_from_cache(body, sender)
         elif command == 'get_members':
             await self.get_members(msg)
         else:
@@ -89,30 +85,21 @@ class Admin:
         await self.quit()
 
     async def change_cache(self, body, recipient):
-        await self.add_to_cache(body.get('node'), [body.get('entity')], True)
+        await self.add_to_cache(body.get('node'), body.get('entities'), True)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('cache_is_changed', None, recipient))
 
-    async def add_to_cache(self, node, names, is_exists = False):
-        if node is None or self.adaptor.name == node:
+    async def add_to_cache(self, node, names, is_exists=False):
+        if self.adaptor.name == node:
             for name in names:
-                if self.cache.get(name):
-                    del self.cache[name]
+                if name in self.cache:
+                    self.cache[name] = self.actor_admin.actors.get(name).get('adaptor').queue
             return
-        queue = await self.intralink.get_intra_queue(node)
-        if not queue:
-            return
+        queue = None if node is None else await self.intralink.get_intra_queue(node)
         for name in names:
-            if is_exists and not self.cache.get(name):
+            if is_exists and not name in self.cache:
                 continue
             self.cache[name] = queue
-
-    async def remove_from_cache(self, body, recipient):
-        name = body.get('name')
-        if name in self.cache:
-            del self.cache[name]
-        if recipient:
-            await self.adaptor.send(self.adaptor.get_msg('removed_from_cache', None, recipient))
 
     async def get_members(self, msg):
         body = msg.get('body')

@@ -11,6 +11,8 @@ authors = [
 description = "Simple sqlite database"
 keywords = ["peacepie"]
 dependencies = [
+    "sqlalchemy",
+    "bcrypt",
 ]
 
 [tool.setuptools.packages.find]

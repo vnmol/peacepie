@@ -9,13 +9,14 @@ from peacepie.control import head_prime_admin, prime_admin
 
 class PeaceSystem:
 
-    def __init__(self, path, test_params=None, json_package=None):
-        json_util.init(json_package)
+    def __init__(self, path, test_params=None):
+        # json_util.init(json_package)
         params.init_params(path, test_params)
         log_conf.logger_start(params.instance.get('log_config'))
         logging.info(f'System-Version: {platform.system()} {platform.version()}')
         logging.info(f'Python-Version: {version.version_to_string(version.get_python_version())}')
         logging.info(f'Peacepie-Version: {params.instance.get("peacepie_version")}')
+        json_util.init()
         self.is_head = params.instance.get('intra_role') == 'master'
         self.host_name = params.instance.get('host_name')
         self.process_name = params.instance.get('process_name')

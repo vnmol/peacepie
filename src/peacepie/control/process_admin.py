@@ -8,7 +8,7 @@ import sys
 from logging.handlers import QueueHandler
 
 from peacepie import msg_factory, loglistener, multimanager, params, adaptor
-from peacepie.assist import log_util, misc
+from peacepie.assist import json_util, log_util, misc
 from peacepie.control import admin
 
 
@@ -61,17 +61,21 @@ class ProcessAdmin:
         # name = misc.ComplexName(self.parent.host_name, f'process_{self.process_index}', 'admin')
         # self.process_index += 1
         name = misc.ComplexName(self.parent.host_name, None, 'admin')
-        p = multiprocessing.Process(
-            target=create,
-            args=(self.parent.adaptor.name, name, params.instance,
-                  msg_factory.instance.get_queue(), loglistener.instance.get_log_desc(), recipient))
-        p.start()
-        if name.process_name is None:
-            name.process_name = p.name
-        self.processes[name] = p
+        p = None
+        try:
+            p = multiprocessing.Process(
+                target=create,
+                args=(self.parent.adaptor.name, name, params.instance,
+                      msg_factory.instance.get_queue(), loglistener.instance.get_log_desc(), recipient))
+            p.start()
+            if name.process_name is None:
+                name.process_name = p.name
+            self.processes[name] = p
+        except Exception as e:
+            logging.exception(e)
 
     def get_local_nodes(self):
-        res = [name for name in self.processes]
+        res = [process.get_actor_name() for process in self.processes]
         res.append(self.parent.adaptor.name)
         return res
 
@@ -97,6 +101,7 @@ def create(lord, name, prms, msg_queue, log_desc, recipient):
         logger.addHandler(QueueHandler(log_desc.queue))
         logger.setLevel(log_desc.level)
     prefix = f'{name.host_name}.{name.process_name}'
+    json_util.init()
     multimanager.init_multimanager(f'{prefix}.multimanager')
     msg_factory.init_msg_factory(name.host_name, name.process_name, 'msg_factory', msg_queue)
     performer = admin.Admin(lord, name.host_name, name.process_name, log_desc)

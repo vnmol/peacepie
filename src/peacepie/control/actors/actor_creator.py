@@ -1,8 +1,6 @@
 import asyncio
 import logging
 import multiprocessing
-import importlib.metadata
-import os
 
 from peacepie import adaptor, msg_factory, params
 
@@ -49,6 +47,8 @@ class ActorCreator:
             await self.create_actor(msg, True)
         elif command == 'create_actors':
             await self.create_actors(msg)
+        elif command == 'remove_actor':
+            await self.remove_actor(msg)
         else:
             return False
         return True
@@ -94,25 +94,44 @@ class ActorCreator:
             real_name = (f'replica_{self.grandparent.adaptor.get_param("host_name")}_'
                          f'{multiprocessing.current_process().name}_{replica_index}')
             replica_index += 1
+        queue = asyncio.Queue()
         try:
             if isinstance(class_desc, type):
                 clss = class_desc
             else:
                 clss = await self.grandparent.adaptor.get_class(class_desc)
+                if not class_desc.get('class'):
+                    class_desc['class'] = clss.__name__
             if not clss:
-                answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
-                await self.grandparent.adaptor.send(answer, self)
+                ans = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
+                await self.grandparent.adaptor.send(ans, self)
                 return
-            adptr = adaptor.Adaptor(class_desc, real_name, self.grandparent, clss(), msg.get('sender'))
+            adptr = adaptor.Adaptor(class_desc, real_name, self.grandparent, clss(), queue)
             if is_replica:
                 adptr.pause_event = asyncio.Event()
         except Exception as e:
             logging.exception(e)
-            answer = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
-            await self.grandparent.adaptor.send(answer, self)
+            ans = msg_factory.get_msg('actor_is_not_created', recipient=msg.get('sender'))
+            await self.grandparent.adaptor.send(ans, self)
             return
         task = asyncio.get_running_loop().create_task(adptr.run())
         self.parent.actors[real_name] = {'adaptor': adptr, 'task': task}
+        timeout = msg.get('timeout')
+        if not timeout:
+            timeout = 1
+        timer.start(timeout, queue, msg.get('mid'))
+        ans = await queue.get()
+        logging.debug(log_util.async_received_log(self, ans))
+        if ans.get('command') == 'actor_is_created' and not is_replica:
+            body = ans.get('body') if ans.get('body') else {}
+            new_body = {'node': body.get('node'), 'entities': [body.get('entity')]}
+            note = msg_factory.get_msg('change_caches', new_body, self.grandparent.adaptor.get_head_addr())
+            if self.grandparent.is_head:
+                await self.grandparent.change_caches(note)
+            else:
+                await self.grandparent.adaptor.ask(note, 10, self)
+        ans['recipient'] = msg.get('sender')
+        await self.grandparent.adaptor.send(ans, self)
 
     async def create_actors(self, msg):
         recipient = msg.get('sender')
@@ -158,7 +177,12 @@ class ActorCreator:
             return
         self.parent.actors.update(actors)
         node = self.grandparent.adaptor.name
-        body = {'node': node, 'names': names}
+        body = {'node': node, 'entities': names}
+        note = msg_factory.get_msg('change_caches', body, self.grandparent.adaptor.get_head_addr())
+        if self.grandparent.is_head:
+            await self.grandparent.change_caches(note)
+        else:
+            await self.grandparent.adaptor.ask(note, 10, self)
         ans = msg_factory.get_msg('actors_are_created', body, msg.get('sender'))
         await self.grandparent.adaptor.send(ans, self)
 
@@ -170,3 +194,41 @@ class ActorCreator:
     async def actors_are_not_created(self, recipient):
         ans = msg_factory.get_msg('actors_are_not_created', recipient=recipient)
         await self.grandparent.adaptor.send(ans, self)
+
+
+    async def remove_actor(self, msg):
+        recipient = msg.get('sender')
+        body = msg.get('body') if msg.get('body') else {}
+        name = body.get('name')
+        adaptor = self.grandparent.adaptor
+        if not name:
+            if recipient:
+                await adaptor.send(adaptor.get_msg('actor_is_absent', body, recipient))
+            return
+        if await self.removing_actor(name) and recipient:
+            await adaptor.send(adaptor.get_msg('actor_is_removed', body, recipient))
+        elif recipient:
+            await adaptor.send(adaptor.get_msg('actor_is_absent', {'name': name}, recipient))
+
+    async def removing_actor(self, name):
+        actor = None
+        try:
+            actor = self.parent.actors.get(name)
+        except Exception as e:
+            logging.exception(e)
+        if not actor:
+            return False
+        adaptor = actor.get('adaptor')
+        alias = log_util.get_alias(adaptor)
+        adaptor.stop()
+        if not await adaptor.is_stopped(5):
+            return False
+        new_addr = {'node': None, 'entities': [name]}
+        msg = msg_factory.get_msg('change_caches', new_addr, self.grandparent.adaptor.get_head_addr())
+        if self.grandparent.is_head:
+            await self.grandparent.change_caches(msg)
+        else:
+            await self.grandparent.adaptor.ask(msg, 10, self)
+        del self.parent.actors[name]
+        logging.info(f'{alias} is removed')
+        return True

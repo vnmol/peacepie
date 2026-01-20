@@ -7,7 +7,7 @@ import os
 
 from peacepie import msg_factory, params
 from peacepie.assist import (auxiliaries, log_util, json_util, serialization, dir_opers, terminal_util,
-                             thread_util, timer)
+                             thread_util, timer, version)
 from peacepie.control import ticker_admin, series_admin
 from peacepie.control.actors import class_extractor
 from peacepie.control.admin import Admin
@@ -18,7 +18,7 @@ ADAPTOR_COMMANDS = {'quit', 'subscribe', 'unsubscribe', 'not_log_commands_set', 
                     'cumulative_commands_set', 'cumulative_commands_remove', 'cumulative_tick',
                     'update_running', 'empty'}
 
-CACHE_COMMANDS = {'actor_is_created', 'actors_are_created', 'actor_found'}
+CACHE_COMMANDS = {'actor_is_created', 'actors_are_created', 'actor_is_found', 'actor_is_not_found'}
 
 
 class Adaptor:
@@ -653,12 +653,11 @@ class Adaptor:
         res = None
         msg = msg_factory.get_msg('seek_actor', {'entity': entity}, self.admin.adaptor.get_head_addr())
         ans = await self.ask(msg, 2, sender)
-        if ans['command'] == 'actor_found':
+        if ans.get('command') == 'actor_is_found':
             res = await self.admin.intralink.get_intra_queue(ans['body']['node'])
-            if res:
-                self.admin.cache[entity] = res
-            else:
-                logging.warning(f'The actor "{entity}" is not found')
+        self.admin.cache[entity] = res
+        if res is None:
+            logging.warning(f'The actor "{entity}" is not found')
         return res
 
     async def add_to_cache(self, msg):
@@ -673,7 +672,7 @@ class Adaptor:
         if not node or node == self.admin.adaptor.name:
             return
         if command == 'actors_are_created':
-            names = body.get('names')
+            names = body.get('entities')
             if not names:
                 return
         else:
@@ -728,6 +727,26 @@ class Adaptor:
                     return False
         return True
 
-
     async def get_class(self, class_desc):
         return await class_extractor.get_class(self, class_desc)
+
+    def get_package_name(self):
+        try:
+            requires_dist = version.parse_requires_dist(self.class_desc.get('requires_dist'))
+            return requires_dist.get('package_name')
+        except Exception as e:
+            logging.exception(e)
+        return None
+
+    def get_process_name(self):
+        return self.parent.process_name
+
+    async def is_exist(self, entity):
+        if entity in self.admin.cache:
+            return True
+        if entity in self.admin.actor_admin.actors:
+            self.admin.cache[entity] = self.admin.actor_admin.actors.get(entity).get('adaptor').queue
+            return True
+        else:
+            await self.find(self, entity)
+            return self.admin.cache.get(entity) is not None

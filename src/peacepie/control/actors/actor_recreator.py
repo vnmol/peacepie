@@ -82,7 +82,7 @@ class ActorRecreator:
             logging.debug(log_util.sync_sent_log(self, msg))
             return
         ans = await self.grandparent.adaptor.ask(msg_factory.get_msg('seek_actor', {'entity': entity}))
-        if ans.get('command') != 'actor_found':
+        if ans.get('command') != 'actor_is_found':
             await self.failure(recipient)
             return
         msg['recipient'] = {'node': ans.get('body').get('node'), 'entity': None}
@@ -120,7 +120,7 @@ class ActorRecreator:
         msg = msg_factory.get_msg('set_replica_params', body, {'node': node, 'entity': None})
         await self.grandparent.adaptor.ask(msg, timeout, self)
         await self.grandparent.add_to_cache(node, [entity])
-        new_addr = {'node': node, 'entity': entity}
+        new_addr = {'node': node, 'entities': [entity]}
         msg = msg_factory.get_msg('change_caches', new_addr, self.grandparent.adaptor.get_head_addr())
         await self.grandparent.adaptor.ask(msg, 10, self)
         actor = self.parent.actors.pop(entity)

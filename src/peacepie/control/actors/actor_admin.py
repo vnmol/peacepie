@@ -6,7 +6,7 @@ from peacepie.assist import dir_opers, log_util
 from peacepie.control.actors import actor_creator   # , actor_loader, package_admin
 
 LOADER_COMMANDS = {}
-CREATE_COMMANDS = {'create_actor', 'create_replica', 'create_actors'}
+CREATE_COMMANDS = {'create_actor', 'create_replica', 'create_actors', 'remove_actor'}
 RECREATE_COMMANDS = {'recreate_actor'}
 AGENT_COMMANDS = {'set_replica_params', 'transit_message', 'replica_resume'}
 
@@ -82,8 +82,6 @@ class ActorAdmin:
         elif command in AGENT_COMMANDS:
             await self.actor_agent.queue.put(msg)
             logging.debug(log_util.async_sent_log(self, msg))
-        elif command == 'remove_actor':
-            await self.remove_actor(msg)
         elif command == 'get_source_path':
             body = {'path': params.instance.get('source_path')}
             ans = self.parent.adaptor.get_msg('source_path', body, recipient=msg.get('sender'))
@@ -116,39 +114,3 @@ class ActorAdmin:
         res.sort()
         res.insert(0, self.parent.adaptor.name)
         return res
-
-    async def remove_actor(self, msg):
-        recipient = msg.get('sender')
-        body = msg.get('body') if msg.get('body') else {}
-        name = body.get('name')
-        if not name:
-            if recipient:
-                await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', body, recipient))
-            return
-        if await self.removing_actor(name) and recipient:
-            await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_removed', body, recipient))
-        elif recipient:
-            await self.parent.adaptor.send(self.parent.adaptor.get_msg('actor_is_absent', {'name': name}, recipient))
-
-    async def removing_actor(self, name):
-        actor = None
-        try:
-            actor = self.actors.get(name)
-        except Exception as e:
-            logging.exception(e)
-        if not actor:
-            return False
-        adaptor = actor.get('adaptor')
-        alias = log_util.get_alias(adaptor)
-        adaptor.stop()
-        if not await adaptor.is_stopped(5):
-            return False
-        new_addr = {'node': None, 'entity': name}
-        msg = msg_factory.get_msg('change_caches', new_addr, self.parent.adaptor.get_head_addr())
-        if self.parent.is_head:
-            await self.parent.change_caches(msg)
-        else:
-            await self.parent.adaptor.ask(msg, 10, self)
-        del self.actors[name]
-        logging.info(f'{alias} is removed')
-        return True
