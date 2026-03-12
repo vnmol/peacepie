@@ -1,0 +1,2 @@
+
+{"class_desc": {"requires_dist": "simple_fastapi_dashboard", "class": "Dummy"}, "name": "dummy_x01"}

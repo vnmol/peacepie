@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block page_title %}Файловый браузер{% endblock %}
+
+{% block extra_head %}
+<style>
+    .file-browser { margin-top: 30px; }
+    .path-bar {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #f0f0f0; padding: 12px 16px; border-radius: 8px;
+        font-family: monospace; font-size: 15px; margin-bottom: 20px;
+        word-break: break-all;
+    }
+    .file-grid {
+        max-width: 900px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 18px;
+    }
+    .file-item {
+        background: white;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        cursor: default;
+    }
+    .file-item:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    .file-item.dir, .file-item.text { cursor: pointer; }
+    .file-icon { font-size: 38px; }
+    .file-info { flex: 1; }
+    .file-name { font-weight: 600; color: #333; margin-bottom: 4px; word-break: break-all; }
+    .file-meta { font-size: 13px; color: #777; }
+    .symlink { opacity: 0.85; }
+    .symlink .file-name::after { content: " → " attr(data-target); color: #8A9A5B; font-weight: bold; }
+
+    /* Модальное окно просмотра текста */
+    #text-viewer-modal {
+        display: none;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.75); z-index: 1000;
+        align-items: center; justify-content: center;
+    }
+    #text-viewer-content {
+        background: white; width: 90%; max-width: 1000px; max-height: 90vh;
+        border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        display: flex; flex-direction: column;
+    }
+    #text-viewer-header {
+        background: #8A9A5B; color: white; padding: 14px 20px;
+        font-weight: 600; font-size: 18px; display: flex; justify-content: space-between; align-items: center;
+    }
+    #text-viewer-body {
+        padding: 20px; overflow-y: auto; background: #f9f9f9; font-family: 'Courier New', monospace;
+        white-space: pre-wrap; line-height: 1.5; font-size: 14px;
+    }
+    .close-btn { background: none; border: none; font-size: 32px; cursor: pointer; color: white; padding: 0; width: 40px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="file-browser">
+    <div class="path-bar">
+        Текущая папка: <strong id="current-path">/</strong>
+    </div>
+
+    <div id="file-list" class="file-grid"></div>
+
+</div>
+
+<!-- Модальное окно для просмотра текста -->
+<div id="text-viewer-modal">
+    <div id="text-viewer-content">
+        <div id="text-viewer-header">
+            <span id="text-viewer-title">Файл</span>
+            <button class="close-btn" onclick="closeTextViewer()">×</button>
+        </div>
+        <div id="text-viewer-body">Загрузка...</div>
+    </div>
+</div>
+
+<script>
+const TEXT_EXTENSIONS = new Set([
+    '.txt','.py','.json','.js','.html','.css','.xml','.yaml','.yml','.md','.log',
+    '.csv','.toml','.ini','.conf','.sh','.bat','.ps1','.sql','.env','.gitignore'
+]);
+
+function normalizePath(path) {
+    if (!path) return '';
+    return path.split('/').filter(p => p && p !== '.' && p !== '..').join('/');
+}
+
+async function loadDirectory(path = '') {
+    path = normalizePath(path);
+    const url = path ? `/files/list?path=${encodeURIComponent(path)}` : '/files/list';
+
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const files = await resp.json();
+
+        document.getElementById('current-path').textContent = path ? '/' + path : '/';
+        const container = document.getElementById('file-list');
+        container.innerHTML = '';
+
+        if (path) {
+            const parent = path.split('/').slice(0, -1).join('/') || '';
+            addItem({ name: '..', type: 'dir', size: 0, mtime: 0, is_symlink: false }, parent);
+        }
+
+        files.forEach(f => addItem(f, path));
+    } catch (err) {
+        document.getElementById('file-list').innerHTML =
+            `<p style="grid-column:1/-1; text-align:center; color:#d9534f;">Ошибка: ${err.message}</p>`;
+    }
+}
+
+function addItem(f, currentPath = '') {
+    const div = document.createElement('div');
+    const isDir = f.type === 'dir';
+    const ext = f.name.includes('.') ? f.name.slice(f.name.lastIndexOf('.')).toLowerCase() : '';
+    const isTextFile = !isDir && (TEXT_EXTENSIONS.has(ext) || f.size < 300*1024); // до 300 КБ — кандидат
+
+    div.className = `file-item ${isDir ? 'dir' : ''} ${isTextFile ? 'text' : ''} ${f.is_symlink ? 'symlink' : ''}`;
+
+    // Иконки
+    let icon = '📁';
+    if (f.name === '..') icon = '⬆️';
+    else if (isDir) icon = f.is_symlink ? '📂' : '📁';
+    else if (f.is_symlink) icon = '🔗';
+    else if (ext === '.py') icon = '🐍';
+    else if (['.jpg','.jpeg','.png','.gif','.webp','.svg'].includes(ext)) icon = '🖼️';
+    else if (['.pdf'].includes(ext)) icon = '📕';
+    else if (['.zip','.rar','.7z','.tar','.gz'].includes(ext)) icon = '📦';
+    else if (TEXT_EXTENSIONS.has(ext)) icon = '📄';
+    else icon = '📄';
+
+    const sizeStr = isDir ? '' : formatBytes(f.size);
+    const dateStr = f.mtime ? new Date(f.mtime * 1000).toLocaleString('ru-RU') : '';
+
+    let clickPath = f.name === '..' ? currentPath : normalizePath((currentPath ? currentPath + '/' : '') + f.name);
+
+    div.innerHTML = `
+        <div class="file-icon">${icon}</div>
+        <div class="file-info">
+            <div class="file-name" ${f.is_symlink ? `data-target="${(f.target || '').split('/').pop() || f.target}"` : ''}>
+                ${f.name}
+            </div>
+            <div class="file-meta">
+                ${isDir ? 'Папка' : 'Файл'}${f.is_symlink ? ' → симлинк' : ''} • ${sizeStr} • ${dateStr}
+            </div>
+        </div>
+    `;
+
+    if (isDir) {
+        div.onclick = () => loadDirectory(clickPath);
+    } else if (isTextFile) {
+        div.onclick = () => openTextViewer(clickPath, f.name);
+    }
+
+    document.getElementById('file-list').appendChild(div);
+}
+
+async function openTextViewer(filePath, fileName) {
+    const modal = document.getElementById('text-viewer-modal');
+    const title = document.getElementById('text-viewer-title');
+    const body = document.getElementById('text-viewer-body');
+
+    title.textContent = fileName;
+    body.textContent = 'Загрузка...';
+    modal.style.display = 'flex';
+
+    try {
+        const resp = await fetch(`/files/file-content?path=${encodeURIComponent(filePath)}`);
+        if (!resp.ok) throw new Error('Не удалось прочитать файл');
+
+        const text = await resp.text();
+
+        const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+        if (['.py','.js','.json','.html','.css','.xml'].includes(ext)) {
+            body.innerHTML = `<pre><code>${escapeHtml(text)}</code></pre>`;
+        } else {
+            body.textContent = text;
+        }
+    } catch (err) {
+        body.innerHTML = `<p style="color:#d9534f;">Ошибка: ${err.message}</p>`;
+    }
+}
+
+function closeTextViewer() {
+    document.getElementById('text-viewer-modal').style.display = 'none';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatBytes(bytes) {
+    if (!bytes) return '—';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+    return `${bytes.toFixed(1)} ${units[i]}`;
+}
+
+// Закрытие по клику вне окна
+document.getElementById('text-viewer-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('text-viewer-modal')) closeTextViewer();
+});
+
+loadDirectory();
+</script>
+{% endblock %}

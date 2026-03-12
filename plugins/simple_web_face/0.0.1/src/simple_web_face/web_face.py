@@ -12,8 +12,8 @@ class SimpleWebFace:
     def __init__(self):
         self.adaptor = None
         self.page_size = 5
-        self.http_port = None
-        self._http_host = None
+        self.port = None
+        self._host = None
         self._domain = None
         self._runner = None
         self._sockets = []
@@ -28,7 +28,7 @@ class SimpleWebFace:
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
-        logging.info(f'HTTP server stopped at http://{self._http_host}:{self.http_port}')
+        logging.info(f'HTTP server stopped at http://{self._host}:{self.port}')
 
     async def close_websockets(self, timeout=1):
         for ws in self._sockets:
@@ -61,13 +61,13 @@ class SimpleWebFace:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
     async def start(self, recipient):
-        self._http_host = '0.0.0.0'
+        self._host = '0.0.0.0'
         self._runner = await self.initialize_http_server()
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))
 
     async def initialize_http_server(self):
-        self.http_port = int(os.environ.get('PORT', self.http_port))
+        self.port = int(os.environ.get('PORT', self.port))
         app = web.Application()
         app.add_routes([web.get('/', self.root_handler)])
         app.add_routes([web.get('/ws', self.websocket_handler)])
@@ -75,16 +75,16 @@ class SimpleWebFace:
         app.add_routes([web.get('/browse', self._file_browser.handle_browse)])
         _runner = web.AppRunner(app)
         await _runner.setup()
-        site = web.TCPSite(_runner, f'{self._http_host}', self.http_port)
+        site = web.TCPSite(_runner, f'{self._host}', self.port)
         await site.start()
-        logging.info(f'HTTP server started at http://{self._http_host}:{self.http_port}')
+        logging.info(f'HTTP server started at http://{self._host}:{self.port}')
         return _runner
 
     async def root_handler(self, request):
         if self._domain is None:
             self._domain = request.headers.get('Host')
             if self._domain is None:
-                self._domain = os.environ.get('DOMAIN', f'{self._http_host}:{self.http_port}')
+                self._domain = os.environ.get('DOMAIN', f'{self._host}:{self.port}')
         param_level = request.query.get('level')
         param_recipient = request.query.get('recipient')
         if not param_recipient:

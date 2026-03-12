@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Панель управления{% endblock %}</title>
+    <link rel="stylesheet" href="/static/styles.css?v=112">
+
+    {% block extra_head %}
+    <script>
+        // Скрипт для предотвращения отображения страницы из кэша браузера
+        (function () {
+            window.addEventListener('pageshow', function (event) {
+                // Если страница загружена из кэша (например, при нажатии кнопки "Назад")
+                if (event.persisted || (typeof window.performance != "undefined" && window.performance.navigation.type === 2)) {
+                    // Принудительно обновляем страницу, чтобы сервер заново проверил сессию/права
+                    window.location.reload();
+                }
+            });
+        })();
+    </script>
+    {% endblock %}
+</head>
+<body>
+
+<div class="dashboard">
+    <header class="dashboard-header">
+        <div class="header-left">
+            {% if request.url.path != "/" %}
+                <a href="/" class="home-link">Главная</a>
+            {% endif %}
+        </div>
+
+        <div style="position:absolute; left:50%; transform:translateX(-50%); font-size:22px; font-weight:600; color:#fff;">
+            {% block page_title %}Панель управления{% endblock %}
+        </div>
+
+        <div class="user-info">
+            <span>Пользователь:</span>
+            <strong>{{ user.username if user else 'Гость' }}</strong>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+
+            <form action="/auth/logout" method="get" style="display:inline; margin:0; padding:0;">
+                <button type="submit"
+                        style="background:none; border:none; color:#ff6b6b; font-weight:600; cursor:pointer; padding:0; margin:0; font-size:inherit;">
+                    Выйти
+                </button>
+            </form>
+        </div>
+    </header>
+
+    {% block content %}
+    {{content | safe}}
+    {% endblock %}
+
+</div>
+
+</body>
+</html>

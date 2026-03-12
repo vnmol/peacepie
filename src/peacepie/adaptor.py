@@ -141,6 +141,8 @@ class Adaptor:
                 pass
             except BaseException as ex:
                 logging.exception(ex)
+        if hasattr(self.performer, 'sync_exit'):
+            self.performer.sync_exit()
         await self.exit()
         if self.stop_event is not None:
             self.stop_event.set()
@@ -315,7 +317,7 @@ class Adaptor:
         return serialization.Serializer()
 
     def get_serializer_desc(self):
-        return f"'{serialization.__name__}|{serialization.Serializer.__name__}'"
+        return f'{serialization.__name__}|{serialization.Serializer.__name__}'
 
     def get_serializer_spec(self):
         path, module = os.path.split(inspect.getmodule(serialization).__file__)
@@ -328,7 +330,7 @@ class Adaptor:
             res = os.path.dirname(spec.origin)
             if path_only:
                 res = os.path.dirname(res)
-            res = f"'{res}'"
+            res = f'{res}'
         return res
 
     def makedir(self, dirpath, clear=False):
@@ -750,3 +752,6 @@ class Adaptor:
         else:
             await self.find(self, entity)
             return self.admin.cache.get(entity) is not None
+
+    def adjust_log_config(self, cwd, process_name):
+        return log_util.adjust_log_config(cwd, process_name)

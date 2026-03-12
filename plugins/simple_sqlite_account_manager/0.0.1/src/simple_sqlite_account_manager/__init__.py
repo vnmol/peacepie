@@ -1,1 +1,0 @@
-from simple_sqlite_account_manager.account_manager import SimpleSqliteAccountManager

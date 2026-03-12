@@ -1,0 +1,14 @@
+
+    /* Переопределение стилей для заголовков вкладок */
+    .nav-tabs .nav-link.active {
+        background-color: #7A8A4B; /* Цвет фона активной вкладки */
+        color: white;              /* Цвет текста активной вкладки */
+        border-color: #7A8A4B #7A8A4B #fff; /* Цвета границ */
+    }
+    .nav-tabs .nav-link {
+        color: #7A8A4B; /* Цвет текста неактивной вкладки */
+    }
+    .nav-tabs .nav-link:hover:not(.active) {
+        border-color: #e9ecef #e9ecef #dee2e6; /* Цвета границ при наведении на неактивную вкладку */
+        background-color: #f8f9fa; /* Лёгкий фон при наведении */
+    }

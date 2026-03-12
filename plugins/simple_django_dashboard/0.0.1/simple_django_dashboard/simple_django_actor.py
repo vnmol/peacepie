@@ -61,7 +61,7 @@ class SimpleDjangoActor:
         ans = await asyncio.wait_for(queue.get(), timeout=4)
         path = f'{self.path}/{DJANGO_PROJECT_NAME}'
         with open(f'{path}/settings.py', 'a', encoding='utf-8') as file:
-            file.write(f'\n\nDASHBOARD_PEACEPIE_PATH = {self.adaptor.get_package_path()}\n')
-            file.write(f'DASHBOARD_PEACEPIE_SERIALIZATOR = {self.adaptor.get_serializer_desc()}\n')
-            file.write(f'DASHBOARD_ZMQ_SERVER_PORT = {self.zmq_server.port}\n')
-            file.write(f'DASHBOARD_HOST_IP = \'{self.adaptor.get_param("ip")}\'\n')
+            file.write(f"\n\nDASHBOARD_PEACEPIE_PATH = '{self.adaptor.get_package_path()}'\n")
+            file.write(f"DASHBOARD_PEACEPIE_SERIALIZATOR = '{self.adaptor.get_serializer_desc()}'\n")
+            file.write(f"DASHBOARD_ZMQ_SERVER_PORT = {self.zmq_server.port}\n")
+            file.write(f"DASHBOARD_HOST_IP = \'{self.adaptor.get_param("ip")}\'\n")

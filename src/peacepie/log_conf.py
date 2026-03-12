@@ -4,11 +4,10 @@ import os
 import json
 import logging
 import logging.config
-import sys
 from logging.handlers import RotatingFileHandler
 
 from peacepie import params
-from peacepie.assist import dir_opers
+from peacepie.assist import dir_opers, log_util
 from peacepie.assist.auxiliaries import is_pycharm
 
 LOG_PATH = 'logs/log.log'
@@ -34,7 +33,9 @@ def logger_start(config_filename):
         for _, handler_config in config.get('handlers', {}).items():
             if 'filename' in handler_config:
                 handler_config['filename'] = f'{params.instance.get("log_dir")}{process}/{handler_config["filename"]}'
-        check_paths(config)
+        if params.instance.get('developing_mode') or is_pycharm():
+            dir_opers.cleardir(params.instance.get('log_dir'))
+        log_util.check_paths(config)
         logging.config.dictConfig(config)
         logger = logging.getLogger()
         logger.info('Logging.config is set from: ' + config_filename)
@@ -53,13 +54,3 @@ def get_default_logger():
     res.addHandler(handler)
     res.info('Default logger is created')
     return res
-
-
-def check_paths(config):
-    if params.instance.get('developing_mode') or is_pycharm():
-        dir_opers.cleardir(params.instance.get('log_dir'))
-    filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
-    filepaths = set([os.path.dirname(filename) for filename in filenames])
-    for filepath in filepaths:
-        if not os.path.exists(filepath):
-            os.makedirs(filepath)

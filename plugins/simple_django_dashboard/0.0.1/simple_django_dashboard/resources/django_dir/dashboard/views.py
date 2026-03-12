@@ -12,7 +12,7 @@ def root(request):
     param_id = request.GET.get('id')
     body = {'page_size': PAGE_SIZE, 'level': param_level, 'id': param_id}
     msg = {'command': 'get_members', 'body': body, 'recipient': param_recipient}
-    ans = zmq_client.client.send_request(msg)
+    ans = zmq_client.client.ask(msg)
     head = f'<head>\n<meta charset="UTF-8">\n<style>\n{html_addons.entity_style}\n</style>\n</head>\n\n'
     text = f'<!DOCTYPE html>\n<html>\n{head}<body>\n\n'
     body = ans.get('body')

@@ -1,0 +1,828 @@
+{% extends "base.html" %}
+
+{% block page_title %}Управление ролями{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div id="loading-message">Загрузка данных...</div>
+    <div class="roles-container" id="roles-container">
+        <h3 style="color: #6b7a4e; font-size: 24px;">Роли</h3>
+        <div class="button-container">
+            <!-- Кнопки с обновленными цветами -->
+            <button id="open-create-role-modal" class="ask_send add-btn">Добавить</button>
+            <button id="edit-selected-role" class="ask_send edit-btn" disabled>Изменить</button>
+            <button id="delete-selected-role" class="ask_send delete-btn" disabled>Удалить</button>
+        </div>
+
+        <table id="roles-table" class="styled-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Имя</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Контейнер для таблицы прав доступа -->
+    <div class="permissions-container" id="permissions-container">
+        <h3 style="color: #6b7a4e; font-size: 24px;">Права доступа</h3>
+        <div class="button-container">
+            <button id="open-create-permission-modal" class="ask_send add-btn" disabled>Добавить</button>
+            <button id="delete-selected-permission" class="ask_send delete-btn" disabled>Удалить</button>
+        </div>
+
+        <table id="permissions-table" class="styled-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Код</th>
+                    <th>Описание</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Модальное окно для создания роли -->
+<div id="create-role-modal" class="modal">
+    <div class="modal-content">
+        <span class="close create-close">&times;</span>
+        <h2>Создать Новую Роль</h2>
+        <input type="text" id="new-role-name-input" placeholder="Введите имя роли" required>
+        <button id="submit-new-role" class="ask_send submit-edit-btn">Создать</button>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования роли -->
+<div id="edit-role-modal" class="modal">
+    <div class="modal-content">
+        <span class="close edit-close">&times;</span>
+        <h2>Редактировать Роль</h2>
+        <input type="hidden" id="edit-role-id">
+        <input type="text" id="edit-role-name-input" placeholder="Введите имя роли" required>
+        <button id="submit-edit-role" class="ask_send submit-edit-btn">Сохранить изменения</button>
+    </div>
+</div>
+
+<!-- Модальное окно для добавления права доступа -->
+<div id="create-permission-modal" class="modal">
+    <div class="modal-content">
+        <span class="close permission-close">&times;</span>
+        <h2>Добавить Новое Право</h2>
+        <input type="hidden" id="permission-role-id">
+        <input type="text" id="new-permission-code-input" placeholder="Введите код права" required>
+        <input type="text" id="new-permission-desc-input" placeholder="Введите описание права" required>
+        <button id="submit-new-permission" class="ask_send submit-edit-btn">Добавить</button>
+    </div>
+</div>
+
+<script>
+    // Используем новый путь для WebSocket
+    const ws = new WebSocket(`ws://${window.location.host}/roles/ws`);
+    let appData = {};
+    let selectedRoleId = null;
+    let selectedPermissionId = null;
+
+    function populateUI() {
+        const loadingMsg = document.getElementById('loading-message');
+        if (loadingMsg) loadingMsg.style.display = 'none';
+
+        const container = document.getElementById('roles-container');
+        if (container) container.style.display = 'block';
+
+        const tbody = document.querySelector('#roles-table tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (!appData.roles || appData.roles.length === 0) {
+            // Показываем пустую таблицу или сообщение
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = 2;
+            emptyCell.textContent = 'Нет доступных ролей';
+            emptyCell.style.textAlign = 'center';
+            emptyCell.style.padding = '20px';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+            return;
+        }
+
+        appData.roles.forEach(role => {
+            const tr = document.createElement('tr');
+            tr.dataset.roleId = role.id;
+
+            // Добавляем обработчик клика для выделения строки
+            tr.addEventListener('click', () => {
+                selectRole(role.id);
+            });
+
+            // Ячейка ID
+            const tdId = document.createElement('td');
+            tdId.textContent = role.id;
+
+            // Ячейка Имя
+            const tdName = document.createElement('td');
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = role.name;
+            nameSpan.classList.add('role-name-span', `role-${role.id}`);
+            tdName.appendChild(nameSpan);
+
+            tr.appendChild(tdId);
+            tr.appendChild(tdName);
+            tbody.appendChild(tr);
+        });
+
+        // Если была выбрана роль, проверяем её наличие в новых данных
+        if (selectedRoleId) {
+            if (!appData.roles.find(r => r.id === selectedRoleId)) {
+                selectedRoleId = null;
+                selectedPermissionId = null; // Также сбрасываем выделение права
+                populatePermissionsTable([]); // Очищаем таблицу прав
+            } else {
+                // Восстанавливаем выделение
+                const selectedRow = document.querySelector(`tr[data-role-id="${selectedRoleId}"]`);
+                if (selectedRow) {
+                    selectedRow.classList.add('selected-row');
+                }
+                // Загружаем права для этой роли
+                const role = appData.roles.find(r => r.id === selectedRoleId);
+                if (role && role.permissions) {
+                    populatePermissionsTable(role.permissions);
+                } else {
+                    populatePermissionsTable([]);
+                }
+            }
+        } else {
+            // Если роль не выбрана, очищаем таблицу прав
+            populatePermissionsTable([]);
+        }
+
+        updateButtonsState();
+    }
+
+    function populatePermissionsTable(permissions) {
+        const permTbody = document.querySelector('#permissions-table tbody');
+        if (!permTbody) return;
+
+        permTbody.innerHTML = '';
+
+        if (!permissions || permissions.length === 0) {
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = 3;
+            emptyCell.textContent = 'Нет доступных прав';
+            emptyCell.style.textAlign = 'center';
+            emptyCell.style.padding = '20px';
+            emptyRow.appendChild(emptyCell);
+            permTbody.appendChild(emptyRow);
+            return;
+        }
+
+        permissions.forEach(permission => {
+            const tr = document.createElement('tr');
+            tr.dataset.permissionId = permission.id;
+
+            // Добавляем обработчик клика для выделения строки права
+            tr.addEventListener('click', (e) => {
+                e.stopPropagation(); // Предотвращаем всплытие до строки роли
+                selectPermission(permission.id);
+            });
+
+            // Ячейка ID
+            const tdId = document.createElement('td');
+            tdId.textContent = permission.id;
+
+            // Ячейка Код
+            const tdCode = document.createElement('td');
+            const codeSpan = document.createElement('span');
+            codeSpan.textContent = permission.code;
+            tdCode.appendChild(codeSpan);
+
+            // Ячейка Описание
+            const tdDesc = document.createElement('td');
+            const descSpan = document.createElement('span');
+            descSpan.textContent = permission.description;
+            tdDesc.appendChild(descSpan);
+
+            tr.appendChild(tdId);
+            tr.appendChild(tdCode);
+            tr.appendChild(tdDesc);
+            permTbody.appendChild(tr);
+        });
+    }
+
+    function selectRole(roleId) {
+        // Снимаем выделение с предыдущей строки роли
+        if (selectedRoleId) {
+            const prevRow = document.querySelector(`tr[data-role-id="${selectedRoleId}"]`);
+            if (prevRow) {
+                prevRow.classList.remove('selected-row');
+            }
+        }
+
+        // Если кликнули на уже выделенную строку - снимаем выделение
+        if (selectedRoleId === roleId) {
+            selectedRoleId = null;
+            selectedPermissionId = null; // Сбрасываем выделение права
+            populatePermissionsTable([]); // Очищаем таблицу прав
+        } else {
+            // Выделяем новую строку
+            selectedRoleId = roleId;
+            const currentRow = document.querySelector(`tr[data-role-id="${roleId}"]`);
+            if (currentRow) {
+                currentRow.classList.add('selected-row');
+            }
+
+            // Загружаем права для выбранной роли
+            const role = appData.roles.find(r => r.id === roleId);
+            if (role && role.permissions) {
+                populatePermissionsTable(role.permissions);
+            } else {
+                populatePermissionsTable([]);
+            }
+            selectedPermissionId = null; // Сбрасываем выделение права
+        }
+
+        // Обновляем состояние кнопок
+        updateButtonsState();
+    }
+
+    function selectPermission(permissionId) {
+        // Снимаем выделение с предыдущей строки права
+        if (selectedPermissionId) {
+            const prevPermRow = document.querySelector(`tr[data-permission-id="${selectedPermissionId}"]`);
+            if (prevPermRow) {
+                prevPermRow.classList.remove('selected-permission-row');
+            }
+        }
+
+        // Если кликнули на уже выделенную строку права - снимаем выделение
+        if (selectedPermissionId === permissionId) {
+            selectedPermissionId = null;
+        } else {
+            // Выделяем новую строку права
+            selectedPermissionId = permissionId;
+            const currentPermRow = document.querySelector(`tr[data-permission-id="${permissionId}"]`);
+            if (currentPermRow) {
+                currentPermRow.classList.add('selected-permission-row');
+            }
+        }
+
+        // Обновляем состояние кнопок прав
+        updateButtonsState();
+    }
+
+    function updateButtonsState() {
+        const hasRoleSelection = selectedRoleId !== null;
+        const hasPermissionSelection = selectedPermissionId !== null;
+        const editBtn = document.getElementById('edit-selected-role');
+        const deleteBtn = document.getElementById('delete-selected-role');
+        const addPermBtn = document.getElementById('open-create-permission-modal');
+        const deletePermBtn = document.getElementById('delete-selected-permission');
+
+        if (editBtn) editBtn.disabled = !hasRoleSelection;
+        if (deleteBtn) deleteBtn.disabled = !hasRoleSelection;
+        if (addPermBtn) addPermBtn.disabled = !hasRoleSelection;
+        if (deletePermBtn) deletePermBtn.disabled = !hasPermissionSelection;
+    }
+
+    // Функция открытия модального окна редактирования для выделенной роли
+    function editSelectedRole() {
+        if (!selectedRoleId) {
+            alert('Пожалуйста, выберите роль для редактирования.');
+            return;
+        }
+
+        // Находим роль в данных
+        const role = appData.roles.find(r => r.id === selectedRoleId);
+        if (role) {
+            document.getElementById('edit-role-id').value = role.id;
+            document.getElementById('edit-role-name-input').value = role.name;
+            document.getElementById('edit-role-modal').style.display = 'block';
+            document.getElementById('edit-role-name-input').focus();
+        }
+    }
+
+    function deleteSelectedRole() {
+        if (!selectedRoleId) {
+            alert('Пожалуйста, выберите роль для удаления.');
+            return;
+        }
+
+        if (confirm('Вы уверены, что хотитеную роль?')) {
+            const msg = {command: "delete_role", body: {role_id: selectedRoleId}};
+            ws.send(JSON.stringify(msg));
+            // Сброс выделения произойдет после получения обновленных данных
+        }
+    }
+
+    function deleteSelectedPermission() {
+        if (!selectedPermissionId) {
+            alert('Пожалуйста, выберите право для удаления.');
+            return;
+        }
+
+        if (confirm('Вы уверены, что хотите удалить выбранное право?')) {
+            const msg = {command: "remove_permission_from_role", body: {role_id: selectedRoleId, permission_id: selectedPermissionId}};
+            ws.send(JSON.stringify(msg));
+            // Сброс выделения произойдет после получения обновленных данных
+        }
+    }
+
+    function openCreatePermissionModal() {
+        if (!selectedRoleId) {
+            alert('Пожалуйста, сначала выберите роль.');
+            return;
+        }
+
+        document.getElementById('permission-role-id').value = selectedRoleId;
+        document.getElementById('new-permission-code-input').value = '';
+        document.getElementById('new-permission-desc-input').value = '';
+        document.getElementById('create-permission-modal').style.display = 'block';
+        document.getElementById('new-permission-code-input').focus();
+    }
+
+    function submitNewPermission() {
+        const roleId = parseInt(document.getElementById('permission-role-id').value);
+        const code = document.getElementById('new-permission-code-input').value.trim();
+        const description = document.getElementById('new-permission-desc-input').value.trim();
+
+        if (code && description) {
+            const msg = {command: "add_permission_to_role", body: {role_id: roleId, permission_code: code, permission_description: description}};
+            ws.send(JSON.stringify(msg));
+            document.getElementById('create-permission-modal').style.display = 'none';
+            document.getElementById('new-permission-code-input').value = '';
+            document.getElementById('new-permission-desc-input').value = '';
+        } else {
+            alert('Пожалуйста, заполните все поля.');
+        }
+    }
+
+    // --- Логика модальных окон ---
+
+    const createModal = document.getElementById('create-role-modal');
+    const openModalBtn = document.getElementById('open-create-role-modal');
+    const closeCreateModalBtn = document.querySelector('.create-close');
+    const submitRoleBtn = document.getElementById('submit-new-role');
+    const roleNameInput = document.getElementById('new-role-name-input');
+
+    if (openModalBtn) {
+        openModalBtn.onclick = () => {
+            if (createModal) {
+                createModal.style.display = 'block';
+                if (roleNameInput) {
+                    roleNameInput.value = ''; // Очищаем поле при открытии
+                    roleNameInput.focus();
+                }
+            }
+        };
+    }
+
+    if (closeCreateModalBtn) {
+        closeCreateModalBtn.onclick = () => {
+            if (createModal) {
+                createModal.style.display = 'none';
+                if (roleNameInput) roleNameInput.value = '';
+            }
+        };
+    }
+
+    // Модальное окно редактирования
+    const editModal = document.getElementById('edit-role-modal');
+    const closeEditModalBtn = document.querySelector('.edit-close');
+    const submitEditBtn = document.getElementById('submit-edit-role');
+    const editRoleNameInput = document.getElementById('edit-role-name-input');
+    const editRoleIdInput = document.getElementById('edit-role-id');
+
+    if (closeEditModalBtn) {
+        closeEditModalBtn.onclick = () => {
+            if (editModal) {
+                editModal.style.display = 'none';
+                if (editRoleNameInput) editRoleNameInput.value = '';
+            }
+        };
+    }
+
+    if (submitEditBtn) {
+        submitEditBtn.onclick = () => {
+            const roleId = parseInt(editRoleIdInput.value);
+            const newName = editRoleNameInput.value.trim();
+
+            if (newName) {
+                const msg = {command: "update_role_name", body: {role_id: roleId, new_name: newName}};
+                ws.send(JSON.stringify(msg));
+                if (editModal) editModal.style.display = 'none';
+                if (editRoleNameInput) editRoleNameInput.value = '';
+            } else {
+                alert('Пожалуйста, введите имя для роли.');
+            }
+        };
+    }
+
+    if (submitRoleBtn) {
+        submitRoleBtn.onclick = () => {
+            const name = roleNameInput.value.trim();
+            if (name) {
+                const msg = {command: "create_role", body: {name: name}};
+                ws.send(JSON.stringify(msg));
+                if (createModal) createModal.style.display = 'none';
+                if (roleNameInput) roleNameInput.value = '';
+            } else {
+                alert('Пожалуйста, введите имя для новой роли.');
+            }
+        };
+    }
+
+    // Модальное окно добавления права
+    const createPermissionModal = document.getElementById('create-permission-modal');
+    const openPermissionModalBtn = document.getElementById('open-create-permission-modal');
+    const closePermissionModalBtn = document.querySelector('.permission-close');
+    const submitPermissionBtn = document.getElementById('submit-new-permission');
+    const permissionCodeInput = document.getElementById('new-permission-code-input');
+    const permissionDescInput = document.getElementById('new-permission-desc-input');
+
+    if (openPermissionModalBtn) {
+        openPermissionModalBtn.onclick = openCreatePermissionModal;
+    }
+
+    if (closePermissionModalBtn) {
+        closePermissionModalBtn.onclick = () => {
+            if (createPermissionModal) {
+                createPermissionModal.style.display = 'none';
+                if (permissionCodeInput) permissionCodeInput.value = '';
+                if (permissionDescInput) permissionDescInput.value = '';
+            }
+        };
+    }
+
+    if (submitPermissionBtn) {
+        submitPermissionBtn.onclick = submitNewPermission;
+    }
+
+    // Закрытие модальных окон при клике вне их
+    window.onclick = (event) => {
+        if (event.target === createModal) {
+            if (createModal) createModal.style.display = 'none';
+            if (roleNameInput) roleNameInput.value = '';
+        }
+        if (event.target === editModal) {
+            if (editModal) editModal.style.display = 'none';
+            if (editRoleNameInput) editRoleNameInput.value = '';
+        }
+        if (event.target === createPermissionModal) {
+            if (createPermissionModal) createPermissionModal.style.display = 'none';
+            if (permissionCodeInput) permissionCodeInput.value = '';
+            if (permissionDescInput) permissionDescInput.value = '';
+        }
+    };
+
+    // Отправка по Enter
+    if (roleNameInput) {
+        roleNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Предотвращаем возможное нежелательное поведение
+                if (submitRoleBtn) submitRoleBtn.click();
+            }
+        });
+    }
+
+    if (editRoleNameInput) {
+        editRoleNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (submitEditBtn) submitEditBtn.click();
+            }
+        });
+    }
+
+    if (permissionCodeInput) {
+        permissionCodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) { // Ctrl+Enter для перехода к следующему полю
+                e.preventDefault();
+                permissionDescInput.focus();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (submitPermissionBtn) submitPermissionBtn.click();
+            }
+        });
+    }
+
+    if (permissionDescInput) {
+        permissionDescInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (submitPermissionBtn) submitPermissionBtn.click();
+            }
+        });
+    }
+
+    // Кнопки действий
+    const editBtn = document.getElementById('edit-selected-role');
+    if (editBtn) {
+        editBtn.addEventListener('click', editSelectedRole);
+    }
+
+    const deleteBtn = document.getElementById('delete-selected-role');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', deleteSelectedRole);
+    }
+
+    const deletePermBtn = document.getElementById('delete-selected-permission');
+    if (deletePermBtn) {
+        deletePermBtn.addEventListener('click', deleteSelectedPermission);
+    }
+
+    // --- WebSocket Логика ---
+    ws.onopen = () => {
+        console.log('WebSocket соединение установлено');
+        // Отправляем запрос данных при установке соединения
+        const msg = {command: "get_all_roles", body: {}};
+        ws.send(JSON.stringify(msg));
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const response = JSON.parse(event.data);
+            console.log('Получен ответ:', response);
+
+            if (response.status === 'success') {
+                if (response.data) {
+                    // Обновляем локальные данные
+                    appData = response.data;
+                    populateUI();
+
+                    // После обновления данных, если есть выбранная роль, восстанавливаем выделение права
+                    if (selectedRoleId && selectedPermissionId) {
+                        const role = appData.roles.find(r => r.id === selectedRoleId);
+                        if (role && role.permissions && role.permissions.some(p => p.id === selectedPermissionId)) {
+                            // Выделенная роль и право всё ещё существуют
+                            const permRow = document.querySelector(`tr[data-permission-id="${selectedPermissionId}"]`);
+                            if (permRow) {
+                                permRow.classList.add('selected-permission-row');
+                            }
+                        } else {
+                            // Право больше не существует для этой роли
+                            selectedPermissionId = null;
+                            updateButtonsState();
+                        }
+                    }
+                } else {
+                    // Операции типа создания/удаления возвращают успех без новых данных
+                    // Запрашиваем обновленные данные
+                    const refreshMsg = {command: "get_all_roles", body: {}};
+                    ws.send(JSON.stringify(refreshMsg));
+                }
+            } else {
+                alert(`Ошибка: ${response.message}`);
+            }
+        } catch (e) {
+            console.error('Ошибка парсинга ответа:', e);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket ошибка:', error);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket соединение закрыто');
+    };
+
+</script>
+
+<style>
+    /* Стили для модальных окон */
+    .modal {
+        display: none; /* Скрыто по умолчанию */
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5); /* Полупрозрачный фон */
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto; /* Центрируем по вертикали */
+        padding: 30px;
+        border: 1px solid #888;
+        border-radius: 10px;
+        width: 80%;
+        max-width: 500px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        position: absolute;
+        right: 15px;
+        top: 10px;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: black;
+    }
+
+    .modal-content h2 {
+        margin-top: 0;
+        color: #444;
+    }
+
+    #new-role-name-input,
+    #edit-role-name-input,
+    #new-permission-code-input,
+    #new-permission-desc-input {
+        width: 100%;
+        padding: 12px 15px;
+        margin: 15px 0;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    #new-role-name-input:focus,
+    #edit-role-name-input:focus,
+    #new-permission-code-input:focus,
+    #new-permission-desc-input:focus {
+        outline: none;
+        border-color: #8A9A5B;
+        box-shadow: 0 0 8px rgba(138,154,91,0.4);
+    }
+
+    /* Стили для таблицы ролей */
+    .styled-table {
+        border-collapse: collapse;
+        margin: 25px auto; /* Центрируем таблицу с отступом сверху */
+        font-size: 0.9em;
+        font-family: sans-serif;
+        min-width: 400px;
+        width: 100%; /* Таблица занимает всю ширину контейнера */
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .styled-table thead tr {
+        background-color: #8A9A5B; /* Цвет фона заголовка из стиля ask_send */
+        color: #ffffff;
+        text-align: left;
+    }
+
+    .styled-table th,
+    .styled-table td {
+        padding: 12px 15px;
+        border: 1px solid #dddddd; /* Добавлена граница для ячеек */
+        vertical-align: middle; /* Выравнивание по центру по вертикали */
+    }
+
+    .styled-table tbody tr {
+        border-bottom: 1px solid #dddddd;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .styled-table tbody tr:hover {
+        background-color: #f0f0f0;
+    }
+
+    .styled-table tbody tr.selected-row {
+        background-color: #e8f0fe !important; /* Светло-голубой фон для выделенной строки */
+        border-left: 4px solid #8A9A5B;
+        position: relative;
+    }
+
+    .styled-table tbody tr.selected-permission-row {
+        background-color: #e8f0fe !important; /* Светло-голубой фон для выделенной строки права */
+        border-left: 4px solid #8A9A5B;
+        position: relative;
+    }
+
+    .styled-table tbody tr.selected-row td:first-child,
+    .styled-table tbody tr.selected-permission-row td:first-child {
+        padding-left: 11px; /* Компенсация для border-left (12px - 1px) */
+    }
+
+    .styled-table tbody tr:nth-of-type(even) {
+        background-color: #f3f3f3;
+    }
+
+    .styled-table tbody tr:nth-of-type(odd) {
+        background-color: #ffffff; /* Белый */
+    }
+
+    .styled-table tbody tr:last-of-type {
+        border-bottom: 2px solid #8A9A5B; /* Более темная граница у последней строки */
+    }
+
+    /* Стили для кнопок */
+    .button-container {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .ask_send {
+        color: white;
+        border: none;
+        border-radius: 14px;
+        padding: 12px 24px;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 14px;
+        min-width: 100px;
+    }
+
+    .ask_send:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+
+    .ask_send:disabled {
+        background: #d0d0d0 !important;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+        opacity: 0.6;
+        color: #888888;
+    }
+
+    /* Кнопка Добавить - ярко-зеленый */
+    .add-btn {
+        background: #4CAF50; /* Ярко-зеленый */
+    }
+
+    .add-btn:hover {
+        background: #45a049; /* Чуть темнее при наведении */
+    }
+
+    /* Кнопка Изменить - блеклый оливковый */
+    .edit-btn {
+        background: #8A9A5B; /* Блеклый оливковый */
+    }
+
+    .edit-btn:hover {
+        background: #7A8A4B; /* Чуть темнее при наведении */
+    }
+
+    /* Кнопка Удалить - ярко-красный */
+    .delete-btn {
+        background: #f44336 !important; /* Ярко-красный */
+    }
+
+    .delete-btn:hover {
+        background: #d32f2f !important; /* Чуть темнее при наведении */
+    }
+
+    /* Кнопки в модальных окнах - все оливковые */
+    .submit-edit-btn {
+        background: #8A9A5B !important; /* Оливковый */
+        width: 100%;
+    }
+
+    .submit-edit-btn:hover {
+        background: #7A8A4B !important;
+    }
+
+    .role-name-span {
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    /* Стили для контейнера */
+    .container {
+        width: 90%;
+        margin: 40px auto;
+        display: flex;
+        gap: 30px;
+        justify-content: center;
+    }
+
+    .roles-container {
+        width: 40%;
+        margin-left: 0; /* Выравнивание слева */
+    }
+
+    .permissions-container {
+        width: 50%;
+        margin-left: 0;
+    }
+
+</style>
+{% endblock %}

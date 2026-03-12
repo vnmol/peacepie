@@ -11,7 +11,7 @@ async def websocket_application(scope, receive, send):
         if event['type'] == 'websocket.disconnect':
             break
         if event['type'] == 'websocket.receive':
-            ans = zmq_client.client.send_request(json.loads(event['text']))
+            ans = zmq_client.client.ask(json.loads(event['text']))
             if ans.get('is_text'):
                 text = ans.get('text')
             else:

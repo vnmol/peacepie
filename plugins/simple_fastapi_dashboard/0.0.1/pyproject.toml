@@ -3,16 +3,20 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "simple_sqlite"
-version = "0.0.9"
+name = "simple_fastapi_dashboard"
+version = "0.0.1"
 authors = [
     {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
 ]
-description = "Simple sqlite database"
 keywords = ["peacepie"]
 dependencies = [
-    "sqlalchemy",
-    "bcrypt",
+    'fastapi',
+    'jinja2',
+    'pyjwt',
+    'python-multipart',
+    'pyzmq',
+    'uvicorn[standard]',
+    'pydantic',
 ]
 
 [tool.setuptools.packages.find]
@@ -24,4 +28,4 @@ where = ["src"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-"*" = ["resources/*", "resources/**/*"]
+"*" = ["templates/*", "templates/**/*"]

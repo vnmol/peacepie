@@ -1,7 +1,11 @@
 import asyncio
+import json
+import os
 import re
 
-from peacepie import adaptor
+from peacepie import adaptor, params
+from peacepie.assist import dir_opers
+from peacepie.assist.auxiliaries import is_pycharm
 
 
 def get_alias(obj):
@@ -74,3 +78,26 @@ def addr_format(addr):
         return f'{addr.__class__.__name__}({id(addr)})'
     else:
         return str(addr)
+
+
+def adjust_log_config(cwd, process_name):
+    config_filename = params.instance.get('log_config')
+    with open(config_filename, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    log_dir = os.path.abspath(params.instance.get("log_dir"))
+    for _, handler_config in config.get('handlers', {}).items():
+        if 'filename' in handler_config:
+            handler_config['filename'] = f'{log_dir}/{process_name}/{handler_config["filename"]}'
+    check_paths(config)
+    name = f'{os.path.basename(config_filename).split(".")[0]}.json'
+    with open(f'{cwd}/{name}', 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=4, ensure_ascii=False)
+    return name
+
+
+def check_paths(config):
+    filenames = set([handler.get('filename') for handler in config.get('handlers').values()])
+    filepaths = set([os.path.dirname(filename) for filename in filenames])
+    for filepath in filepaths:
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
