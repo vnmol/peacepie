@@ -3,7 +3,7 @@ import logging
 import os
 
 from fastapi import APIRouter, Depends, Request, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketState
 from fastapi.templating import Jinja2Templates
@@ -54,7 +54,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             logging.debug(f"Received from websocket({id(websocket)}): '{data}'")
-            await websocket_handle(websocket, data)
+            await websocket_handle(websocket, user.get('username'), data)
     except WebSocketDisconnect:
         logging.info(f'Websocket({id(websocket)}) is disconnected')
     except Exception as e:
@@ -65,8 +65,10 @@ async def websocket_endpoint(websocket: WebSocket):
     logging.info(f'Websocket({id(websocket)}) is closed')
 
 
-async def websocket_handle(ws, data):
-    ans = zmq_client.client.ask(json.loads(data))
+async def websocket_handle(ws, user, data):
+    msg = json.loads(data)
+    msg['user'] = user
+    ans = zmq_client.client.ask(msg)
     if isinstance(ans, dict):
         ans = json.dumps(ans)
     await ws.send_text(ans)
@@ -75,11 +77,15 @@ async def websocket_handle(ws, data):
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, user=Depends(security.get_current_user)):
-    content = await get_content(request)
+    content = await get_content(request, user)
+    if content.startswith('access_denied'):
+        response = RedirectResponse(url='/', status_code=302)
+        response.set_cookie(key="error_message", value=content.replace('access_denied', 'Access denied'), max_age=5)
+        return response
     return templates.TemplateResponse("actors.html", {"request": request, "user": user, "content": content})
 
 
-async def get_content(request: Request):
+async def get_content(request: Request, user):
     contxt = get_context()
     if contxt.domain is None:
         contxt.domain = request.headers.get('Host')
@@ -89,8 +95,11 @@ async def get_content(request: Request):
     param_recipient = request.query_params.get('recipient')
     param_id = request.query_params.get('id')
     body = {'page_size': contxt.page_size, 'level': param_level, 'recipient': param_recipient, 'id': param_id}
-    msg = {'command': 'get_members', 'body': body, 'recipient': param_recipient}
+    msg = {'command': 'get_members', 'body': body, 'recipient': param_recipient, 'user': user.get('username')}
     ans = zmq_client.client.ask(msg)
+    command = ans.get('command')
+    if command != 'members':
+        return f'{command}:  {str(ans.get("body"))}'
     body = ans.get('body')
     text = '<div class="menu-grid">\n'
     text += level(body)

@@ -38,6 +38,8 @@ def secure_path(path: str) -> Path:
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, user=Depends(security.get_current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
     return templates.TemplateResponse("files.html", {"request": request, "user": user})
 
 

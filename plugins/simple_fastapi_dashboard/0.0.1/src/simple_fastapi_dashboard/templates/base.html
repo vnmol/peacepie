@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Панель управления{% endblock %}</title>
-    <link rel="stylesheet" href="/static/styles.css?v=112">
+    <link rel="stylesheet" href="/static/styles.css?v=115">
 
     {% block extra_head %}
     <script>
@@ -48,6 +48,20 @@
             </form>
         </div>
     </header>
+
+{% if error_message %}
+<div style="
+    text-align: center;
+    color: red;
+    font-size: 20px;
+    font-weight: bold;
+    margin: 20px 0;
+    padding: 10px;
+    width: 100%;
+">
+    {{ error_message }}
+</div>
+{% endif %}
 
     {% block content %}
     {{content | safe}}

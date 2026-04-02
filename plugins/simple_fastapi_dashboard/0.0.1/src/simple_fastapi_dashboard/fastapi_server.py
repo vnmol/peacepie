@@ -1,13 +1,13 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from core import config, security, zmq_client
-from api import actors, auth, files, roles, users
+from api import actors, auth, files, users
 
 
 @asynccontextmanager
@@ -26,7 +26,6 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(auth.router, prefix='/auth')
 app.include_router(files.router, prefix='/files', tags=["files"])
 app.include_router(actors.router, prefix='/actors', tags=["actors"])
-app.include_router(roles.router, prefix='/roles', tags=["roles"])
 app.include_router(users.router, prefix='/users', tags=["users"])
 
 
@@ -52,4 +51,7 @@ async def favicon():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, user=Depends(security.get_current_user)):
-    return templates.TemplateResponse("index.html", {"request": request, "user":user})
+    error_message = request.cookies.get("error_message")
+    response = templates.TemplateResponse("index.html", {"request": request, "error_message": error_message, "user":user})
+    response.delete_cookie("error_message")
+    return response

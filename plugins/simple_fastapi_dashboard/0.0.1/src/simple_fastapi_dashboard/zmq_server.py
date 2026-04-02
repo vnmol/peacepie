@@ -34,11 +34,12 @@ class ZmqServer:
             logging.exception(ex)
 
     async def server_handle(self):
+        adaptor = self.parent.adaptor
         while True:
             try:
                 msgs = self.serializer.deserialize(await asyncio.wait_for(self.socket.recv(), 300))
                 for msg in msgs:
-                    logging.debug(f'{self.parent.adaptor.get_alias(self)} obtained: {msg}')
+                    logging.debug(f'{adaptor.get_alias(self)} obtained: {adaptor.format_msg(msg)}')
                     tp = msg.get('type')
                     body = msg.get('body')
                     recipient = msg.get('recipient')
@@ -53,13 +54,13 @@ class ZmqServer:
                     except Exception as e:
                         logging.exception(e)
                         timeout = 4
-                    query = self.parent.adaptor.get_msg(msg.get('command'), body, recipient)
+                    query = self.parent.adaptor.get_msg(msg.get('command'), body, recipient, user=msg.get('user'))
                     if tp == 'send':
                         await self.parent.adaptor.send(query)
                         res = 'The message is sent'
                     else:
                         res = await self.parent.adaptor.ask(query, timeout)
                     await self.socket.send(self.serializer.serialize(res))
-                    logging.debug(f'{self.parent.adaptor.get_alias(self)} transferred: {res}')
+                    logging.debug(f'{adaptor.get_alias(self)} transferred: {adaptor.format_msg(res)}')
             except TimeoutError:
                 pass

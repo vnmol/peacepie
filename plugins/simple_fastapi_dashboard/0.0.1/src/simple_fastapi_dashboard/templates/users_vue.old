@@ -1,0 +1,303 @@
+<div id="app" class="container">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Management: Packs, Classes, Commands, Roles, Users</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/users.css">
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item"><button class="nav-link active" id="packs-tab" data-bs-toggle="tab" data-bs-target="#packs" type="button" role="tab">Packs</button></li>
+        <li class="nav-item"><button class="nav-link" id="classes-tab" data-bs-toggle="tab" data-bs-target="#classes" type="button" role="tab">Classes</button></li>
+        <li class="nav-item"><button class="nav-link" id="commands-tab" data-bs-toggle="tab" data-bs-target="#commands" type="button" role="tab">Commands</button></li>
+        <li class="nav-item"><button class="nav-link" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles" type="button" role="tab">Roles</button></li>
+        <li class="nav-item"><button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Users</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Packs Tab -->
+        <div class="tab-pane fade show active" id="packs" role="tabpanel">
+            <div class="card mb-4"><div class="card-body">
+                <form @submit.prevent="savePack">
+                    <input type="hidden" v-model="currentPack.id">
+                    <div class="form-group"><label>Pack Name</label><input type="text" class="form-control" v-model="currentPack.name" required :disabled="currentPack.builtin"></div>
+                    <button type="submit" class="btn btn-primary me-2" :disabled="!currentPack.name || currentPack.builtin">{{ currentPack.id ? 'Update' : 'Create' }}</button>
+                    <button type="button" class="btn btn-secondary" @click="resetPackForm" :disabled="currentPack.builtin">Cancel</button>
+                </form>
+            </div></div>
+            <table class="table table-striped"><thead class="table-dark"><tr><th>ID</th><th>Name</th><th>Built‑in</th><th>Actions</th></tr></thead>
+                <tbody><tr v-for="pack in packs" :key="pack.id"><td>{{ pack.id }}</td><td>{{ pack.name }}</td><td>{{ pack.builtin ? 'Yes' : 'No' }}</td>
+                    <td><button class="btn btn-sm btn-outline-primary me-1" @click="editPack(pack)" :disabled="pack.builtin">Edit</button><button class="btn btn-sm btn-outline-danger" @click="deletePack(pack)" :disabled="pack.builtin">Delete</button></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Classes Tab -->
+        <div class="tab-pane fade" id="classes" role="tabpanel">
+            <div class="card mb-4"><div class="card-body">
+                <form @submit.prevent="saveClass">
+                    <input type="hidden" v-model="currentClass.id">
+                    <div class="form-group"><label>Class Name</label><input type="text" class="form-control" v-model="currentClass.name" required :disabled="currentClass.builtin"></div>
+                    <button type="submit" class="btn btn-primary me-2" :disabled="!currentClass.name || currentClass.builtin">{{ currentClass.id ? 'Update' : 'Create' }}</button>
+                    <button type="button" class="btn btn-secondary" @click="resetClassForm" :disabled="currentClass.builtin">Cancel</button>
+                </form>
+            </div></div>
+            <table class="table table-striped"><thead class="table-dark"><tr><th>ID</th><th>Name</th><th>Built‑in</th><th>Actions</th></tr></thead>
+                <tbody><tr v-for="cls in classes" :key="cls.id"><td>{{ cls.id }}</td><td>{{ cls.name }}</td><td>{{ cls.builtin ? 'Yes' : 'No' }}</td>
+                    <td><button class="btn btn-sm btn-outline-primary me-1" @click="editClass(cls)" :disabled="cls.builtin">Edit</button><button class="btn btn-sm btn-outline-danger" @click="deleteClass(cls)" :disabled="cls.builtin">Delete</button></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Commands Tab -->
+        <div class="tab-pane fade" id="commands" role="tabpanel">
+            <div class="card mb-4"><div class="card-body">
+                <form @submit.prevent="saveCommand">
+                    <input type="hidden" v-model="currentCommand.id">
+                    <div class="form-group"><label>Command Name</label><input type="text" class="form-control" v-model="currentCommand.name" required :disabled="currentCommand.builtin"></div>
+                    <button type="submit" class="btn btn-primary me-2" :disabled="!currentCommand.name || currentCommand.builtin">{{ currentCommand.id ? 'Update' : 'Create' }}</button>
+                    <button type="button" class="btn btn-secondary" @click="resetCommandForm" :disabled="currentCommand.builtin">Cancel</button>
+                </form>
+            </div></div>
+            <table class="table table-striped"><thead class="table-dark"><tr><th>ID</th><th>Name</th><th>Built‑in</th><th>Actions</th></tr></thead>
+                <tbody><tr v-for="cmd in commands" :key="cmd.id"><td>{{ cmd.id }}</td><td>{{ cmd.name }}</td><td>{{ cmd.builtin ? 'Yes' : 'No' }}</td>
+                    <td><button class="btn btn-sm btn-outline-primary me-1" @click="editCommand(cmd)" :disabled="cmd.builtin">Edit</button><button class="btn btn-sm btn-outline-danger" @click="deleteCommand(cmd)" :disabled="cmd.builtin">Delete</button></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Roles Tab -->
+        <div class="tab-pane fade" id="roles" role="tabpanel">
+            <div class="card mb-4"><div class="card-body">
+                <form @submit.prevent="saveRole">
+                    <input type="hidden" v-model="currentRole.id">
+                    <div class="form-group"><label>Role Name</label><input type="text" class="form-control" v-model="currentRole.name" required :disabled="currentRole.builtin"></div>
+                    <button type="submit" class="btn btn-primary me-2" :disabled="!currentRole.name || currentRole.builtin">{{ currentRole.id ? 'Update' : 'Create' }}</button>
+                    <button type="button" class="btn btn-secondary" @click="resetRoleForm" :disabled="currentRole.builtin">Cancel</button>
+                </form>
+            </div></div>
+            <table class="table table-striped"><thead class="table-dark"><tr><th>ID</th><th>Name</th><th>Built‑in</th><th>Actions</th></tr></thead>
+                <tbody><tr v-for="role in roles" :key="role.id"><td>{{ role.id }}</td><td>{{ role.name }}</td><td>{{ role.builtin ? 'Yes' : 'No' }}</td>
+                    <td><button class="btn btn-sm btn-outline-primary me-1" @click="editRole(role)" :disabled="role.builtin">Edit</button><button class="btn btn-sm btn-outline-danger" @click="deleteRole(role)" :disabled="role.builtin">Delete</button></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-pane fade" id="users" role="tabpanel">
+            <div class="card mb-4"><div class="card-body">
+                <form @submit.prevent="saveUser">
+                    <input type="hidden" v-model="currentUser.id">
+                    <div class="form-group"><label>User Name</label><input type="text" class="form-control" v-model="currentUser.name" required :disabled="currentUser.builtin"></div>
+                    <div class="form-group"><label>Password</label><input type="password" class="form-control" v-model="currentUser.password" placeholder="Leave blank to keep unchanged"></div>
+                    <button type="submit" class="btn btn-primary me-2" :disabled="!currentUser.name">{{ currentUser.id ? 'Update' : 'Create' }}</button>
+                    <button type="button" class="btn btn-secondary" @click="resetUserForm">Cancel</button>
+                </form>
+            </div></div>
+            <table class="table table-striped"><thead class="table-dark"><tr><th>ID</th><th>Name</th><th>Built‑in</th><th>Actions</th></tr></thead>
+                <tbody><tr v-for="user in users" :key="user.id"><td>{{ user.id }}</td><td>{{ user.name }}</td><td>{{ user.builtin ? 'Yes' : 'No' }}</td>
+                    <td><button class="btn btn-sm btn-outline-primary me-1" @click="editUser(user)" :disabled="user.builtin">Edit</button><button class="btn btn-sm btn-outline-danger" @click="deleteUser(user)" :disabled="user.builtin">Delete</button></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            // --- Data ---
+            const packs = ref([]);
+            const currentPack = ref({ id: null, name: '', builtin: false });
+
+            const classes = ref([]);
+            const currentClass = ref({ id: null, name: '', builtin: false });
+
+            const commands = ref([]);
+            const currentCommand = ref({ id: null, name: '', builtin: false });
+
+            const roles = ref([]);
+            const currentRole = ref({ id: null, name: '', builtin: false });
+
+            const users = ref([]);
+            const currentUser = ref({ id: null, name: '', password: '', builtin: false });
+
+            // --- Helpers ---
+            const resetPackForm = () => { currentPack.value = { id: null, name: '', builtin: false }; };
+            const resetClassForm = () => { currentClass.value = { id: null, name: '', builtin: false }; };
+            const resetCommandForm = () => { currentCommand.value = { id: null, name: '', builtin: false }; };
+            const resetRoleForm = () => { currentRole.value = { id: null, name: '', builtin: false }; };
+            const resetUserForm = () => { currentUser.value = { id: null, name: '', password: '', builtin: false }; };
+
+            // --- Packs API ---
+            const fetchPacks = async () => {
+                try {
+                    const res = await fetch('/users/api/packs');
+                    if (res.ok) packs.value = await res.json();
+                    else console.error('Failed packs:', res.status);
+                } catch (err) { console.error(err); }
+            };
+            const savePack = async () => {
+                const method = currentPack.value.id ? 'PUT' : 'POST';
+                const url = currentPack.value.id ? `/users/api/packs/${currentPack.value.id}` : '/users/api/packs';
+                try {
+                    const res = await fetch(url, {
+                        method, headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: currentPack.value.name })
+                    });
+                    if (res.ok) { await fetchPacks(); resetPackForm(); }
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+            const editPack = (pack) => { currentPack.value = { ...pack }; };
+            const deletePack = async (pack) => {
+                if (!confirm(`Delete pack "${pack.name}"?`)) return;
+                try {
+                    const res = await fetch(`/users/api/packs/${pack.id}`, { method: 'DELETE' });
+                    if (res.ok) await fetchPacks();
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+
+            // --- Classes API ---
+            const fetchClasses = async () => {
+                try {
+                    const res = await fetch('/users/api/classes');
+                    if (res.ok) classes.value = await res.json();
+                    else console.error('Failed classes:', res.status);
+                } catch (err) { console.error(err); }
+            };
+            const saveClass = async () => {
+                const method = currentClass.value.id ? 'PUT' : 'POST';
+                const url = currentClass.value.id ? `/users/api/classes/${currentClass.value.id}` : '/users/api/classes';
+                try {
+                    const res = await fetch(url, {
+                        method, headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: currentClass.value.name })
+                    });
+                    if (res.ok) { await fetchClasses(); resetClassForm(); }
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+            const editClass = (cls) => { currentClass.value = { ...cls }; };
+            const deleteClass = async (cls) => {
+                if (!confirm(`Delete class "${cls.name}"?`)) return;
+                try {
+                    const res = await fetch(`/users/api/classes/${cls.id}`, { method: 'DELETE' });
+                    if (res.ok) await fetchClasses();
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+
+            // --- Commands API ---
+            const fetchCommands = async () => {
+                try {
+                    const res = await fetch('/users/api/commands');
+                    if (res.ok) commands.value = await res.json();
+                    else console.error('Failed commands:', res.status);
+                } catch (err) { console.error(err); }
+            };
+            const saveCommand = async () => {
+                const method = currentCommand.value.id ? 'PUT' : 'POST';
+                const url = currentCommand.value.id ? `/users/api/commands/${currentCommand.value.id}` : '/users/api/commands';
+                try {
+                    const res = await fetch(url, {
+                        method, headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: currentCommand.value.name })
+                    });
+                    if (res.ok) { await fetchCommands(); resetCommandForm(); }
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+            const editCommand = (cmd) => { currentCommand.value = { ...cmd }; };
+            const deleteCommand = async (cmd) => {
+                if (!confirm(`Delete command "${cmd.name}"?`)) return;
+                try {
+                    const res = await fetch(`/users/api/commands/${cmd.id}`, { method: 'DELETE' });
+                    if (res.ok) await fetchCommands();
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+
+            // --- Roles API ---
+            const fetchRoles = async () => {
+                try {
+                    const res = await fetch('/users/api/roles');
+                    if (res.ok) roles.value = await res.json();
+                    else console.error('Failed roles:', res.status);
+                } catch (err) { console.error(err); }
+            };
+            const saveRole = async () => {
+                const method = currentRole.value.id ? 'PUT' : 'POST';
+                const url = currentRole.value.id ? `/users/api/roles/${currentRole.value.id}` : '/users/api/roles';
+                try {
+                    const res = await fetch(url, {
+                        method, headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: currentRole.value.name })
+                    });
+                    if (res.ok) { await fetchRoles(); resetRoleForm(); }
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+            const editRole = (role) => { currentRole.value = { ...role }; };
+            const deleteRole = async (role) => {
+                if (!confirm(`Delete role "${role.name}"?`)) return;
+                try {
+                    const res = await fetch(`/users/api/roles/${role.id}`, { method: 'DELETE' });
+                    if (res.ok) await fetchRoles();
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+
+            // --- Users API ---
+            const fetchUsers = async () => {
+                try {
+                    const res = await fetch('/users/api/users');
+                    if (res.ok) users.value = await res.json();
+                    else console.error('Failed users:', res.status);
+                } catch (err) { console.error(err); }
+            };
+            const saveUser = async () => {
+                const method = currentUser.value.id ? 'PUT' : 'POST';
+                const url = currentUser.value.id ? `/users/api/users/${currentUser.value.id}` : '/users/api/users';
+                const payload = { name: currentUser.value.name };
+                if (currentUser.value.password) payload.password = currentUser.value.password;
+                try {
+                    const res = await fetch(url, {
+                        method, headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) { await fetchUsers(); resetUserForm(); }
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+            const editUser = (user) => { currentUser.value = { ...user, password: '' }; };
+            const deleteUser = async (user) => {
+                if (!confirm(`Delete user "${user.name}"?`)) return;
+                try {
+                    const res = await fetch(`/users/api/users/${user.id}`, { method: 'DELETE' });
+                    if (res.ok) await fetchUsers();
+                    else { const err = await res.json(); alert(`Error: ${err.detail || res.status}`); }
+                } catch (err) { console.error(err); }
+            };
+
+            onMounted(() => {
+                fetchPacks();
+                fetchClasses();
+                fetchCommands();
+                fetchRoles();
+                fetchUsers();
+            });
+
+            return {
+                packs, currentPack, savePack, editPack, deletePack, resetPackForm,
+                classes, currentClass, saveClass, editClass, deleteClass, resetClassForm,
+                commands, currentCommand, saveCommand, editCommand, deleteCommand, resetCommandForm,
+                roles, currentRole, saveRole, editRole, deleteRole, resetRoleForm,
+                users, currentUser, saveUser, editUser, deleteUser, resetUserForm
+            };
+        }
+    }).mount('#app');
+</script>

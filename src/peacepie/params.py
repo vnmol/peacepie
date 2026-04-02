@@ -19,6 +19,7 @@ def init_params(path, test_params):
     global instance
     global test_instance
     test_instance = test_params
+    '''
     try:
         with open(path) as f:
             pass
@@ -26,6 +27,7 @@ def init_params(path, test_params):
         path = None
     if path is None:
         path = deploy_environment()
+    '''
     params = []
     try:
         with open(path) as f:

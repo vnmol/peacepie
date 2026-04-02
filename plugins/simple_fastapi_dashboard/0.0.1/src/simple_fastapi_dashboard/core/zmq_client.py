@@ -6,6 +6,7 @@ import sys
 
 import zmq
 
+from core import log_util
 
 client = None
 
@@ -39,16 +40,16 @@ class ZMQClient:
     def ask(self, data):
         try:
             self.socket.send(self.serializer.serialize(data))
-            logging.debug(f'ZeroMQ client transferred: {data}')
+            logging.debug(f'ZeroMQ client transferred: {log_util.format_msg(data)}')
             res = self.serializer.deserialize(self.socket.recv())
-            logging.debug(f'ZeroMQ client obtained: {res}')
+            logging.debug(f'ZeroMQ client obtained: {log_util.format_msg(res)}')
         except zmq.ZMQError:
             logging.exception('ZeroMQ error. Reconnecting...')
             self._reconnect()
             self.socket.send(data)
-            logging.debug(f'ZeroMQ client transferred: {data}')
+            logging.debug(f'ZeroMQ client transferred: {log_util.format_msg(data)}')
             res = self.serializer.deserialize(self.socket.recv())
-            logging.debug(f'ZeroMQ client obtained: {res}')
+            logging.debug(f'ZeroMQ client obtained: {log_util.format_msg(res)}')
         if res and isinstance(res, list):
             res = res[0]
         return res

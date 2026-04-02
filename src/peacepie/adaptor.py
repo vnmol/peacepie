@@ -119,6 +119,21 @@ class Adaptor:
                         self.cumulative_commands[command]['received'] += 1
                     else:
                         logging.debug(log_util.async_received_log(self.performer, self.msg))
+                user = self.msg.get('user')
+                if user:
+                    body = {'user': user, 'pack': self.get_package_name(), 'class': self.get_class_name(),
+                            'command': self.msg.get('command')}
+                    if self.name == 'account_admin':
+                        access = await self.performer.access_check(body, None)
+                    else:
+                        query = self.get_msg('access_check', body, 'account_admin')
+                        ans = await self.ask(query)
+                        access = ans.get('command') == 'access'
+                    if not access and self.msg.get('sender'):
+                        del body['user']
+                        ans = self.get_msg('access_denied', body, self.msg.get('sender'))
+                        await self.send(ans)
+                        continue
                 if command in ADAPTOR_COMMANDS:
                     if not await self.handle(self.msg):
                         logging.warning(self.get_alias() + ' The message is not handled: ' + str(self.msg))
@@ -289,8 +304,8 @@ class Adaptor:
     def json_dumps(self, jsn):
         return json_util.json_dumps(jsn)
 
-    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None):
-        return msg_factory.get_msg(command, body, recipient, sender, timeout)
+    def get_msg(self, command, body=None, recipient=None, sender=None, timeout=None, user=None):
+         return msg_factory.get_msg(command, body, recipient, sender, timeout, user=user)
 
     def get_control_msg(self, command, body=None, recipient=None, sender=None):
         return msg_factory.get_control_msg(command, body, recipient, sender)
@@ -733,12 +748,33 @@ class Adaptor:
         return await class_extractor.get_class(self, class_desc)
 
     def get_package_name(self):
+        if not self.class_desc:
+            return self.performer.__class__.__module__
         try:
             requires_dist = version.parse_requires_dist(self.class_desc.get('requires_dist'))
             return requires_dist.get('package_name')
         except Exception as e:
             logging.exception(e)
         return None
+
+    def get_class_name(self):
+        if not self.class_desc:
+            return self.performer.__class__.__name__
+        try:
+            return self.class_desc.get('class')
+        except Exception as e:
+            logging.exception(e)
+        return None
+
+    '''
+    def get_package_class_name(self):
+        try:
+            requires_dist = version.parse_requires_dist(self.class_desc.get('requires_dist'))
+            return {'pack': requires_dist.get('package_name'), 'class': self.class_desc.get('class')}
+        except Exception as e:
+            logging.exception(e)
+        return None
+    '''
 
     def get_process_name(self):
         return self.parent.process_name
@@ -755,3 +791,6 @@ class Adaptor:
 
     def adjust_log_config(self, cwd, process_name):
         return log_util.adjust_log_config(cwd, process_name)
+
+    def format_msg(self, msg):
+        return log_util.format_msg(msg)

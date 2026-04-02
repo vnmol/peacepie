@@ -57,8 +57,11 @@ def sync_received_log(sender, msg):
 
 def msg_format(msg):
     res = "{'mid': '" + msg.get('mid') + "', 'command': '" + str(msg.get('command'))
-    res += "', 'body': " + body_format(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
+    res += "', 'body': " + format_msg(msg.get('body')) + ", 'recipient': " + addr_format(msg.get('recipient'))
     res += ", 'sender': " + addr_format(msg.get('sender')) + ", 'timeout': " + str(msg.get('timeout'))
+    user = msg.get('user')
+    if user:
+        res += ", 'user': '" +  str(user) + "'"
     res += "}"
     return res
 
@@ -66,8 +69,8 @@ def msg_format(msg):
 pattern = r"'password':\s*(['\"])(.*?)(\1)"
 
 
-def body_format(body):
-    res = str(body)
+def format_msg(msg):
+    res = str(msg)
     return re.sub(pattern, r"'password': '******'", res)
 
 
