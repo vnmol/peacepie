@@ -66,7 +66,7 @@ class DbAdmin:
             JOIN role_commands rc ON rc.role_id = r.id
             JOIN class_commands cc ON cc.id = rc.class_command_id
             JOIN commands cmd ON cmd.id = cc.command_id
-            JOIN classes cls ON cls.id = cc.pack_class_id
+            JOIN classes cls ON cls.id = cc.class_id
             JOIN pack_classes pc ON pc.class_id = cls.id
             JOIN packs p ON p.id = pc.pack_id
             WHERE u.name = ?
@@ -287,11 +287,15 @@ class DbAdmin:
     def delete_role(self, role_id):
         with self._connect() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM roles WHERE id = ?", (role_id,))
-            if cursor.rowcount == 0:
+            try:
+                cursor.execute("DELETE FROM roles WHERE id = ?", (role_id,))
+                if cursor.rowcount == 0:
+                    conn.rollback()
+                    return {'status': 'existence_error', 'data': 'Role not found or is builtin'}
+                return {'status': 'success', 'data': {'message': 'Role deleted successfully'}}
+            except sqlite3.IntegrityError as e:
                 conn.rollback()
-                return {'status': 'existence_error', 'data': 'Role not found or is builtin'}
-            return {'status': 'success', 'data': {'message': 'Role deleted successfully'}}
+                return {'status': 'integrity_error', 'data': str(e)}
 
     def get_role_commands(self, role_id):
         with self._connect() as conn:
@@ -305,7 +309,7 @@ class DbAdmin:
                 JOIN roles r ON rc.role_id = r.id
                 JOIN class_commands cc ON rc.class_command_id = cc.id
                 JOIN commands com ON cc.command_id = com.id
-                JOIN pack_classes pc ON cc.pack_class_id = pc.id 
+                JOIN pack_classes pc ON cc.class_id = pc.id 
                 JOIN classes c ON pc.class_id = c.id
                 JOIN packs p ON pc.pack_id = p.id
                 WHERE rc.role_id = ? ORDER BY builtin desc, name""", (role_id,))
@@ -336,7 +340,7 @@ class DbAdmin:
                     JOIN roles r ON rc.role_id = r.id
                     JOIN class_commands cc ON rc.class_command_id = cc.id
                     JOIN commands com ON cc.command_id = com.id
-                    JOIN pack_classes pc ON cc.pack_class_id = pc.id 
+                    JOIN pack_classes pc ON cc.class_id = pc.id 
                     JOIN classes c ON pc.class_id = c.id
                     JOIN packs p ON pc.pack_id = p.id
                     WHERE rc.id = ?""", (new_id,))

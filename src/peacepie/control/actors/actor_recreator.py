@@ -46,7 +46,8 @@ class ActorRecreator:
             await self.redirect(old_entity, recipient, msg)
             return
         adaptor = actor.get('adaptor')
-        body = {'class_desc': adaptor.class_desc, 'name': None if is_locally else old_entity}
+        class_desc = body.get('class_desc') if body.get('class_desc') else adaptor.class_desc
+        body = {'class_desc': class_desc, 'name': None if is_locally else old_entity}
         ans = await self.grandparent.adaptor.ask(msg_factory.get_msg('create_replica', body, node), timeout, self)
         if ans.get('command') != 'actor_is_created':
             await self.failure(recipient)
@@ -69,10 +70,11 @@ class ActorRecreator:
         if is_locally:
             self.parent.actors.get(old_entity).get('adaptor').resume()
         else:
-            msg = msg_factory.get_msg('replica_resume', {'entity': old_entity}, {'node': node, 'entity': None})
-            await self.grandparent.adaptor.ask(msg, timeout, self)
+            query = msg_factory.get_msg('replica_resume', {'entity': old_entity}, {'node': node, 'entity': None})
+            await self.grandparent.adaptor.ask(query, timeout, self)
         if recipient:
-            await self.grandparent.adaptor.send(msg_factory.get_msg('actor_is_recreated', None, recipient), self)
+            ans = msg_factory.get_msg('actor_is_recreated', {'mid': msg.get('mid')}, recipient)
+            await self.grandparent.adaptor.send(ans, self)
 
     async def redirect(self, entity, recipient, msg):
         queue = self.grandparent.cache.get(entity)

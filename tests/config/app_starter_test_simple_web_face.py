@@ -18,7 +18,7 @@ class AppStarter:
         name = 'web_face'
         body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': name}
         ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 10)
-        body = {'params': [{'name': 'http_port', 'value': 9090}]}
+        body = {'params': [{'name': 'port', 'value': 9090}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.ask(self.adaptor.get_msg('start', None, ans.get('body')))
         self.adaptor.add_ticker(100, 100, 1)

@@ -1,23 +1,9 @@
 import os
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 
-from core import config, security, zmq_client
-
-
-DB_PATH = "/home/vmol/PycharmProjects/peacepie_project/databases/users.db"
-
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Для доступа к колонкам по имени
-    return conn
-
-
-def dict_from_row(row):
-    return dict(zip(row.keys(), row))
+from core import security, zmq_client
 
 
 router = APIRouter()
@@ -25,17 +11,22 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
+# ─── Page route ─────────────────────────────────────────────────────────────
+
 @router.get("/")
 async def read_root(request: Request, user=Depends(security.get_current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
     file_path = os.path.join("templates", "users_vue.html")
     content = ''
     if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
     return templates.TemplateResponse("users.html", {"request": request, "user": user, "content": content})
 
 
-# --- Packs Endpoints ---
+# ─── Packs ───────────────────────────────────────────────────────────────────
+
 @router.get("/api/packs")
 async def get_packs(user=Depends(security.get_current_user)):
     msg = {'command': 'get_packs', 'body': None, 'recipient': 'account_admin', 'user': user.get('username')}
@@ -76,7 +67,7 @@ async def create_pack(pack: dict, user=Depends(security.get_current_user)):
 @router.put("/api/packs")
 async def update_pack(pack: dict, user=Depends(security.get_current_user)):
     if not pack.get("pack_id") or not pack.get("name"):
-        raise HTTPException(status_code=400, detail="ID and Name is required")
+        raise HTTPException(status_code=400, detail="ID and Name are required")
     msg = {'command': 'update_pack', 'body': pack, 'recipient': 'account_admin', 'user': user.get('username')}
     ans = zmq_client.client.ask(msg)
     command = ans.get('command')
@@ -116,7 +107,8 @@ async def delete_pack(pack_id: int, user=Depends(security.get_current_user)):
         raise HTTPException(status_code=400, detail=f'Unknown error')
 
 
-# --- Classes Endpoints ---
+# ─── Classes ─────────────────────────────────────────────────────────────────
+
 @router.get("/api/classes/{pack_id}")
 async def get_classes(pack_id: int, user=Depends(security.get_current_user)):
     body = {'pack_id': pack_id}
@@ -175,7 +167,8 @@ async def delete_class(pack_class_id: int, user=Depends(security.get_current_use
         raise HTTPException(status_code=400, detail=f'Unknown error')
 
 
-# --- Commands Endpoints ---
+# ─── Commands ────────────────────────────────────────────────────────────────
+
 @router.get("/api/commands/{class_id}")
 async def get_commands(class_id, user=Depends(security.get_current_user)):
     body = {'class_id': class_id}
@@ -234,7 +227,8 @@ async def delete_command(class_command_id: int, user=Depends(security.get_curren
         raise HTTPException(status_code=400, detail=f'Unknown error')
 
 
-# --- Roles Endpoints ---
+# ─── Roles ───────────────────────────────────────────────────────────────────
+
 @router.get("/api/roles")
 async def get_roles(user=Depends(security.get_current_user)):
     msg = {'command': 'get_roles', 'body': None, 'recipient': 'account_admin', 'user': user.get('username')}
@@ -273,7 +267,6 @@ async def create_role(role: dict, user=Depends(security.get_current_user)):
 
 @router.put("/api/roles")
 async def update_role(role: dict, user=Depends(security.get_current_user)):
-    name = role.get("name")
     if not role.get("role_id") or not role.get("name"):
         raise HTTPException(status_code=400, detail="Role ID and Name are required")
     msg = {'command': 'update_role', 'body': role, 'recipient': 'account_admin', 'user': user.get('username')}
@@ -305,7 +298,7 @@ async def delete_role(role_id: int, user=Depends(security.get_current_user)):
         return body.get('data')
     elif command == 'role_is_not_deleted':
         match body.get('status'):
-            case 'existence_error':
+            case 'integrity_error' | 'existence_error':
                 raise HTTPException(status_code=400, detail=body.get('data'))
             case _:
                 raise HTTPException(status_code=400, detail=f'Unknown error')
@@ -315,7 +308,8 @@ async def delete_role(role_id: int, user=Depends(security.get_current_user)):
         raise HTTPException(status_code=400, detail=f'Unknown error')
 
 
-# --- Role Commands Endpoints ---
+# ─── Role Commands ───────────────────────────────────────────────────────────
+
 @router.get("/api/role_commands/{role_id}")
 async def get_role_commands(role_id, user=Depends(security.get_current_user)):
     body = {'role_id': role_id}
@@ -374,7 +368,8 @@ async def delete_role_command(role_command_id: int, user=Depends(security.get_cu
         raise HTTPException(status_code=400, detail=f'Unknown error')
 
 
-# --- Users Endpoints ---
+# ─── Users ───────────────────────────────────────────────────────────────────
+
 @router.get("/api/users")
 async def get_users(user=Depends(security.get_current_user)):
     msg = {'command': 'get_users', 'body': None, 'recipient': 'account_admin', 'user': user.get('username')}
@@ -452,7 +447,8 @@ async def delete_user(user_id: int, user=Depends(security.get_current_user)):
         raise HTTPException(status_code=400, detail=f'Unknown error')
 
 
-# --- User Roles Endpoints ---
+# ─── User Roles ──────────────────────────────────────────────────────────────
+
 @router.get("/api/user_roles/{user_id}")
 async def get_user_roles(user_id, user=Depends(security.get_current_user)):
     body = {'user_id': user_id}

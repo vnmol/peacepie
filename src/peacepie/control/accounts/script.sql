@@ -169,16 +169,16 @@ END;
 
 CREATE TABLE class_commands (
     id INTEGER PRIMARY KEY,
-    pack_class_id INTEGER NOT NULL REFERENCES pack_classes(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES pack_classes(id) ON DELETE CASCADE,
     command_id INTEGER NOT NULL REFERENCES commands(id) ON DELETE CASCADE,
-    UNIQUE(pack_class_id, command_id)
+    UNIQUE(class_id, command_id)
 );
 
-INSERT INTO class_commands (pack_class_id, command_id) VALUES (1, 1);
-INSERT INTO class_commands (pack_class_id, command_id) VALUES (2, 2);
-INSERT INTO class_commands (pack_class_id, command_id) VALUES (3, 2);
-INSERT INTO class_commands (pack_class_id, command_id) VALUES (4, 2);
-INSERT INTO class_commands (pack_class_id, command_id) SELECT 5, c.id FROM commands c WHERE c.id > 2;
+INSERT INTO class_commands (class_id, command_id) VALUES (1, 1);
+INSERT INTO class_commands (class_id, command_id) VALUES (2, 2);
+INSERT INTO class_commands (class_id, command_id) VALUES (3, 2);
+INSERT INTO class_commands (class_id, command_id) VALUES (4, 2);
+INSERT INTO class_commands (class_id, command_id) SELECT 5, c.id FROM commands c WHERE c.id > 2;
 
 CREATE TRIGGER prevent_class_command_builtin_delete
 BEFORE DELETE ON class_commands
@@ -189,7 +189,7 @@ WHEN
         FROM pack_classes pc
         JOIN packs p ON pc.pack_id = p.id
         JOIN classes c ON pc.class_id = c.id
-        WHERE pc.id = OLD.pack_class_id and p.builtin = 1 and c.builtin = 1
+        WHERE pc.id = OLD.class_id and p.builtin = 1 and c.builtin = 1
     )
     AND EXISTS (
         SELECT 1
@@ -268,7 +268,7 @@ WHEN
         SELECT 1
         FROM class_commands cc
         JOIN commands com ON cc.command_id = com.id
-        JOIN pack_classes pc ON cc.pack_class_id = pc.id
+        JOIN pack_classes pc ON cc.class_id = pc.id
         JOIN classes c ON pc.class_id = c.id
         JOIN packs p ON pc.pack_id = p.id
         WHERE cc.id = OLD.class_command_id and com.builtin = 1 and c.builtin = 1 and p.builtin = 1

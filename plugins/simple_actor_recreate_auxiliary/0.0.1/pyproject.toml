@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simple_actor_recreate_auxiliary"
+version = "0.0.1"
+authors = [
+    {name = 'Vladimir Molodtsov', email = 'vmol@mail.ru'},
+]
+keywords = ["peacepie"]
+dependencies = [
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.setuptools.package-dir]
+"" = "src"

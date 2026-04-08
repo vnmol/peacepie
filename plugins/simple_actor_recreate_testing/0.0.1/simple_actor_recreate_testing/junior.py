@@ -90,19 +90,25 @@ class Junior:
                     entity = self.consumer
             else:
                 entity = self.consumer
-        ans = await self.adaptor.ask(self.adaptor.get_msg('seek_actor', {'entity': entity}))
-        if ans.get('command') != 'actor_found':
+        msg = self.adaptor.get_msg('seek_actor', {'entity': entity, 'with_class_desc': True})
+        ans = await self.adaptor.ask(msg, 4)
+        if ans.get('command') != 'actor_is_found':
             return
-        node = ans.get('body').get('node')
+        body = ans.get('body') if ans.get('body') else {}
+        old_node = body.get('node')
         is_moving = False
         if self.junior_flags.get('is_remote'):
             if self.junior_flags.get('is_local'):
                 is_moving = random.choice([True, False])
             else:
                 is_moving = True
-        if is_moving:
-            node = random.choice(self.nodes)
-        msg = self.adaptor.get_msg('recreate_actor', {'node': node, 'entity': entity})
+        node = random.choice(self.nodes) if is_moving else old_node
+        class_desc = body.get('class_desc')
+        if class_desc.get('requires_dist') == 'simple_actor_recreate_testing':
+            class_desc['requires_dist'] = 'simple_actor_recreate_auxiliary'
+        else:
+            class_desc['requires_dist'] = 'simple_actor_recreate_testing'
+        msg = self.adaptor.get_msg('recreate_actor', {'node': node, 'entity': entity, 'class_desc': class_desc})
         await self.adaptor.ask(msg, 8)
 
     async def stop(self, recipient):

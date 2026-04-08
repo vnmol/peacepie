@@ -18,7 +18,6 @@ class InternalStarter:
         return True
 
     async def start(self):
-        await self.account_admin()
         src = os.path.abspath(params.instance.get('starter'))
         package_name = os.path.basename(src)
         ans = await self.adaptor.ask(self.adaptor.get_msg('get_work_path'))
@@ -37,10 +36,3 @@ class InternalStarter:
         msg = msg_factory.get_msg('start', body, recipient=ans.get('body'))
         await self.adaptor.send(msg)
         await self.adaptor.send(self.adaptor.get_msg('remove_actor', {'name': self.adaptor.name}))
-
-    async def account_admin(self):
-        name = 'account_admin'
-        body = {'class_desc': {'requires_dist': 'peacepie.control.accounts.account_admin'}, 'name': name}
-        ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body))
-        if ans.get('command') == 'actor_is_created':
-            await self.adaptor.ask(self.adaptor.get_msg('start', None, name))

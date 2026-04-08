@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import subprocess
 from pathlib import Path
@@ -45,15 +46,21 @@ class SimpleFastapiActor:
 
     async def set_params(self, params, recipient):
         self.adaptor.set_params(params)
-        self.port = int(os.environ.get('PORT', self.port))
+        try:
+            self.port = int(os.environ.get('PORT', self.port))
+        except Exception as e:
+            logging.exception(e)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', None, recipient))
 
     async def start(self, recipient):
-        class_desc = {'requires_dist': 'simple_fastapi_dashboard', 'class': 'Dummy'}
-        for i in range(25):
-            body = {'class_desc': class_desc, 'name': f'dummy_{i:02d}'}
-            await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 60)
+        name = 'account_admin'
+        ans = await self.adaptor.ask(self.adaptor.get_msg('seek_actor', {'entity': name}), 4)
+        if ans.get('command') != 'actor_is_found':
+            body = {'class_desc': {'requires_dist': 'peacepie.control.accounts.account_admin'}, 'name': name}
+            ans = await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 4)
+            if ans.get('command') == 'actor_is_created':
+                await self.adaptor.ask(self.adaptor.get_msg('start', None, name))
         await self.start_zmq_server()
         cwd = os.path.dirname(__file__)
         log_config = self.adaptor.adjust_log_config(cwd, __package__)
@@ -66,7 +73,7 @@ class SimpleFastapiActor:
                 'python', '-m', 'uvicorn',
                 'fastapi_server:app',
                 '--host', '0.0.0.0',
-                '--port', '8000',
+                '--port', str(self.port),
                 '--log-config', log_config
             ],
             cwd=cwd,

@@ -1,113 +1,187 @@
 <div id="app">
-    <!-- Основной контент будет здесь -->
     <div class="main-content">
-        <!-- Левая вертикальная панель (Роли) -->
+
+        <!-- Левая панель: Роли -->
         <div class="side-panel left-panel">
             <div class="vertical-tab">
                 <div class="column" id="column-roles">
                     <div class="column-header">
                         <div class="input-group">
-                            <input type="text" id="role-filter" placeholder="Фильтр ролей">
-                            <input type="text" id="role-name" placeholder="Наименование роли">
+                            <input type="text" v-model="roleFilter" placeholder="Фильтр ролей">
+                            <input type="text" v-model="roleName" placeholder="Наименование роли">
                         </div>
                         <div class="button-group">
-                            <button id="roles-add-btn" title="Добавить"><i class="fas fa-plus"></i></button>
-                            <button id="roles-edit-btn" title="Изменить"><i class="fas fa-edit"></i></button>
-                            <button id="roles-delete-btn" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+                            <button @click="addRole" :disabled="!roleName.trim()" title="Добавить"><i class="fas fa-plus"></i></button>
+                            <button @click="editRole" :disabled="!selectedRole || !roleName.trim()" title="Изменить"><i class="fas fa-edit"></i></button>
+                            <button @click="deleteRole" :disabled="!selectedRole" title="Удалить"><i class="fas fa-trash-alt"></i></button>
                         </div>
+                    </div>
+                    <div class="list-table-container">
+                        <table>
+                            <tbody>
+                                <tr v-for="role in filteredRoles" :key="role.id" class="table-row" :class="{ selected: selectedRole && selectedRole.id === role.id }" @click="selectRole(role)">
+                                    <td>{{ role.name }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 <div class="tab-button active">Роли</div>
             </div>
         </div>
 
-        <!-- Центральная панель с закладками -->
+        <!-- Центральная панель -->
         <div class="center-panel">
             <div class="tabs">
-                <input type="radio" name="tab" id="tab-packages" checked>
-                <input type="radio" name="tab" id="tab-permissions">
-                <input type="radio" name="tab" id="tab-users">
 
-                <div class="tab-content" id="content-packages">
+                <!-- Содержимое вкладок — СНАЧАЛА -->
+                <div class="tab-content" v-show="activeTab === 'packages'">
                     <div class="column" id="column-packages">
                         <div class="column-header">
                             <div class="input-group">
-                                <input type="text" id="package-filter" placeholder="Фильтр пакетов">
-                                <input type="text" id="package-name" placeholder="Наименование пакета">
+                                <input type="text" v-model="packageFilter" placeholder="Фильтр пакетов">
+                                <input type="text" v-model="packageName" placeholder="Наименование пакета">
                             </div>
                             <div class="button-group">
-                                <button id="packages-add-btn" title="Добавить"><i class="fas fa-plus"></i></button>
-                                <button id="packages-edit-btn" title="Изменить"><i class="fas fa-edit"></i></button>
-                                <button id="packages-delete-btn" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+                                <button @click="addPack" :disabled="!packageName.trim()" title="Добавить"><i class="fas fa-plus"></i></button>
+                                <button @click="editPack" :disabled="!selectedPack || !packageName.trim()" title="Изменить"><i class="fas fa-edit"></i></button>
+                                <button @click="deletePack" :disabled="!selectedPack" title="Удалить"><i class="fas fa-trash-alt"></i></button>
                             </div>
+                        </div>
+                        <div class="list-table-container">
+                            <table>
+                                <tbody>
+                                    <tr v-for="pack in filteredPacks" :key="pack.id" class="table-row" :class="{ selected: selectedPack && selectedPack.id === pack.id }" @click="selectPack(pack)">
+                                        <td>{{ pack.name }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     <div class="column" id="column-classes">
                         <div class="column-header">
                             <div class="input-group">
-                                <input type="text" id="class-filter" placeholder="Фильтр классов">
-                                <input type="text" id="class-name" placeholder="Наименование класса">
+                                <input type="text" v-model="classFilter" placeholder="Фильтр классов">
+                                <input type="text" v-model="className" placeholder="Наименование класса">
                             </div>
                             <div class="button-group">
-                                <button id="classes-add-btn" title="Добавить"><i class="fas fa-plus"></i></button>
-                                <button id="classes-edit-btn" title="Изменить"><i class="fas fa-edit"></i></button>
-                                <button id="classes-delete-btn" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+                                <button @click="addClass" :disabled="!selectedPack || !className.trim()" title="Добавить"><i class="fas fa-plus"></i></button>
+                                <button @click="deleteClass" :disabled="!selectedClass" title="Удалить"><i class="fas fa-trash-alt"></i></button>
                             </div>
+                        </div>
+                        <div class="list-table-container">
+                            <table>
+                                <tbody>
+                                    <tr v-for="cls in filteredClasses" :key="cls.id" class="table-row" :class="{ selected: selectedClass && selectedClass.id === cls.id }" @click="selectClass(cls)">
+                                        <td>{{ cls.name }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
 
-                <div class="tab-content" id="content-permissions">
-                    <div class="column" id="column-permissions"></div>
-                    <div class="action-panel right">
-                        <button id="perm-add-command-btn" title="Добавить команду роли"><i class="fas fa-plus"></i></button>
-                        <button id="perm-remove-command-btn" title="Удалить команду роли"><i class="fas fa-trash-alt"></i></button>
+                <div class="tab-content" v-show="activeTab === 'permissions'">
+                    <div class="column" id="column-permissions">
+                        <div class="column-header">
+                            <div class="input-group">
+                                <input type="text" v-model="permFilter" placeholder="Фильтр разрешений">
+                            </div>
+                            <div class="button-group">
+                                <button @click="addRoleCommand" :disabled="!selectedRole || !selectedCommand" title="Добавить (нужна роль и команда)"><i class="fas fa-plus"></i></button>
+                                <button @click="deleteRoleCommand" :disabled="!selectedRoleCommand" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                        <div class="list-table-container">
+                            <table>
+                                <tbody>
+                                    <tr v-for="rc in filteredRoleCommands" :key="rc.id" class="table-row" :class="{ selected: selectedRoleCommand && selectedRoleCommand.id === rc.id }" @click="selectedRoleCommand = rc">
+                                        <td>{{ rc.name }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div class="tab-content" id="content-users">
-                    <div class="action-panel left">
-                        <button id="userrole-add-btn" title="Добавить роль пользователю"><i class="fas fa-plus"></i></button>
-                        <button id="userrole-remove-btn" title="Удалить роль у пользователя"><i class="fas fa-trash-alt"></i></button>
+                <div class="tab-content" v-show="activeTab === 'users'">
+                    <div class="column" id="column-user-roles">
+                        <div class="column-header">
+                            <div class="input-group">
+                                <input type="text" v-model="userRoleFilter" placeholder="Фильтр ролей пользователя">
+                            </div>
+                            <div class="button-group">
+                                <button @click="addUserRole" :disabled="!selectedUser || !selectedRole" title="Назначить роль (нужен пользователь и роль)"><i class="fas fa-plus"></i></button>
+                                <button @click="deleteUserRole" :disabled="!selectedUserRole" title="Убрать роль"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                        <div class="list-table-container">
+                            <table>
+                                <tbody>
+                                    <tr v-for="ur in filteredUserRoles" :key="ur.id" class="table-row" :class="{ selected: selectedUserRole && selectedUserRole.id === ur.id }" @click="selectedUserRole = ur">
+                                        <td>{{ ur.name }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="column" id="column-user-roles"></div>
                     <div class="column" id="column-users">
                         <div class="column-header">
                             <div class="input-group">
-                                <input type="text" id="user-filter" placeholder="Фильтр пользователей">
-                                <input type="text" id="user-name" placeholder="Имя пользователя">
-                                <input type="password" id="user-password" placeholder="Пароль">
+                                <input type="text" v-model="userFilter" placeholder="Фильтр пользователей">
+                                <input type="text" v-model="userName" placeholder="Имя пользователя">
+                                <input type="password" v-model="userPassword" placeholder="Пароль">
                             </div>
                             <div class="button-group">
-                                <button id="users-add-btn" title="Добавить"><i class="fas fa-plus"></i></button>
-                                <button id="users-edit-btn" title="Изменить"><i class="fas fa-edit"></i></button>
-                                <button id="users-delete-btn" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+                                <button @click="addUser" :disabled="!userName.trim()" title="Добавить"><i class="fas fa-plus"></i></button>
+                                <button @click="editUser" :disabled="!selectedUser || !userName.trim()" title="Изменить"><i class="fas fa-edit"></i></button>
+                                <button @click="deleteUser" :disabled="!selectedUser" title="Удалить"><i class="fas fa-trash-alt"></i></button>
                             </div>
+                        </div>
+                        <div class="list-table-container">
+                            <table>
+                                <tbody>
+                                    <tr v-for="u in filteredUsers" :key="u.id" class="table-row" :class="{ selected: selectedUser && selectedUser.id === u.id }" @click="selectUser(u)">
+                                        <td>{{ u.name }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
 
+                <!-- Вкладки — СНИЗУ -->
                 <div class="tab-labels">
-                    <label for="tab-packages">Пакеты и классы</label>
-                    <label for="tab-permissions">Разрешения</label>
-                    <label for="tab-users">Пользователи</label>
+                    <div class="tab-label" :class="{ active: activeTab === 'packages' }" @click="activeTab = 'packages'">Пакеты и классы</div>
+                    <div class="tab-label" :class="{ active: activeTab === 'permissions' }" @click="activeTab = 'permissions'">Разрешения</div>
+                    <div class="tab-label" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">Пользователи</div>
                 </div>
+
             </div>
         </div>
 
-        <!-- Правая вертикальная панель (Команды) -->
+        <!-- Правая панель: Команды -->
         <div class="side-panel right-panel">
             <div class="vertical-tab">
                 <div class="column" id="column-commands">
                     <div class="column-header">
                         <div class="input-group">
-                            <input type="text" id="command-filter" placeholder="Фильтр команд">
-                            <input type="text" id="command-name" placeholder="Наименование команды">
+                            <input type="text" v-model="commandFilter" placeholder="Фильтр команд">
+                            <input type="text" v-model="commandName" placeholder="Наименование команды">
                         </div>
                         <div class="button-group">
-                            <button id="commands-add-btn" title="Добавить"><i class="fas fa-plus"></i></button>
-                            <button id="commands-delete-btn" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+                            <button @click="addCommand" :disabled="!selectedClass || !commandName.trim()" title="Добавить"><i class="fas fa-plus"></i></button>
+                            <button @click="deleteCommand" :disabled="!selectedCommand" title="Удалить"><i class="fas fa-trash-alt"></i></button>
                         </div>
+                    </div>
+                    <div class="list-table-container">
+                        <table>
+                            <tbody>
+                                <tr v-for="cmd in filteredCommands" :key="cmd.id" class="table-row" :class="{ selected: selectedCommand && selectedCommand.id === cmd.id }" @click="selectedCommand = cmd">
+                                    <td>{{ cmd.name }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 <div class="tab-button active">Команды</div>
@@ -116,22 +190,145 @@
     </div>
 
     <div class="bottom-panel">
-        <span class="panel-text">Статус: готово</span>
+        <span class="panel-text">{{ statusText }}</span>
     </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+
+<script>
+(function() {
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const statusText = ref('Статус: готово');
+
+            const roles = ref([]);
+            const packs = ref([]);
+            const classes = ref([]);
+            const commands = ref([]);
+            const roleCommands = ref([]);
+            const users = ref([]);
+            const userRoles = ref([]);
+
+            const selectedRole = ref(null);
+            const selectedPack = ref(null);
+            const selectedClass = ref(null);
+            const selectedCommand = ref(null);
+            const selectedRoleCommand = ref(null);
+            const selectedUser = ref(null);
+            const selectedUserRole = ref(null);
+
+            const activeTab = ref('packages');
+
+            const roleFilter = ref('');
+            const roleName = ref('');
+            const packageFilter = ref('');
+            const packageName = ref('');
+            const classFilter = ref('');
+            const className = ref('');
+            const commandFilter = ref('');
+            const commandName = ref('');
+            const permFilter = ref('');
+            const userRoleFilter = ref('');
+            const userFilter = ref('');
+            const userName = ref('');
+            const userPassword = ref('');
+
+            const filteredRoles = computed(() => roles.value.filter(r => r.name.toLowerCase().includes(roleFilter.value.toLowerCase())));
+            const filteredPacks = computed(() => packs.value.filter(p => p.name.toLowerCase().includes(packageFilter.value.toLowerCase())));
+            const filteredClasses = computed(() => classes.value.filter(c => c.name.toLowerCase().includes(classFilter.value.toLowerCase())));
+            const filteredCommands = computed(() => commands.value.filter(c => c.name.toLowerCase().includes(commandFilter.value.toLowerCase())));
+            const filteredRoleCommands = computed(() => roleCommands.value.filter(rc => rc.name.toLowerCase().includes(permFilter.value.toLowerCase())));
+            const filteredUsers = computed(() => users.value.filter(u => u.name.toLowerCase().includes(userFilter.value.toLowerCase())));
+            const filteredUserRoles = computed(() => userRoles.value.filter(ur => ur.name.toLowerCase().includes(userRoleFilter.value.toLowerCase())));
+
+            async function api(method, url, body) {
+                const opts = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) opts.body = JSON.stringify(body);
+                const res = await fetch(url, opts);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || res.statusText);
+                }
+                return res.json();
+            }
+            function setStatus(msg) { statusText.value = 'Статус: ' + msg; }
+            function setError(e) { statusText.value = 'Ошибка: ' + (e.message || e); }
+
+            async function loadRoles() { try { roles.value = await api('GET', 'api/roles'); } catch(e) { setError(e); } }
+            function selectRole(role) { selectedRole.value = role; roleName.value = role.name; loadRoleCommands(role.id); }
+            async function addRole() { if (!roleName.value.trim()) return; try { const r = await api('POST', 'api/roles', { name: roleName.value.trim() }); roles.value.push(r); roleName.value = ''; setStatus('Роль добавлена'); } catch(e) { setError(e); } }
+            async function editRole() { if (!selectedRole.value || !roleName.value.trim()) return; try { const r = await api('PUT', 'api/roles', { role_id: selectedRole.value.id, name: roleName.value.trim() }); const i = roles.value.findIndex(x => x.id === r.id); if (i >= 0) roles.value[i] = r; selectedRole.value = r; setStatus('Роль изменена'); } catch(e) { setError(e); } }
+            async function deleteRole() { if (!selectedRole.value) return; try { await api('DELETE', 'api/roles/' + selectedRole.value.id); roles.value = roles.value.filter(r => r.id !== selectedRole.value.id); selectedRole.value = null; roleName.value = ''; roleCommands.value = []; setStatus('Роль удалена'); } catch(e) { setError(e); } }
+
+            async function loadPacks() { try { packs.value = await api('GET', 'api/packs'); } catch(e) { setError(e); } }
+            function selectPack(pack) { selectedPack.value = pack; selectedClass.value = null; packageName.value = pack.name; commands.value = []; selectedCommand.value = null; loadClasses(pack.id); }
+            async function addPack() { if (!packageName.value.trim()) return; try { const r = await api('POST', 'api/packs', { name: packageName.value.trim() }); packs.value.push(r); packageName.value = ''; setStatus('Пакет добавлен'); } catch(e) { setError(e); } }
+            async function editPack() { if (!selectedPack.value || !packageName.value.trim()) return; try { const r = await api('PUT', 'api/packs', { pack_id: selectedPack.value.id, name: packageName.value.trim() }); const i = packs.value.findIndex(x => x.id === r.id); if (i >= 0) packs.value[i] = r; selectedPack.value = r; setStatus('Пакет изменён'); } catch(e) { setError(e); } }
+            async function deletePack() { if (!selectedPack.value) return; try { await api('DELETE', 'api/packs/' + selectedPack.value.id); packs.value = packs.value.filter(p => p.id !== selectedPack.value.id); selectedPack.value = null; packageName.value = ''; classes.value = []; selectedClass.value = null; commands.value = []; setStatus('Пакет удалён'); } catch(e) { setError(e); } }
+
+            async function loadClasses(packId) { try { classes.value = await api('GET', 'api/classes/' + packId); } catch(e) { setError(e); } }
+            function selectClass(cls) { selectedClass.value = cls; className.value = cls.name; loadCommands(cls.id); }
+            async function addClass() { if (!selectedPack.value || !className.value.trim()) return; try { const r = await api('POST', 'api/classes', { pack_id: selectedPack.value.id, name: className.value.trim() }); classes.value.push(r); className.value = ''; setStatus('Класс добавлен'); } catch(e) { setError(e); } }
+            async function deleteClass() { if (!selectedClass.value) return; try { await api('DELETE', 'api/classes/' + selectedClass.value.id); classes.value = classes.value.filter(c => c.id !== selectedClass.value.id); selectedClass.value = null; className.value = ''; commands.value = []; selectedCommand.value = null; setStatus('Класс удалён'); } catch(e) { setError(e); } }
+
+            async function loadCommands(classId) { try { commands.value = await api('GET', 'api/commands/' + classId); } catch(e) { setError(e); } }
+            async function addCommand() { if (!selectedClass.value || !commandName.value.trim()) return; try { const r = await api('POST', 'api/commands', { class_id: selectedClass.value.id, name: commandName.value.trim() }); commands.value.push(r); commandName.value = ''; setStatus('Команда добавлена'); } catch(e) { setError(e); } }
+            async function deleteCommand() { if (!selectedCommand.value) return; try { await api('DELETE', 'api/commands/' + selectedCommand.value.id); commands.value = commands.value.filter(c => c.id !== selectedCommand.value.id); selectedCommand.value = null; commandName.value = ''; setStatus('Команда удалена'); } catch(e) { setError(e); } }
+
+            async function loadRoleCommands(roleId) { try { roleCommands.value = await api('GET', 'api/role_commands/' + roleId); } catch(e) { setError(e); } }
+            async function addRoleCommand() { if (!selectedRole.value || !selectedCommand.value) { setStatus('Выберите роль и команду'); return; } try { const r = await api('POST', 'api/role_commands', { role_id: selectedRole.value.id, command_id: selectedCommand.value.id }); roleCommands.value.push(r); setStatus('Разрешение добавлено'); } catch(e) { setError(e); } }
+            async function deleteRoleCommand() { if (!selectedRoleCommand.value) return; try { await api('DELETE', 'api/role_commands/' + selectedRoleCommand.value.id); roleCommands.value = roleCommands.value.filter(rc => rc.id !== selectedRoleCommand.value.id); selectedRoleCommand.value = null; setStatus('Разрешение удалено'); } catch(e) { setError(e); } }
+
+            async function loadUsers() { try { users.value = await api('GET', 'api/users'); } catch(e) { setError(e); } }
+            function selectUser(u) { selectedUser.value = u; userName.value = u.name; userPassword.value = ''; loadUserRoles(u.id); }
+            async function addUser() { if (!userName.value.trim()) return; try { const r = await api('POST', 'api/users', { name: userName.value.trim(), password: userPassword.value.trim() }); users.value.push(r); userName.value = ''; userPassword.value = ''; setStatus('Пользователь добавлен'); } catch(e) { setError(e); } }
+            async function editUser() { if (!selectedUser.value || !userName.value.trim()) return; try { const body = { user_id: selectedUser.value.id, name: userName.value.trim() }; if (userPassword.value.trim()) body.password = userPassword.value.trim(); const r = await api('PUT', 'api/users', body); const i = users.value.findIndex(x => x.id === r.id); if (i >= 0) users.value[i] = r; selectedUser.value = r; userPassword.value = ''; setStatus('Пользователь изменён'); } catch(e) { setError(e); } }
+            async function deleteUser() { if (!selectedUser.value) return; try { await api('DELETE', 'api/users/' + selectedUser.value.id); users.value = users.value.filter(u => u.id !== selectedUser.value.id); selectedUser.value = null; userName.value = ''; userPassword.value = ''; userRoles.value = []; setStatus('Пользователь удалён'); } catch(e) { setError(e); } }
+
+            async function loadUserRoles(userId) { try { userRoles.value = await api('GET', 'api/user_roles/' + userId); } catch(e) { setError(e); } }
+            async function addUserRole() { if (!selectedUser.value || !selectedRole.value) { setStatus('Выберите пользователя и роль'); return; } try { const r = await api('POST', 'api/user_roles', { user_id: selectedUser.value.id, role_id: selectedRole.value.id }); userRoles.value.push(r); setStatus('Роль назначена'); } catch(e) { setError(e); } }
+            async function deleteUserRole() { if (!selectedUserRole.value) return; try { await api('DELETE', 'api/user_roles/' + selectedUserRole.value.id); userRoles.value = userRoles.value.filter(ur => ur.id !== selectedUserRole.value.id); selectedUserRole.value = null; setStatus('Роль убрана'); } catch(e) { setError(e); } }
+
+            onMounted(async () => {
+                await Promise.all([loadRoles(), loadPacks(), loadUsers()]);
+                setStatus('готово');
+            });
+
+            return {
+                statusText, activeTab,
+                roles, packs, classes, commands, roleCommands, users, userRoles,
+                selectedRole, selectedPack, selectedClass, selectedCommand,
+                selectedRoleCommand, selectedUser, selectedUserRole,
+                roleFilter, roleName, packageFilter, packageName,
+                classFilter, className, commandFilter, commandName,
+                permFilter, userRoleFilter, userFilter, userName, userPassword,
+                filteredRoles, filteredPacks, filteredClasses, filteredCommands,
+                filteredRoleCommands, filteredUsers, filteredUserRoles,
+                selectRole, addRole, editRole, deleteRole,
+                selectPack, addPack, editPack, deletePack,
+                selectClass, addClass, deleteClass,
+                addCommand, deleteCommand,
+                addRoleCommand, deleteRoleCommand,
+                selectUser, addUser, editUser, deleteUser,
+                addUserRole, deleteUserRole,
+            };
+        }
+    }).mount('#app');
+})();
+</script>
 
 <style>
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
 
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; }
 
     html, body {
-        height: 100%;
-        background-color: #f0f0f0;
+    height: 100%;
+    background-color: #f0f0f0;
+    overflow: hidden;
     }
 
     #app {
@@ -143,8 +340,8 @@
         margin-right: auto;
         margin-top: 20px;
         margin-bottom: 20px;
-        position: relative;
         gap: 12px;
+        overflow: hidden;
     }
 
     .main-content {
@@ -156,277 +353,194 @@
     }
 
     .side-panel {
-        width: 24%;
+        width: 22%;
         background-color: #f9f9f9;
         border: 1px solid #ddd;
         border-radius: 8px;
-        overflow: auto;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     .center-panel {
         flex: 1;
-        min-width: 0;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
+    }
+
+    .vertical-tab, .tabs {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .tab-button {
+        padding: 12px 8px;
+        background: #e8e8e8;
+        border-top: 1px solid #ddd;
+        font-size: 16px;
+        font-weight: 600;
+        text-align: center;
+        color: #333;
+        cursor: default;
+        user-select: none;
     }
 
     .vertical-tab {
-        display: flex;
         flex-direction: column;
-        height: 100%;
     }
 
-    .vertical-tab .tab-button {
-        display: inline-block;
-        padding: 8px 16px;
-        background-color: #e0e0e0;
-        border: 1px solid #ccc;
-        border-top: 1px solid #ccc;
-        border-radius: 0 0 6px 6px;
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        text-align: center;
-        cursor: default;
-        transition: background-color 0.2s;
-        flex-shrink: 0;
-        width: 100%;
-    }
-
-    .vertical-tab .tab-button.active {
-        background-color: white;
-        border-top: 1px solid #ccc;
-    }
-
-    .bottom-panel {
-        min-height: 48px;
-        height: auto;
-        background-color: #F0F0F0;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        padding: 4px 12px;
-        border-radius: 4px;
-        flex-shrink: 0;
-        box-sizing: border-box;
-    }
-
-    .panel-text {
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        color: #333;
-    }
-
-    .tabs {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        width: 100%;
-    }
-
-    /* Исправление: скрываем только радиокнопки, остальные input видны */
-    .tabs input[type="radio"] {
-        display: none;
-    }
-
-    .tab-content {
-        display: none;
-        border: 1px solid #ccc;
-        border-radius: 6px 6px 0 0;
-        padding: 6px 6px 0px 6px;
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        color: #333;
-        overflow: auto;
+    .vertical-tab .column {
         flex: 1;
-        background: #e0e0e0;
     }
 
-    #tab-packages:checked ~ .tab-content#content-packages,
-    #tab-permissions:checked ~ .tab-content#content-permissions,
-    #tab-users:checked ~ .tab-content#content-users {
-        display: block;
-    }
-
-    .tab-labels {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 4px;
-        flex-shrink: 0;
-        width: 100%;
-    }
-
-    .tab-labels label {
-        display: block;
-        padding: 8px 16px;
-        background-color: #e0e0e0;
-        border: 1px solid #ccc;
-        border-top: none;
-        border-radius: 0 0 6px 6px;
-        cursor: pointer;
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        transition: background-color 0.2s;
-        text-align: center;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .tab-labels label:hover {
-        background-color: #d0d0d0;
-    }
-
-    #tab-packages:checked ~ .tab-labels label[for="tab-packages"],
-    #tab-permissions:checked ~ .tab-labels label[for="tab-permissions"],
-    #tab-users:checked ~ .tab-labels label[for="tab-users"] {
-        background-color: white;
-    }
-
-    #tab-packages:checked ~ .tab-content#content-packages,
-    #tab-users:checked ~ .tab-content#content-users {
-        display: flex;
-        flex-direction: row;
-        gap: 6px;
-        overflow: hidden;
-    }
-
-    #tab-permissions:checked ~ .tab-content#content-permissions {
-        display: flex;
-        flex-direction: row;
-        gap: 6px;
-        overflow: hidden;
+    .tab-button.active {
+        background: white;
+        color: black;
     }
 
     .column {
-        flex: 1;
-        min-width: 0;
-        overflow: auto;
-        width: auto;
-        background: white;
-        border: 1px solid #ccc;
-        border-bottom: none;
-        border-radius: 6px 6px 0px 0px;
         display: flex;
         flex-direction: column;
-        padding: 0;
-        min-height: 200px;
+        height: 100%;
+        overflow: hidden;
     }
 
     .column-header {
-        background-color: #e8e8e8;
-        padding: 8px 12px;
-        border-bottom: 1px solid #ccc;
-        flex-shrink: 0;
-        min-height: 0;
+        padding: 8px;
+        background: #ececec;
+        border-bottom: 1px solid #ddd;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
 
     .input-group {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        flex-shrink: 0;
+        gap: 4px;
     }
 
     .input-group input {
-        padding: 6px 8px;
+        padding: 4px 7px;
+        font-size: 16px;
         border: 1px solid #ccc;
         border-radius: 4px;
-        font-size: 16px;
-        line-height: normal;
-        height: auto;
-        /* явно показываем, чтобы не было конфликтов */
-        display: block;
+        background: #fff;
         width: 100%;
     }
 
     .button-group {
         display: flex;
-        gap: 8px;
-        justify-content: flex-start;
-        flex-shrink: 0;
+        gap: 4px;
     }
 
     .button-group button {
-        background: #fff;
-        border: 1px solid #aaa;
-        border-radius: 4px;
-        padding: 4px 8px;
-        cursor: pointer;
-        transition: all 0.2s;
+        padding: 4px 9px;
         font-size: 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
+        border: 1px solid #bbb;
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .button-group button:hover:not(:disabled) { background: #e0f0e0; }
+    .button-group button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Scrollable table container (replaces .list-body) */
+    .list-table-container {
+    height: 100%;
+    overflow-y: auto;
+    }
+
+    .list-table-container table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .list-table-container td {
+        padding: 5px 10px;
+        font-size: 16px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    tr.table-row {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    tr.table-row:hover {
+        background: #e8f5e9;
+    }
+
+    tr.table-row.selected {
+        background: #b8d8b0;
+        font-weight: 600;
+    }
+
+    /* Tabs (center panel) */
+    .tabs {
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .tab-content {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        overflow: hidden;
+    }
+
+    .tab-content .column {
+        flex: 1;
+        border-right: 1px solid #ddd;
+    }
+
+    .tab-content .column:last-child { border-right: none; }
+
+    .tab-labels {
+        display: flex;
+        border-top: 1px solid #ddd;
+    }
+
+    .tab-label {
+        flex: 1;
+        text-align: center;
+        padding: 12px 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #e8e8e8;
+        border-right: 1px solid #ddd;
+        border-radius: 0 0 6px 6px;
+        user-select: none;
+        transition: background 0.15s;
+    }
+
+    .tab-label:last-child { border-right: none; }
+    .tab-label:hover { background: #F8F8F8; }
+    .tab-label.active { background: white; color: black; font-weight: 700; }
+
+    /* Bottom status bar */
+    .bottom-panel {
         height: 28px;
-    }
-
-    .button-group button i {
-        font-size: 14px;
-        color: #333;
-    }
-
-    .button-group button:hover {
-        background-color: #d0d0d0;
-        border-color: #888;
-    }
-
-    .button-group button:hover i {
-        color: #000;
-    }
-
-    /* Стили для вертикальных панелей действий */
-    .action-panel {
-        width: 50px;
-        background-color: #EFEFEF;
+        background: #e0e0e0;
         border: 1px solid #ccc;
         border-radius: 6px;
         display: flex;
-        flex-direction: column;
-        justify-content: center;
         align-items: center;
-        gap: 16px;
-        flex-shrink: 0;
+        padding: 0 12px;
     }
 
-    .action-panel button {
-        background: #fff;
-        border: 1px solid #aaa;
-        border-radius: 4px;
-        padding: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 18px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-    }
-
-    .action-panel button i {
-        font-size: 18px;
-        color: #333;
-    }
-
-    .action-panel button:hover {
-        background-color: #d0d0d0;
-        border-color: #888;
-    }
-
-    .action-panel button:hover i {
-        color: #000;
-    }
-
-    .action-panel.left {
-        margin-right: 0;
-    }
-
-    .action-panel.right {
-        margin-left: 0;
+    .panel-text {
+        font-size: 16px;
+        color: #444;
     }
 </style>
