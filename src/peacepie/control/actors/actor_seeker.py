@@ -8,22 +8,21 @@ from peacepie.assist import log_util, timer
 class ActorSeeker:
 
     def __init__(self, parent):
-        self.logger = logging.getLogger()
         self.parent = parent
         self.queue = asyncio.Queue()
         self.not_log_commands = set()
         self.cumulative_commands = {}
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     async def run(self):
         while True:
             msg = await self.queue.get()
-            self.logger.debug(log_util.async_received_log(self, msg))
+            logging.debug(log_util.async_received_log(self, msg))
             try:
                 if not await self.handle(msg):
-                    self.logger.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
+                    logging.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
 
     async def handle(self, msg):
         command = msg['command']
@@ -63,22 +62,21 @@ class ActorSeeker:
 class HeadActorSeeker:
 
     def __init__(self, parent):
-        self.logger = logging.getLogger()
         self.parent = parent
         self.queue = asyncio.Queue()
         self.not_log_commands = set()
         self.cumulative_commands = {}
-        self.logger.info(log_util.get_alias(self) + ' is created')
+        logging.info(log_util.get_alias(self) + ' is created')
 
     async def run(self):
         while True:
             msg = await self.queue.get()
-            self.logger.debug(log_util.async_received_log(self, msg))
+            logging.debug(log_util.async_received_log(self, msg))
             try:
                 if not await self.handle(msg):
-                    self.logger.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
+                    logging.warning(log_util.get_alias(self) + ': The message is not handled: ' + str(msg))
             except Exception as ex:
-                self.logger.exception(ex)
+                logging.exception(ex)
 
     async def handle(self, msg):
         command = msg['command']
@@ -97,6 +95,7 @@ class HeadActorSeeker:
         if len(self.parent.intralink.get_recipients()) == 0:
             ans = msg_factory.get_msg('actor_is_not_found', {'mid': msg.get('mid')}, recipient=recipient)
             await self.parent.adaptor.send(ans, self)
+            return
         queue = asyncio.Queue()
         entity = f'_{self.parent.ask_index}'
         self.parent.ask_index += 1
@@ -107,7 +106,7 @@ class HeadActorSeeker:
         for receiver in self.parent.intralink.get_recipients():
             await receiver.put(message)
             count += 1
-            self.logger.debug(log_util.sync_ask_log(self, message))
+            logging.debug(log_util.sync_ask_log(self, message))
         timer.start(2, queue, message['mid'])
         while True:
             res = await queue.get()

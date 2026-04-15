@@ -82,6 +82,7 @@ class ActorCreator:
 
     async def create_actor(self, msg, is_replica):
         global replica_index
+        timeout = msg.get('timeout')
         body = msg.get('body') if msg.get('body') else {}
         class_desc = body.get('class_desc')
         name = body.get('name')
@@ -99,7 +100,7 @@ class ActorCreator:
             if isinstance(class_desc, type):
                 clss = class_desc
             else:
-                clss = await self.grandparent.adaptor.get_class(class_desc)
+                clss = await self.grandparent.adaptor.get_class(class_desc, timeout)
                 if not class_desc.get('class'):
                     class_desc['class'] = clss.__name__
             if not clss:
@@ -137,7 +138,8 @@ class ActorCreator:
         recipient = msg.get('sender')
         body = msg.get('body') if msg.get('body') else {}
         class_desc = body.get('class_desc')
-        clss = await self.grandparent.adaptor.get_class(class_desc)
+        timeout = msg.get('timeout')
+        clss = await self.grandparent.adaptor.get_class(class_desc, timeout)
         if not clss:
             await self.actors_are_not_created(recipient)
             return

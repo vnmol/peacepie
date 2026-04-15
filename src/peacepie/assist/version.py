@@ -154,6 +154,7 @@ def _check_version(version, conditions):
 pattern = r"""
     ^
     (?P<package_name>[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*)
+    (?P<extras>\s*\[\s*[a-zA-Z0-9_-]+(?:\s*,\s*[a-zA-Z0-9_-]+)*\s*\]\s*)?
     (?P<version_spec>[^;]*)
     (?:;\s*(?P<markers>.+))?
     $
@@ -188,6 +189,10 @@ def parse_requires_dist(requires_dist):
     if match:
         result = match.groupdict()
         result = {k: v.strip() if v else None for k, v in result.items()}
+        extras = result.get('extras')
+        if extras:
+            extras = extras.strip()[1:-1].strip()
+            result['extras'] = {e.strip() for e in extras.split(',') if e.strip()}
         markers = result.pop('markers', None)
         if markers:
             py_matches = python_version_regex.finditer(markers)

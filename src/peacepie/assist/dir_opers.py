@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 
-from peacepie.assist import json_util, version
+from peacepie.assist import dependencies, json_util, version
 
 
 def recreatedir(dirpath):
@@ -187,10 +187,13 @@ def rename_dir(old_path, new_path):
         logging.exception(e)
 
 
-def get_metadata(path):
+def get_metadata(path, extras=None):
+    return dependencies.get_package_info_and_requires(path, extras)
+    '''
     name = None
     ver = None
     dependencies = []
+    print(path, type(path))
     try:
         with open(f'{path}/METADATA', 'r', encoding='utf-8') as f:
             for line in f:
@@ -200,17 +203,19 @@ def get_metadata(path):
                     ver = line.split(':', 1)[1].strip()
                 elif line.startswith('Requires-Dist:'):
                     dependency = version.parse_requires_dist(line.split('Requires-Dist:')[1].strip())
-                    if is_right_dependency(dependency):
+                    if is_right_dependency(dependency, extras):
                         dependencies.append(dependency)
         return name, ver, dependencies
     except Exception as e:
         logging.exception(e)
     return None, None, None
+    '''
 
 
-def is_right_dependency(dependency):
+def is_right_dependency(dependency, extras):
     if 'extra' in dependency:
-        return False
+        if not extras:
+            return False
     if not version.check_version(version.get_python_version(), dependency.get('python_version')):
         return False
     if dependency.get('platform_system') and platform.system() != dependency.get('platform_system'):

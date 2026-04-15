@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 import logging
 import os
 import subprocess
@@ -68,6 +69,8 @@ class SimpleFastapiActor:
         env['zmq_port'] = str(self._zmq_server.port)
         env['peacepie_path'] = self.adaptor.get_package_path()
         env['peacepie_serializer'] = self.adaptor.get_serializer_desc()
+        path = str(Path(self.adaptor.parent.actor_admin.work_path).resolve())
+        env['PYTHONPATH'] = path + os.pathsep + env.get('PYTHONPATH', '')
         self._proc = subprocess.Popen(
             [
                 'python', '-m', 'uvicorn',
@@ -105,3 +108,14 @@ class SimpleFastapiActor:
         queue = asyncio.Queue()
         asyncio.get_running_loop().create_task(self._zmq_server.run(queue))
         await asyncio.wait_for(queue.get(), timeout=4)
+
+
+async def wait_for_file(path, timeout, interval):
+    start_time = asyncio.get_running_loop().time()
+    while True:
+        if path.exists():
+            return True
+        elapsed = asyncio.get_running_loop().time() - start_time
+        if elapsed >= timeout:
+            return False
+        await asyncio.sleep(interval)

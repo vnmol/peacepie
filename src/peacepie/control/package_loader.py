@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 from functools import partial
-from typing import Optional
 
 from peacepie import msg_factory, params, loglistener
 from peacepie.assist import dir_opers, json_util, log_util, version
@@ -63,9 +62,17 @@ class PackageLoader:
         for package in os.listdir(self.tmp_path):
             dir_opers.move_dir(f'{self.tmp_path}/{package}', f'{self.source_path}/{package}')
 
-    async def acquire_package(self, requires_dist, extra_index_url, timeout) -> Optional[str]:
-        package_name = requires_dist.get('package_name')
-        version_spec = requires_dist.get('version_spec')
+    async def acquire_package(self, requires_dist, extra_index_url, timeout):
+        package_name = None
+        extras = None
+        version_spec = None
+        try:
+            package_name = requires_dist.get('package_name')
+            extras = requires_dist.get('extras')
+            version_spec = requires_dist.get('version_spec')
+        except Exception as e:
+            print(e)
+            print(requires_dist)
         package_loading = self.loadings.get(package_name)
         if package_loading is None:
             entry = self.find_entry(package_name, version_spec)
@@ -77,8 +84,8 @@ class PackageLoader:
             await queue.get()
             return self.find_entry(package_name, version_spec)
         self.loadings[package_name] = []
-        await self.install_package(package_name, version_spec, extra_index_url, timeout)
-        ver, dependencies = self.find_version_with_dependencies(package_name, version_spec)
+        await self.install_package(package_name, extras, version_spec, extra_index_url, timeout)
+        ver, dependencies = self.find_version_with_dependencies(package_name, extras, version_spec)
         logging.info(f'For package "{package_name}-{ver}" dependencies are found: {dependencies}')
         if not ver:
             return None
@@ -103,11 +110,11 @@ class PackageLoader:
             return res
         return find_entry(self.tmp_path, package_name, version_spec)
 
-    def find_version_with_dependencies(self, package_name, version_spec):
+    def find_version_with_dependencies(self, package_name, extras, version_spec):
         ver = None
         dependencies = None
         for pack_path, entry_path in dir_opers.get_package_entries(self.tmp_path):
-            name, v, ds = dir_opers.get_metadata(entry_path)
+            name, v, ds = dir_opers.get_metadata(entry_path, extras)
             if name.lower().replace('-', '_') == package_name.lower().replace('-', '_'):
                 if version.check_version(v, version_spec):
                     if ver is None or version.check_version(v, f'>{ver}'):
@@ -117,8 +124,8 @@ class PackageLoader:
                     dir_opers.rename_dir(pack_path, f'{pack_path}-{v}')
         return ver, dependencies
 
-    async def install_package(self, package_name, version_spec, url, timeout):
-        ver_package_name = package_name + version_spec if version_spec else package_name
+    async def install_package(self, package_name, extras, version_spec, url, timeout):
+        ver_package_name = package_name + (version_spec if version_spec else '')
         args = ([sys.executable, '-m', 'pip', 'install', '--no-deps', '--disable-pip-version-check'])
         if url:
             host = url.split("//")[-1].split("/")[0]

@@ -144,9 +144,9 @@ class SimpleWebFace:
         recipient = datum.get('recipient')
         if recipient == '':
             recipient = None
-        query = self.adaptor.get_msg(command, body, recipient)
+        query = self.adaptor.get_msg(command, body, recipient, timeout=timeout)
         if tp == 'ask':
-            res = self.adaptor.json_dumps(await self.adaptor.ask(query, timeout))
+            res = self.adaptor.json_dumps(await self.adaptor.ask(query))
         else:
             await self.adaptor.send(query)
             res = 'The message is sent'

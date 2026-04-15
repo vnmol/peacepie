@@ -6,7 +6,9 @@ INSTALL_BUILD: python3 -m pip install --upgrade build
 BUILD_WHEEL_PACKAGE: python3 -m build
 RUN_PYTHON_HTTP_SERVER: python3 -m http.server 9000
 INSTALL_PYPI_HTTP_SERVER: pip install pypiserver
-RUN_PYPI_HTTP_SERVER: pypi-server run -p 9000 /home/vmol/upload
+RUN_PYPI_HTTP_SERVER: pypi-server run -p 9000 /media/vmol/Second/upload
+
+pip install --trusted-host=localhost:9000 --extra-index-url=http://localhost:9000 peacepie
 
 ZIPAPP
 python3 -m pip install --index-url https://test.pypi.org/simple/ peacepie --target peacepie_service/
@@ -21,3 +23,6 @@ res = await self.adaptor.command_execute(command)
 
 
 {"class_desc": {"requires_dist": "simple_telegram_bot", "class": "SimpleTelegramActor"}, "name": "telegram"}
+
+{"node": "first.MainProcess.admin", "entity": "web_face", "class_desc": {"requires_dist": "simple_fastapi_dashboard", "class": "SimpleFastapiActor"}}
+{"node": "first.MainProcess.admin", "entity": "web_face", "class_desc": {"requires_dist": "simple_web_face", "class": "SimpleWebFace"}}

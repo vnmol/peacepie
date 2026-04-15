@@ -2,6 +2,7 @@ import logging
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+from importlib import resources
 
 from peacepie import params
 
@@ -38,8 +39,8 @@ class DbAdmin:
         admin += f'("{credentials.get("username")}", True, '
         admin += f'"{hp.get("pass_hash")}", "{hp.get("salt")}", {hp.get("iterations")}, "{hp.get("algorithm")}");\n\n'
         admin += 'INSERT INTO user_roles (user_id, role_id) VALUES (1, 1);\n\n'
-        with open(Path(__file__).resolve().parent / 'script.sql', 'r', encoding='utf-8') as f:
-            script = f.read()
+        sql_resource = resources.files('peacepie') / 'resources' / 'script.sql'
+        script = sql_resource.read_text(encoding='utf-8')
         script += admin
         try:
             with self._connect() as conn:

@@ -1,10 +1,10 @@
 import asyncio
+import logging
 
 from peacepie import params, msg_factory
-from peacepie.assist import dir_opers
+from peacepie.assist import dir_opers, log_util
 from peacepie.control.actors import actor_admin, actor_agent, actor_recreator, actor_seeker
 from peacepie.control.intra import intra_link
-
 
 ACTOR_ADMIN_COMMANDS = {'create_actor', 'create_actors', 'remove_actor',
                         'get_source_path', 'get_work_path',
@@ -66,8 +66,8 @@ class Admin:
         if command in ACTOR_ADMIN_COMMANDS:
             await self.actor_admin.handle(msg)
         elif command in ACTOR_SEEKER_COMMANDS:
-            msg['recipient'] = self.actor_seeker.queue
-            await self.adaptor.send(msg)
+            await self.actor_seeker.queue.put(msg)
+            logging.debug(log_util.async_sent_log(self, msg))
         elif command == 'remove_process':
             await self.remove_process()
         elif command == 'get_log_desc':
