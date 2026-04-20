@@ -744,7 +744,7 @@ class Adaptor:
                     return False
         return True
 
-    async def get_class(self, class_desc, timeout):
+    async def get_class(self, class_desc, timeout=1):
         return await class_extractor.get_class(self, class_desc, timeout)
 
     def get_package_name(self):

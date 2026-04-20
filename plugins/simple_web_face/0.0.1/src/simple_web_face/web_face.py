@@ -13,6 +13,7 @@ class SimpleWebFace:
         self.adaptor = None
         self.page_size = 5
         self.port = None
+        self.is_env_port = True
         self._host = None
         self._domain = None
         self._runner = None
@@ -67,11 +68,11 @@ class SimpleWebFace:
             await self.adaptor.send(self.adaptor.get_msg('started', None, recipient))
 
     async def initialize_http_server(self):
-        try:
-            self.port = int(os.environ.get('PORT', self.port))
-        except Exception as e:
-            print(e)
-            logging.exception(e)
+        if self.is_env_port:
+            try:
+                self.port = int(os.environ.get('PORT', self.port))
+            except Exception as e:
+                logging.exception(e)
         app = web.Application()
         app.add_routes([web.get('/', self.root_handler)])
         app.add_routes([web.get('/ws', self.websocket_handler)])

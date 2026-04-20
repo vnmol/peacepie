@@ -13,7 +13,7 @@ class SimpleFastapiActor:
     def __init__(self):
         self.adaptor = None
         self.port = None
-        self.page_size = None
+        self.page_size = 5
         self._proc = None
         self._zmq_server = None
 
@@ -47,14 +47,14 @@ class SimpleFastapiActor:
 
     async def set_params(self, params, recipient):
         self.adaptor.set_params(params)
-        try:
-            self.port = int(os.environ.get('PORT', self.port))
-        except Exception as e:
-            logging.exception(e)
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', None, recipient))
 
     async def start(self, recipient):
+        try:
+            self.port = int(os.environ.get('PORT', self.port))
+        except Exception as e:
+            logging.exception(e)
         name = 'account_admin'
         ans = await self.adaptor.ask(self.adaptor.get_msg('seek_actor', {'entity': name}), 4)
         if ans.get('command') != 'actor_is_found':

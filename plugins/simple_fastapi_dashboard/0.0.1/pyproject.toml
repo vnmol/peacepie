@@ -15,8 +15,8 @@ dependencies = [
     'pyjwt',
     'python-multipart',
     'pyzmq',
-    'uvicorn[standard]',
     'pydantic',
+    'uvicorn[standard]',
 ]
 
 [tool.setuptools.packages.find]

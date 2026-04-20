@@ -1,5 +1,3 @@
-import traceback
-
 
 class Retransmitter:
 

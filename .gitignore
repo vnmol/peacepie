@@ -21,3 +21,5 @@ example.stats
 /config/safe.cfg
 /config/safe.old
 /databases/
+/docs/
+/notes/
