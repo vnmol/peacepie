@@ -13,7 +13,7 @@ SERVER_LIST_NAME = 'signalman.cfg'
 SYSTEM_NAME = 'system_name'
 HOST = 'host'
 PORT = 'port'
-EXTRA_INDEX_URL = 'extra-index-url'
+INDEX_URL = 'index-url'
 SSH_PORT = 'ssh_port'
 USERNAME = 'username'
 PASSWORD = 'password'
@@ -304,7 +304,7 @@ class Signalman:
         if not conn:
             return False
         self.form_systemd(desc.get(USERNAME))
-        self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT), desc.get(EXTRA_INDEX_URL))
+        self.form_config(desc.get(SYSTEM_NAME), desc.get(PORT), desc.get(INDEX_URL))
         async with conn.start_sftp_client() as sftp:
             await sftp.put(SERVICE_SOURCE, SERVICE_SOURCE, recurse=True)
         src = f'{SERVICE_SOURCE}/{SERVICE_CONFIG}'
@@ -331,7 +331,7 @@ class Signalman:
         with open(f'{SERVICE_SOURCE}/{SERVICE_CONFIG}', 'w') as f:
             f.write(res)
 
-    def form_config(self, system_name, port, extra_index_url):
+    def form_config(self, system_name, port, index_url):
         res = f'log_config={LOG_CONFIG_NAME}\r\n'
         res += f'safe_config={SAFE_CONFIG_NAME}\r\n'
         res += f'system_name={system_name}\r\n'
@@ -341,7 +341,7 @@ class Signalman:
         res += f'intra_host=localhost\r\n'
         res += f'intra_port=0\r\n'
         res += f'inter_port={port}\r\n'
-        res += f'extra-index-url={extra_index_url}\r\n'
+        res += f'index-url={index_url}\r\n'
         res += f'package_dir=packages\r\n'
         res += 'starter=app_starter.py\r\n'
         with open(f'{SERVICE_SOURCE}/{CONFIG_NAME}', 'w') as f:

@@ -45,10 +45,8 @@ class HeadPrimeAdmin(prime_admin.PrimeAdmin):
         self.adaptor.stop()
 
     async def exit(self):
-        await self.actor_admin.exit()
-        await self.intralink.exit()
         await self.interlink.exit()
-        loglistener.instance.exit()
+        await super().exit()
 
     async def handle(self, msg):
         command = msg.get('command')

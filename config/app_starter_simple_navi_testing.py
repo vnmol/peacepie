@@ -13,7 +13,7 @@ class AppStarter:
         return True
 
     async def start(self):
-        url = 'http://localhost:9000'
+        url = 'http://localhost:9000/simple'
         await self.web_face(url)
         await self.networking(url)
 
@@ -27,13 +27,13 @@ class AppStarter:
 
     async def networking(self, url):
         name = 'main_initiator'
-        class_desc = {'requires_dist': 'simple_navi_testing', 'class': 'MainInitiator', 'extra-index-url': url}
+        class_desc = {'requires_dist': 'simple_navi_testing', 'class': 'MainInitiator', 'index-url': url}
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
-        class_desc = {'requires_dist': 'egts_convertor ==0.0.1', 'class': 'EGTSConvertor', 'extra-index-url': url}
-        # class_desc = {'requires_dist': 'simple_convertor', 'class': 'SimpleConvertor', 'extra-index-url': url}
+        class_desc = {'requires_dist': 'egts_convertor ==0.0.1', 'class': 'EGTSConvertor', 'index-url': url}
+        # class_desc = {'requires_dist': 'simple_convertor', 'class': 'SimpleConvertor', 'index-url': url}
         body = {'params': [
-            {'name': 'extra-index-url', 'value': url},
+            {'name': 'index-url', 'value': url},
             {'name': 'convertor_desc', 'value': class_desc},
             {'name': 'inet_addr', 'value': {'host': '0.0.0.0', 'port': 4802}},
             {'name': 'is_single_channel', 'value': False},

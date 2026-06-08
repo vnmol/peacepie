@@ -32,7 +32,7 @@ class MainInitiator:
         for param in params:
             name = param.get('name')
             value = param.get('value')
-            if name == 'extra-index-url':
+            if name == 'index-url':
                 self.url = value
             elif name == 'convertor_desc':
                 self.convertor_desc = value
@@ -60,7 +60,7 @@ class MainInitiator:
                 self.skip_some_logging = value
             elif name == 'is_testing':
                 self.is_testing = value
-        self.convertor_desc['extra-index-url'] = self.url
+        self.convertor_desc['index-url'] = self.url
         if recipient:
             await self.adaptor.send(self.adaptor.get_msg('params_are_set', recipient=recipient))
 
@@ -116,7 +116,7 @@ class MainInitiator:
         def get_values(index):
             body = {'params': [
                 {'name': 'index', 'value': index},
-                {'name': 'extra-index-url', 'value': self.url},
+                {'name': 'index-url', 'value': self.url},
                 {'name': 'convertor_desc', 'value': self.convertor_desc},
                 {'name': 'inet_addr', 'value': {'host': host, 'port': port+index}},
                 {'name': 'is_single_channel', 'value': self.is_single_channel},

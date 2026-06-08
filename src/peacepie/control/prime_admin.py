@@ -34,6 +34,7 @@ class PrimeAdmin(admin.Admin):
         self.adaptor.stop()
 
     async def exit(self):
+        await self.package_loader.exit()
         await self.actor_admin.exit()
         await self.intralink.exit()
         loglistener.instance.exit()

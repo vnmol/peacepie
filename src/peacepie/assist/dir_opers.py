@@ -187,8 +187,8 @@ def rename_dir(old_path, new_path):
         logging.exception(e)
 
 
-def get_metadata(path, extras=None):
-    return dependencies.get_package_info_and_requires(path, extras)
+def get_metadata(path):
+    return dependencies.get_package_info_and_requires(path)
     '''
     name = None
     ver = None
@@ -236,9 +236,7 @@ def get_metadata_ext(path):
         with open(f'{path}/BUNDLE', 'r', encoding='utf-8') as f:
             entries = f.read().splitlines()
         for entry in entries:
-            tokens = entry.strip().rsplit('-', 1)
-            if len(tokens) != 2:
-                return None
+            tokens = entry.strip().rsplit('-')
             packs[tokens[0].lower().replace('-', '_')] = entry
     except Exception as e:
         logging.exception(e)
@@ -294,22 +292,22 @@ def sync_link_package(src, dst, shared_folders):
             sync_create_symlink(os.path.join(src, entry), os.path.join(dst, entry))
 
 
-def sync_create_symlink(orig, dest, timeout=1):
+def sync_create_symlink(orig, dst, timeout=1):
     try:
-        os.symlink(os.path.abspath(orig), os.path.abspath(dest), target_is_directory=os.path.isdir(orig))
-        res = is_sync_symlink_created(dest, timeout)
-        logging.info(f'Symlink is created "{orig}" --> "{dest}"')
+        os.symlink(os.path.abspath(orig), os.path.abspath(dst), target_is_directory=os.path.isdir(orig))
+        res = is_sync_symlink_created(dst, timeout)
+        logging.info(f'Symlink is created "{orig}" --> "{dst}"')
         return res
     except Exception as e:
         logging.exception(e)
     return False
 
 
-def is_sync_symlink_created(dest, timeout):
+def is_sync_symlink_created(dst, timeout):
     step = 0.1
     total = 0.0
     while total < timeout:
-        if os.path.islink(dest):
+        if os.path.islink(dst):
             return True
         total += step
         time.sleep(step)

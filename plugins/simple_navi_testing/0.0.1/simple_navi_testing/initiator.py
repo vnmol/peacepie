@@ -39,7 +39,7 @@ class Initiator:
             value = param.get('value')
             if name == 'index':
                 self.index = value
-            elif name == 'extra-index-url':
+            elif name == 'index-url':
                 self.url = value
             elif name == 'convertor_desc':
                 self.convertor_desc = value
@@ -92,7 +92,7 @@ class Initiator:
 
     async def create_server(self, consumer):
         name = f'tcp_server_{self.index:02d}'
-        class_desc = {'requires_dist': 'simple_networking', 'class': 'TcpServer', 'extra-index-url': self.url}
+        class_desc = {'requires_dist': 'simple_networking', 'class': 'TcpServer', 'index-url': self.url}
         body = {'class_desc': class_desc, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 30)
         body = {'params': [{'name': 'convertor_desc', 'value': self.convertor_desc},
@@ -108,7 +108,7 @@ class Initiator:
 
     async def create_clients(self):
         names = [f'tcp_client_{self.index:02d}_{n:04d}' for n in range(self.size)]
-        class_desc = {'requires_dist': 'simple_networking', 'class': 'TcpClient', 'extra-index-url': self.url}
+        class_desc = {'requires_dist': 'simple_networking', 'class': 'TcpClient', 'index-url': self.url}
         body = {'class_desc': class_desc, 'names': names}
         await self.adaptor.ask(self.adaptor.get_msg('create_actors', body), 4)
         await self.adaptor.group_ask(10, len(names), self.client_factory(names))

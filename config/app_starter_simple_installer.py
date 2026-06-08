@@ -23,7 +23,7 @@ class AppStarter:
         ans = await self.adaptor.ask(query)
         body = {'system_name': 'local', 'host': '192.168.100.83', 'port': 6999, 'ssh_port': 22,
                 'key_dir': '.ssh', 'key_name': 'id_rsa', 'username': username, 'password': password,
-                'passphrase': 'qwerty', 'extra-index-url': f'http://{self.adaptor.get_param("ip")}:9000'}
+                'passphrase': 'qwerty', 'index-url': f'http://{self.adaptor.get_param("ip")}:9000/simple'}
         query = self.adaptor.get_msg('add_server', body, ans.get('body'))
         await self.adaptor.ask(query, 3000)
         raise KeyboardInterrupt()

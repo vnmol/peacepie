@@ -7,10 +7,9 @@ name = "peacepie"
 version = "0.2.6"
 description = "Simple actor system"
 authors = [{ name = "Vladimir Molodtsov", email = "vmol@mail.ru" }]
-readme = "README.md"
-license-files = ["LICENSE"]
 dependencies = [
     "packaging",
+    "installer",
 ]
 
 [tool.setuptools.packages.find]

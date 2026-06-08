@@ -322,8 +322,8 @@ class Adaptor:
             return
         self.ticker_admin.remove_ticker(name)
 
-    def get_param(self, param_name):
-        return params.instance.get(param_name)
+    def get_param(self, name, default=None):
+        return params.get_param(name, default)
 
     def get_test_param(self, param_name):
         return params.test_instance.get(param_name)
@@ -744,8 +744,8 @@ class Adaptor:
                     return False
         return True
 
-    async def get_class(self, class_desc, timeout=1):
-        return await class_extractor.get_class(self, class_desc, timeout)
+    async def get_class(self, class_desc, timeout=1, questioner=None):
+        return await class_extractor.get_class(self, class_desc, timeout, questioner)
 
     def get_package_name(self):
         if not self.class_desc:

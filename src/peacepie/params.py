@@ -19,15 +19,6 @@ def init_params(path, test_params):
     global instance
     global test_instance
     test_instance = test_params
-    '''
-    try:
-        with open(path) as f:
-            pass
-    except (FileNotFoundError, TypeError):
-        path = None
-    if path is None:
-        path = deploy_environment()
-    '''
     params = []
     try:
         with open(path) as f:
@@ -42,7 +33,7 @@ def init_params(path, test_params):
         if len(lst) == 2 and not lst[0].strip() == '' and not lst[1].strip() == '':
             name = lst[0].strip()
             value = lst[1].strip()
-            if name == 'developing_mode' or name == 'separate_log_per_process':
+            if value.lower() == 'true' or value.lower() == 'false':
                 value = value.lower() == 'true'
             elif name == 'inter_port':
                 value = int(value)
@@ -125,3 +116,10 @@ def read_version_from_metadata(metadata_path):
             if line.lower().startswith('version:'):
                 return line.split(':', 1)[1].strip()
     raise ValueError('Version not found in "METADATA"')
+
+
+def get_param(name, default=None):
+    res = instance.get(name)
+    if res is None:
+        res = default
+    return res

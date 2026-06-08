@@ -100,7 +100,7 @@ class ActorCreator:
             if isinstance(class_desc, type):
                 clss = class_desc
             else:
-                clss = await self.grandparent.adaptor.get_class(class_desc, timeout)
+                clss = await self.grandparent.adaptor.get_class(class_desc, timeout, self)
                 if not class_desc.get('class'):
                     class_desc['class'] = clss.__name__
             if not clss:
