@@ -104,7 +104,7 @@ def get_link_list(source_path, work_path, requirement, package_version, extra):
             if res is None:
                 return None
             result = result.union(res)
-    for req, ver in get_dependencies(get_package_info_path(source_path, package_name, package_version)):
+    for req, ver in get_dependencies(get_package_info_path(source_path, package_name, package_version), extra):
         if req is None:
             return None
         res = get_link_list(source_path, work_path, req, ver, None)
@@ -133,7 +133,7 @@ def is_in_work(path, package_name, specifier):
     return False
 
 
-def get_dependencies(package_info_path):
+def get_dependencies(package_info_path, extra):
     if package_info_path is None:
         return [(None, None)]
     bundle = get_bundle(package_info_path)
@@ -141,8 +141,15 @@ def get_dependencies(package_info_path):
     dependencies = []
     for req_str in (dist.metadata.get_all("Requires-Dist") or []):
         req = Requirement(req_str)
-        if not req.marker or req.marker.evaluate():
-            dependencies.append((req, bundle.get(req.name.replace('-', '_').lower())))
+        ver = bundle.get(req.name.replace('-', '_').lower())
+        if req.marker:
+            if extra:
+                if req.marker.evaluate({'extra': extra}):
+                    dependencies.append((req, ver))
+            elif req.marker.evaluate():
+                dependencies.append((req, ver))
+        else:
+            dependencies.append((req, ver))
     return dependencies
 
 

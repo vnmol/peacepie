@@ -78,7 +78,7 @@ class PackResolver:
         return res
 
     async def build_result(self, index_url, requirement):
-        if not await asyncio.to_thread(self.add_child, index_url, requirement, False, None, self.tree):
+        if not await asyncio.to_thread(self.make_tree, index_url, requirement):
             return None
         res = {}
         stack = []
@@ -110,6 +110,13 @@ class PackResolver:
         elif ver_record.get('is_installed'):
             return None
         return ver_record.get('url')
+
+    def make_tree(self, index_url, requirement):
+        try:
+            return self.add_child(index_url, requirement, False, None, self.tree)
+        except Exception as e:
+            logging.error(e)
+        return None
 
     def add_child(self, index_url, requirement, is_extra, package_extra, parent):
         if self.exit_flag:

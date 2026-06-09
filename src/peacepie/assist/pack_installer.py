@@ -50,10 +50,10 @@ class PackInstaller:
         return res
 
     def _install_package(self, key, val):
-        package_name = f'{key[0]}-{val.get("version")}'
         if key[1]:
             self._install(None, key, val)
             return
+        package_name = f'{key[0]}-{val.get("version")}'
         for attempt in range(self.parent.max_retries):
             if self.exit_flag:
                 logging.debug(f'Exit from attempting for {package_name}')
