@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from pathlib import Path
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
@@ -58,17 +59,47 @@ class PackageLoader:
         index_url = body.get('index_url') if body.get('index_url') else params.instance.get('index-url')
         requirement = Requirement(body.get('requires_dist'))
         requirement.name = canonicalize_name(requirement.name)
+        package_version = self.get_version(requirement)
+        if package_version:
+            body = {'package_version': package_version}
+            await self.parent.adaptor.send(msg_factory.get_msg('package_is_loaded', body, recipient), self)
+            return
         packs = await self.resolver.resolve_package(index_url, requirement)
         if packs is None:
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_not_loaded', None, recipient), self)
             return
         if await self.installer.install_packages(packs):
-            body = {'package_version': self.get_version()}
+            body = {'package_version': self.get_version_from_tree()}
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_loaded', body, recipient), self)
         else:
             await self.parent.adaptor.send(msg_factory.get_msg('package_is_not_loaded', None, recipient), self)
 
-    def get_version(self):
+    def get_version(self, requirement):
+        package_name = requirement.name.replace('-', '_')
+        entries = [p.name for p in Path(self.source_path).iterdir() if p.is_dir() and p.name.startswith(package_name)]
+        reference_book = {}
+        for entry in entries:
+            entry_name, entry_version = entry.split('-')
+            if reference_book.get(entry_version) is None:
+                reference_book[entry_version] = {entry_name}
+            else:
+                reference_book[entry_version].add(entry_name)
+        reference_book = dict(sorted(reference_book.items(), reverse=True))
+        for ver, names in reference_book.items():
+            if ver not in requirement.specifier:
+                continue
+            if package_name not in names:
+                continue
+            if requirement.extras is None:
+                return ver
+            for extra in requirement.extras:
+                if f'{package_name}[{extra}]' not in names:
+                    break
+            else:
+                return ver
+        return None
+
+    def get_version_from_tree(self):
         for child in self.resolver.tree.children:
             return str(child.data.get('package_version'))
         return None

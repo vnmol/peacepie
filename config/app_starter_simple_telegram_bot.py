@@ -20,7 +20,7 @@ class AppStarter:
     async def web_face(self):
         name = 'web_face'
         body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': name}
-        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 120)
+        await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 300)
         body = {'params': [{'name': 'http_port', 'value': 9090}]}
         await self.adaptor.ask(self.adaptor.get_msg('set_params', body, name))
         await self.adaptor.ask(self.adaptor.get_msg('start', None, name))

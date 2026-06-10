@@ -10,6 +10,7 @@ from packaging.requirements import Requirement
 from packaging.tags import sys_tags
 from packaging.utils import parse_wheel_filename, InvalidWheelFilename
 
+from peacepie import params
 from peacepie.assist.pack_tree import Node
 
 
@@ -122,6 +123,8 @@ class PackResolver:
         if self.exit_flag:
             return False
         versions = self.get_versions(index_url, requirement, package_extra)
+        if parent == self.tree and params.get_param('use_pypi_for_requiries'):
+            index_url = 'https://pypi.org'
         if not versions:
             return False
         node = None

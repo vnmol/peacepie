@@ -197,7 +197,7 @@ class RepoReader:
         parsed = urlparse(url)
         path_parts = parsed.path.split('/')
         file_name = path_parts[-1]
-        path_parts = path_parts[:-2]
+        path_parts = path_parts[1:2]
         path_segments = [p for p in path_parts if p]
         name_parts = []
         if parsed.scheme:
