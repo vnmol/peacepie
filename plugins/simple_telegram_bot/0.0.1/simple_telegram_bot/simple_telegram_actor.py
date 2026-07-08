@@ -35,6 +35,9 @@ class SimpleTelegramActor:
             self._telegram.cancel()
             await asyncio.wait_for(self._telegram, 2)
 
+    async def pre_run(self):
+        self.adaptor.start_timer(600)
+
     async def handle(self, msg):
         command = msg.get('command')
         body = msg.get('body') if msg.get('body') else {}
@@ -43,6 +46,8 @@ class SimpleTelegramActor:
             await self.set_params(body.get('params'), sender)
         elif command == 'start':
             await self.start(sender)
+        elif command == 'timer':
+            await self.adaptor.send(self.adaptor.get_msg('remove_actor', {'name': self.adaptor.name}))
         else:
             return False
         return True

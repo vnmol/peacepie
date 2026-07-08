@@ -16,34 +16,6 @@ script_common = '''
 '''
 
 
-script_websocket = '''
-    webSocket.onmessage = (event) => {
-        document.getElementById("answer").value = event.data;
-    };
-    function send(id) {
-      document.getElementById("answer").value = "";
-      var body_val = document.getElementById("body").value;
-      try {
-        body_val = JSON.parse(body_val);
-      } catch(e) {
-      }
-      var recipient_val = document.getElementById("recipient").value;
-      try {
-        recipient_val = JSON.parse(recipient_val);
-      } catch(e) {
-      }
-      msg = {
-        type: id,
-        command: document.getElementById("command").value,
-        body: body_val,
-        timeout: document.getElementById("timeout").value,
-        recipient: recipient_val,
-      };
-      webSocket.send(JSON.stringify(msg));
-    };
-'''
-
-
 script_command_begin = '''
     <br>
     <div class="input_container">

@@ -160,6 +160,7 @@ def nav(body):
     res += '</div>\n'
     return res
 
+
 def comm(body):
     recipient = body.get('members')[0].get('id')
     res = html_addons.script_command_begin
@@ -169,9 +170,114 @@ def comm(body):
 
 
 def script_command(domain):
-    res = 'const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";\n'
-    res += f'const domain = "{domain}";\n'
-    res += 'const route = "/actors/ws";\n'
-    res += 'webSocket = new WebSocket(protocol + domain + route);'
-    res += html_addons.script_websocket
+    res = '''
+    // Создаем индикатор с функцией переподключения
+    const indicator = document.createElement('div');
+    indicator.id = 'ws-indicator';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 100px;
+        left: 100px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #808080;
+        border: 2px solid #666;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 9999;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    `;
+    indicator.title = 'Click to reconnect';
+    document.body.appendChild(indicator);
+
+    function updateWSStatus(status) {
+        const colors = {
+            connecting: '#FFFF00',
+            connected: '#00FF00',
+            closing: '#00FFFF',
+            closed: '#0000FF',
+            error: '#FF0000',
+            timeout: '#FF00FF'
+        };
+        indicator.style.background = colors[status] || '#808080';
+        indicator.style.boxShadow = `0 0 15px ${colors[status] || '#808080'}80`;
+    }
+
+    function send(id) {
+      document.getElementById("answer").value = "";
+      var body_val = document.getElementById("body").value;
+      try {
+        body_val = JSON.parse(body_val);
+      } catch(e) {
+      }
+      var recipient_val = document.getElementById("recipient").value;
+      try {
+        recipient_val = JSON.parse(recipient_val);
+      } catch(e) {
+      }
+      msg = {
+        type: id,
+        command: document.getElementById("command").value,
+        body: body_val,
+        timeout: document.getElementById("timeout").value,
+        recipient: recipient_val,
+      };
+      webSocket.send(JSON.stringify(msg));
+    }
+
+    function connectWebSocket() {
+        updateWSStatus('connecting');
+
+        const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const domain = "''' + domain + '''";
+        const route = "/actors/ws";
+        const timeout = 4000;
+
+        webSocket = new WebSocket(protocol + domain + route);
+
+        // Таймер для обработки таймаута
+        let connectionTimeout = setTimeout(() => {
+            if (webSocket.readyState !== WebSocket.OPEN) {
+                console.warn('WebSocket connection timeout');
+                webSocket.close();
+                updateWSStatus('timeout');
+            }
+        }, timeout);
+
+        webSocket.onopen = function() {
+            clearTimeout(connectionTimeout);
+            updateWSStatus('connected');
+            indicator.title = 'WebSocket Connected';
+        };
+
+        webSocket.onclose = function() {
+            clearTimeout(connectionTimeout);
+            updateWSStatus('closed');
+            indicator.title = 'Click to reconnect';
+        };
+
+        webSocket.onerror = function(error) {
+            clearTimeout(connectionTimeout);
+            updateWSStatus('error');
+            console.error('WebSocket error:', error);
+        };
+
+        webSocket.onmessage = (event) => {
+            document.getElementById("answer").value = event.data;
+        };
+    }
+
+    // Переподключение по клику
+    indicator.onclick = function() {
+        if (webSocket.readyState === WebSocket.OPEN) {
+            webSocket.close();
+        } else if (webSocket.readyState === WebSocket.CLOSED || 
+                   webSocket.readyState === WebSocket.CLOSING) {
+            connectWebSocket();
+        }
+    };
+
+    connectWebSocket();
+    '''
     return res
