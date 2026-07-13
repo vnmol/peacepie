@@ -37,6 +37,8 @@ class ActorRecreator:
     async def recreate_actor(self, msg):
         body = msg.get('body') if msg.get('body') else {}
         node = body.get('node')
+        if node is None:
+            node = self.grandparent.adaptor.get_node()
         old_entity = body.get('entity')
         recipient = msg.get('sender')
         timeout = msg.get('timeout') if msg.get('timeout') else 120
