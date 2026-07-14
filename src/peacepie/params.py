@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import socket
+from importlib import resources
 from pathlib import Path
 
 from peacepie.assist import dir_opers, log_util, version
@@ -48,6 +49,7 @@ def init_params(path, test_params):
             res[name] = value
     res['source_path'] = f'{res.get("package_dir")}/source'
     res['ip'] = get_ip()
+    res['domain'] = os.environ.get('DOMAIN', 'localhost')
     ver = version.version_from_string(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
     ver[version.MINOR_LEVEL] = 12
     res['python_version'] = ver
@@ -74,6 +76,7 @@ def get_ip():
     return res
 
 
+'''
 def deploy_environment():
     if is_testing():
         return None
@@ -82,6 +85,7 @@ def deploy_environment():
     dir_opers.rem_dir(dst)
     dir_opers.copy_dir(src, dst)
     return dst + 'peacepie.cfg'
+'''
 
 
 def get_version():
@@ -123,3 +127,30 @@ def get_param(name, default=None):
     if res is None:
         res = default
     return res
+
+
+def create_params():
+    try:
+        return _create_params()
+    except Exception as e:
+        print(e)
+
+def _create_params():
+    source_folder = resources.files('peacepie.resources.config')
+    if not source_folder.is_dir():
+        return None
+    dest_folder = Path.cwd() / 'config'
+    dest_folder.mkdir(parents=True, exist_ok=True)
+
+    def copy_recursive(src, dest):
+        for item in src.iterdir():
+            if item.is_file():
+                dest_path = dest / item.name
+                dest_path.write_bytes(item.read_bytes())
+            elif item.is_dir():
+                new_dest = dest / item.name
+                new_dest.mkdir(parents=True, exist_ok=True)
+                copy_recursive(item, new_dest)
+
+    copy_recursive(source_folder, dest_folder)
+    return str(dest_folder / 'peacepie.cfg')

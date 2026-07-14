@@ -11,11 +11,14 @@ class PeaceSystem:
 
     def __init__(self, path, test_params=None):
         # json_util.init(json_package)
+        if path is None:
+            path = params.create_params()
         params.init_params(path, test_params)
         log_conf.logger_start(params.instance.get('log_config'))
         logging.info(f'System-Version: {platform.system()} {platform.version()}')
         logging.info(f'Python-Version: {version.version_to_string(version.get_python_version())}')
         logging.info(f'Peacepie-Version: {params.instance.get("peacepie_version")}')
+        logging.info(f'Domain: {params.instance.get("domain")}')
         json_util.init()
         self.is_head = params.instance.get('intra_role') == 'master'
         self.host_name = params.instance.get('host_name')

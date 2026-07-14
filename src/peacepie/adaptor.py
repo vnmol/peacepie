@@ -220,6 +220,9 @@ class Adaptor:
 
     async def quit(self, msg):
         if isinstance(self.performer, HeadPrimeAdmin):
+            if params.instance.get('domain') == 'peacepieweb-production.up.railway.app':
+                logging.warning('The "quit" command is not allowed for the domain "peacepieweb-production.up.railway.app".')
+                return
             if msg.get('sender'):
                 await self.send(self.get_msg('is_quiting', None, msg.get('sender')))
             await asyncio.sleep(0.4)
