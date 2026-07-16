@@ -36,7 +36,8 @@ class SimpleTelegramActor:
             await asyncio.wait_for(self._telegram, 2)
 
     async def pre_run(self):
-        self.adaptor.start_timer(600)
+        if self.adaptor.get_param('is_restricted_host'):
+            self.adaptor.start_timer(600)
 
     async def handle(self, msg):
         command = msg.get('command')

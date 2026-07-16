@@ -18,7 +18,6 @@ class PeaceSystem:
         logging.info(f'System-Version: {platform.system()} {platform.version()}')
         logging.info(f'Python-Version: {version.version_to_string(version.get_python_version())}')
         logging.info(f'Peacepie-Version: {params.instance.get("peacepie_version")}')
-        logging.info(f'Domain: {params.instance.get("domain")}')
         json_util.init()
         self.is_head = params.instance.get('intra_role') == 'master'
         self.host_name = params.instance.get('host_name')

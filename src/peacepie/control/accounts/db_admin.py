@@ -33,6 +33,8 @@ class DbAdmin:
         if self.db_path.is_file():
             return
         credentials = await self.parent.adaptor.get_credentials('account_admin')
+        if not credentials:
+            credentials = {'username': 'admin', 'password': 'admin'}
         hp = password_hasher.PasswordHasher.hash_password(credentials.get('password'))
         admin = '\nINSERT INTO users (name, builtin, pass_hash, salt, iterations, algorithm) VALUES '
         admin += f'("{credentials.get("username")}", True, '

@@ -13,7 +13,7 @@ class AppStarter:
         return True
 
     async def start(self):
-        name = 'dashbord'
+        name = 'dashboard'
         body = {'class_desc': {'requires_dist': 'simple_web_face', 'class': 'SimpleWebFace'}, 'name': name}
         await self.adaptor.ask(self.adaptor.get_msg('create_actor', body), 600)
         body = {'params': [{'name': 'port', 'value': 8000}]}

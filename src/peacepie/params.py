@@ -49,7 +49,6 @@ def init_params(path, test_params):
             res[name] = value
     res['source_path'] = f'{res.get("package_dir")}/source'
     res['ip'] = get_ip()
-    res['domain'] = os.environ.get('DOMAIN', 'localhost')
     ver = version.version_from_string(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
     ver[version.MINOR_LEVEL] = 12
     res['python_version'] = ver
