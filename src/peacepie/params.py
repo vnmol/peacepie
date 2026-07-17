@@ -1,7 +1,5 @@
-import asyncio
 import logging
 import multiprocessing
-import os
 import re
 import sys
 import socket
@@ -134,6 +132,7 @@ def create_params():
     except Exception as e:
         print(e)
 
+
 def _create_params():
     source_folder = resources.files('peacepie.resources.config')
     if not source_folder.is_dir():
@@ -143,13 +142,14 @@ def _create_params():
 
     def copy_recursive(src, dest):
         for item in src.iterdir():
+            dest_path = dest / item.name
             if item.is_file():
-                dest_path = dest / item.name
-                dest_path.write_bytes(item.read_bytes())
+                if not dest_path.exists():
+                    dest_path.write_bytes(item.read_bytes())
             elif item.is_dir():
-                new_dest = dest / item.name
-                new_dest.mkdir(parents=True, exist_ok=True)
-                copy_recursive(item, new_dest)
+                if not dest_path.exists():
+                    dest_path.mkdir(parents=True, exist_ok=True)
+                copy_recursive(item, dest_path)
 
     copy_recursive(source_folder, dest_folder)
     return str(dest_folder / 'peacepie.cfg')
